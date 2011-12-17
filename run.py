@@ -8,6 +8,7 @@ import sys
 from pprint import pprint
 import urllib
 import urllib2
+from StringIO import StringIO
 
 import socket
 
@@ -39,7 +40,7 @@ class Tor2webHandlerUL(tornado.web.RequestHandler):
         
         if t2w.result.error:
             pass
-        
+                
         if self.request.body and len(self.request.body) > 0:
             body = urllib.urlencode(self.request.body)
         else:
@@ -59,8 +60,20 @@ class Tor2webHandlerUL(tornado.web.RequestHandler):
 
         try:
             response = opener.open(req)
+        except:
+            print "ERROR: failed to satisfy request"
+        
+        try:
             header_array = response.info().headers
             headers = {}
+        except:
+            print "Error reading headers"
+        
+            self.set_status("200")
+        
+        try:
+            if config.debug:
+                print "Going Through the response headers..."
             for h in header_array:
                 name = h.split(":")[0]
                 value = ':'.join(h.split(":")[1:]).strip()
@@ -68,20 +81,25 @@ class Tor2webHandlerUL(tornado.web.RequestHandler):
                 # Ignore the Connection header
                 if name != "Connection":
                     self.set_header(name, value)
-            
+            pprint(headers)
+        except:
+            print "Error in going through headers..."
+        
+        try: 
             content = response.read()
         except:
-            pass
+            print "ERROR: failed to process request"
         
         try:
             if content:
                 ret = t2w.process_html(content)
-                self.write(str(ret))
-                self.flush()
+                self.write(ret)
+                self.finish()
+                
         except:
             if content:
                 self.write(content)
-                self.flush()
+                self.finish()
     
     def get(self, *a, **b):
         self.all()
