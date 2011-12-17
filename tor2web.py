@@ -5,6 +5,7 @@
 
 import os
 import sys
+import hashlib
 from mimetypes import guess_type
 from pprint import pprint
 from urlparse import urlparse
@@ -50,6 +51,8 @@ class Tor2web(object):
         # SOCKS proxy
         self.sockshost = config.sockshost
         self.socksport = config.socksport
+        
+        self.result = Storage()
 
     def lookup_petname(self, address):
         """ Do a lookup in the local database
@@ -74,6 +77,9 @@ class Tor2web(object):
             self.hostname = self.lookup_petname(req.host.split(".")[0])
             if self.debug:
                 print "DETECTED <onion_url>.tor2web Hostname: %s" % self.hostname
+        
+        if hashlib.md5(self.hostname) in self.blocklist:
+            return False
 
             
     def get_uri(self, req):
@@ -105,7 +111,8 @@ class Tor2web(object):
         self.headers['Host'] = self.hostname
         if self.debug:
             print "Headers:"
-            pprint(self.headers) 
+            pprint(self.headers)
+        return self.result
 
     def fix_links(self, data):
         """ Fix all possible links to properly resolve to the
