@@ -27,88 +27,6 @@ from tornado.httpclient import AsyncHTTPClient
 
 t2w = Tor2web(config)
 
-
-# Disable two superflous classes, that I am too displeased of deleting
-if 0:
-    class Tor2webHandlerAsync(tornado.web.RequestHandler):
-        def handle_response(self, response):
-            for header in ("Date", "Cache-Control", "Server", "Content-Type", "Location"): 
-                v = response.headers.get(header) 
-                if v: 
-                    self.set_header(header, v) 
-    
-            try:
-                ret = t2w.process_html(response.body)
-                self.write(ret)
-                
-            except:
-                if response.body:
-                    self.write(response.body)
-                
-            self.finish()
-        @tornado.web.asynchronous
-        def all(self):
-            t2w.process_request(self.request)
-            
-            req = tornado.httpclient.HTTPRequest( 
-                        url=t2w.address, 
-                        method=self.request.method, 
-                        headers=self.request.headers,
-                        follow_redirects=True)
-            
-            AsyncHTTPClient().fetch(req, 
-                    self.handle_response) 
-    
-        
-        def get(self, *a, **b):
-            self.all()
-    
-        def post(self, *a, **b):
-            self.all()
-
-    class Tor2webHandlerHTTPLib2(tornado.web.RequestHandler):
-        def all(self):
-            t2w.process_request(self.request)
-            
-            httpclient = httplib2.Http(
-                            proxy_info = httplib2.ProxyInfo(
-                                        socks.PROXY_TYPE_SOCKS5, 
-                                        config.sockshost, int(config.socksport),
-                                        proxy_rdns=True
-                                        ))
-            httpclient.force_exception_to_status_code = True
-            
-            print "BODY: %s" % self.request.body
-            
-            if self.request.body and len(self.request.body) > 0:
-                body = urllib.urlencode(self.request.body)
-            else:
-                body = ""
-    
-            print "BODY HERE: %s" % body
-            response, content = httpclient.request(t2w.address, 
-                                method=self.request.method, 
-                                headers=self.request.headers,
-                                body=body)
-            print response
-            for header in ("date", "cache-control", "server", "content-type", "location"):
-                v = response.get(header)
-                if v: 
-                    self.set_header(header, v)
-            try:
-                ret = t2w.process_html(content)
-                self.write(ret)
-            except:
-                self.write(content)
-            self.finish()
-        
-        def get(self, *a, **b):
-            self.all()
-    
-        def post(self, *a, **b):
-            self.all()
-
-
 class Tor2webHandlerUL(tornado.web.RequestHandler):
     def all(self):
         """Handle all requests coming from the client.
@@ -119,7 +37,7 @@ class Tor2webHandlerUL(tornado.web.RequestHandler):
         result = t2w.process_request(self.request)
         
         if t2w.result.error:
-            
+            pass
         
         if self.request.body and len(self.request.body) > 0:
             body = urllib.urlencode(self.request.body)
