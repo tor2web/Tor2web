@@ -1,5 +1,6 @@
 import httplib
 import urllib2
+import socks
 
 class Storage(dict):
     """
@@ -46,7 +47,8 @@ class Storage(dict):
             self[k] = v
 
 class SocksiPyConnection(httplib.HTTPConnection):
-    def __init__(self, proxytype, proxyaddr, proxyport = None, rdns = True, username = None, password = None, *args, **kwargs):
+    def __init__(self, proxytype, proxyaddr, proxyport = None, 
+                 rdns = True, username = None, password = None, *args, **kwargs):
         self.proxyargs = (proxytype, proxyaddr, proxyport, rdns, username, password)
         httplib.HTTPConnection.__init__(self, *args, **kwargs)
 
@@ -65,7 +67,9 @@ class SocksiPyHandler(urllib2.HTTPHandler):
 
     def http_open(self, req):
         def build(host, port=None, strict=None, timeout=0):    
-            conn = SocksiPyConnection(*self.args, host=host, port=port, strict=strict, timeout=timeout, **self.kw)
+            conn = SocksiPyConnection(*self.args, host=host, 
+                                      port=port, strict=strict, 
+                                      timeout=timeout, **self.kw)
             return conn
         return self.do_open(build, req)
 
