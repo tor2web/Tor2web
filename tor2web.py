@@ -244,7 +244,10 @@ class Config(Storage):
         """
         Commit changes in config file.
         """
-        with open(self._cfgfile, 'w') as cfgfile:
+        cfgfile = open(self._cfgfile, 'w')
+        try:
             self._cfgparser.write(cfgfile)
+        finally:
+            cfgfile.close()
     
 
