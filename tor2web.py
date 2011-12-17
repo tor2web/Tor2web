@@ -49,6 +49,9 @@ class Tor2web(object):
         # DEBUG MODE
         self.debug = True
 
+        # Blocklist
+        self.blocklist = []
+
         # SOCKS proxy
         self.sockshost = config.sockshost
         self.socksport = config.socksport
