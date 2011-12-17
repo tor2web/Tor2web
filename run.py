@@ -79,7 +79,8 @@ class Tor2webHandlerUL(tornado.web.RequestHandler):
                 value = ':'.join(h.split(":")[1:]).strip()
                 headers[name] = value
                 # Ignore the Connection header
-                if name != "Connection":
+                if name != "Connection" and \
+                    name != "Transfer-Encoding" and name != "Vary":
                     self.set_header(name, value)
             pprint(headers)
         except:
