@@ -99,6 +99,8 @@ if __name__ == "__main__":
         sslopt = {'certfile': config.sslcertfile,
                   'keyfile': config.sslkeyfile
                   }
+    else:
+        sslopt = None
         
     http_server = tornado.httpserver.HTTPServer(application,
                                                 ssl_options=sslopt)
