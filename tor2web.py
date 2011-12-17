@@ -8,6 +8,9 @@ import sys
 from mimetypes import guess_type
 from pprint import pprint
 from urlparse import urlparse
+
+import ConfigParser
+
 from BeautifulSoup import BeautifulSoup
 # import gevent
 # from gevent import monkey
@@ -16,14 +19,14 @@ import tornado.ioloop
 import tornado.web
 from tornado import httpclient
 
+from utils import Storage
+
 http_client = httpclient.HTTPClient()
 
 class Tor2web(object):
-    def __init__(self):
+    def __init__(self, config):
         
-        # This is the base hostname for
-        # the current tor2web node
-        self.basehost = "tor2web.org:8888"
+        self.basehost = config.basehost
         
         # This is set if we are contacting
         # tor2web from x.tor2web.org
@@ -45,7 +48,8 @@ class Tor2web(object):
         self.debug = True
 
         # SOCKS proxy
-        self.socks = False
+        self.sockshost = config.sockshost
+        self.socksport = config.socksport
 
     def lookup_petname(self, address):
         """ Do a lookup in the local database
@@ -161,9 +165,15 @@ class Tor2web(object):
             
         if self.debug:
             print "processing href attributes"
+            
         for el in data.findAll(['a','link']):
             try:
                 el['href'] = self.fix_links(el['href'])
+            except:
+                pass
+        for el in data.findAll('form'):
+            try:
+                el['action'] = self.fix_links(el['action'])
             except:
                 pass
         if self.debug:
@@ -181,24 +191,52 @@ class Tor2web(object):
         ret = str(head) + str(body)
         return ret
     
-    def handle(self, request):      
-        self.process_request(request)
-        
+class Config(Storage):
+    """
+    A Storage-like class which loads and store each attribute into a portable
+    conf file.
+    """
+    def __init__(self, section, cfgfile="tor2web.conf"):
+        super(Config, self).__init__()
+
+        self._cfgfile = cfgfile
+        # setting up confgiparser
+        self._cfgparser = ConfigParser.ConfigParser()
+        self._cfgparser.read([self._cfgfile])
+        self._section = section
+
+    def __getattr__(self, name):
+        if name.startswith('_'):
+            return self.__dict__.get(name, None)
+
         try:
-            req = httpclient.HTTPRequest(self.address, 
-                                         method=request.method,
-                                         headers=self.headers,
-                                         )
-            
-            response = http_client.fetch(req)
-            try:
-                ret = self.process_html(response.body)
-                return ret
-            except:
-                print "%s NOT A HTML FILE" % request.uri
-                return response.body
-            
-        except httpclient.HTTPError, e:
-            print "Error:", e
-            return "0"
+            value = self._cfgparser.get(self._section, name)
+            if value.isdigit():
+                return int(value)
+            elif value.lower() in ('true', 'false'):
+                return value.lower() == 'true'
+            else:
+                return value
+        except ConfigParser.NoOptionError:
+            return ''  # if option doesn't exists return an empty string
+
+    def __setattr__(self, name, value):
+        # keep an open port with private attributes
+        if name.startswith('_'):
+            self.__dict__[name] = value
+            return
+
+        try:
+            # XXX: Automagically discover variable type
+            self._cfgparser.set(self._section, name, value)
+        except ConfigParser.NoOptionError:
+            raise NameError(name)
+
+    def commit(self):
+        """
+        Commit changes in config file.
+        """
+        with open(self._cfgfile, 'w') as cfgfile:
+            self._cfgparser.write(cfgfile)
+    
 
