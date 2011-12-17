@@ -1,3 +1,6 @@
+import httplib
+import urllib2
+
 class Storage(dict):
     """
     A Storage object is like a dictionary except `obj.foo` can be used

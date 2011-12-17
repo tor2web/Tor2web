@@ -12,6 +12,8 @@ import urllib2
 import socket
 
 import tornado.httpclient
+import tornado.httpserver
+
 import tornado.ioloop
 import tornado.web
 
@@ -21,7 +23,6 @@ from tor2web import Tor2web, Config
 from utils import SocksiPyConnection, SocksiPyHandler
 
 config = Config("main")
-
 
 from tornado.httpclient import AsyncHTTPClient
 
@@ -93,7 +94,16 @@ if __name__ == "__main__":
     application = tornado.web.Application([
         (r"/(.*)", Tor2webHandlerUL),
     ])
-    application.listen(8888)
+    
+    if config.sslcertfile and config.sslkeyfile:
+        sslopt = {'certfile': config.sslcertfile,
+                  'keyfile': config.sslkeyfile
+                  }
+        
+    http_server = tornado.httpserver.HTTPServer(application,
+                                                ssl_options=sslopt)
+    
+    http_server.listen(int(config.listen_port))
     tornado.ioloop.IOLoop.instance().start()
     
     
