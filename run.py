@@ -15,6 +15,9 @@ from StringIO import StringIO
 
 import socket
 
+
+import ssl
+
 import tornado.httpclient
 import tornado.httpserver
 
@@ -127,8 +130,39 @@ if __name__ == "__main__":
         (r"/"+config.staticmap+"/(.*)", tornado.web.StaticFileHandler, {"path": config.staticpath}),
         (r"/.*", Tor2webHandlerUL)
     ])
+
+    # SSL PYTHON BUGS
+    # - 1 NO EASY WAY TO DISABLE SSLv2
+    # - 2 NO WAY TO ENABLE DHE (PERFECT FORWARD SECRECY)
     
-    http_server = tornado.httpserver.HTTPServer(application)
+    # BUG  1 NO EASY WAY TO DISABLE SSLv2
+    # http://bugs.python.org/issue4870
+    # http://www.velocityreviews.com/forums/t651673-re-ssl-module-how-can-i-accept-sslv3-and-tlsv1-protocols-only.html
+    # WORKAROUND: WE Leave SSLv2 enabled as a protocol, but disable SSLv2 in the Cipher selection
+    # Note: SSLv3 is required due to safari, only TLSv1 doesn't work on all browsers
+    #
+    #
+    # BUG  2 NO WAY TO ENABLE DHE (PERFECT FORWARD SECRECY)
+    # WORKAROUND: NOT FONUD
+    # Test with openssl s_client -connect 88.198.109.35:8888  -cipher 'DHE-RSA-AES256-SHA'
+    if config.sslcertfile and config.sslkeyfile:
+        sslopt = {
+         'certfile': config.sslcertfile,
+         'keyfile': config.sslkeyfile,
+         'ca_certs': config.sslcacert,
+         # FUTURE (Python 3) setup to fully disable SSLv2
+         #        'ssl_version':ssl.PROTOCOL_SSLv23,
+         #        'ssl_options':ssl.OP_NO_SSLv2,
+         # CURRENT CIPHERLIST
+         'ciphers': 'HIGH:!aNULL:!SSLv2:!MD5:@STRENGTH'
+        # FUTURE (When Python support SSL DH)
+        #        'ciphers': 'DHE-RSA-AES256-SHA:AES256-SHA:!CBC:!RC4:!RC2:!ADH:!aNULL:!EDH:!eNULL:!LOW:!SSLv2:!EXP:!NULL'    http_server = tornado.httpserver.HTTPServer(application)
+        }
+    else:
+        sslopt = None
+    
+    http_server = tornado.httpserver.HTTPServer(application,
+                                                ssl_options=sslopt)
     
     http_server.listen(int(config.listen_port))
     print "Starting on %s" % (config.basehost)
