@@ -51,7 +51,7 @@ class Tor2web(object):
         self.debug = True
 
         # Blocklist
-        self.blocklist = []
+        self.blocklist = self.parse_blocklist(config.blocklist)
 
         # Banner file
         self.bannerfile = config.bannerfile
@@ -63,6 +63,13 @@ class Tor2web(object):
         self.result = Storage()
         
         self.error = {}
+
+    def parse_blocklist(self, filename):
+        fh = open(filename, "r")
+        blocklist = []
+        for l in fh.readlines():
+            blocklist.append(l)
+        return blocklist
 
     def petname_lookup(self, address):
         """ Do a lookup in the local database
