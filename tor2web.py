@@ -129,7 +129,8 @@ class Tor2web(object):
         return uri
     
     def get_address(self, req):
-        address = req.protocol + "://"
+        # When connecting to HS use only HTTP
+        address = "http://"
         # Resolve the hostname
         if not self.resolve_hostname(req):
             return False
