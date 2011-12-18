@@ -70,15 +70,18 @@ class Tor2webHandlerUL(tornado.web.RequestHandler):
 
         try:
             response = opener.open(req)
-        except:
-            print "ERROR: failed to satisfy request"
+            
+        except urllib2.HTTPError, e:
+            self.set_status(e.code)
+            self.write(e.read())
+            self.finish()
+            return False
         
         try:
             header_array = response.info().headers
             headers = {}
         except:
             print "Error reading headers"
-            self.set_status(200)
         
         try:
             if config.debug:
@@ -102,8 +105,10 @@ class Tor2webHandlerUL(tornado.web.RequestHandler):
         
         try: 
             content = response.read()
+            
         except:
             print "ERROR: failed to process request"
+            
         
         try:
             if content:

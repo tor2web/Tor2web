@@ -97,10 +97,9 @@ class Tor2web(object):
         # Detect x.tor2web.org use mode
         if req.host.split(".")[0] == "x":
             self.xdns = True
-            self.hostname = self.petname_lookup(req.uri.split("/")[1])
+            self.hostname = self.petname_lookup(req.uri.split("/")[1]) 
             if self.debug:
                 print "DETECTED x.tor2web Hostname: %s" % self.hostname
-        
         else:
             self.xdns = False
             self.hostname = self.petname_lookup(req.host.split(".")[0]) + ".onion"
@@ -111,7 +110,12 @@ class Tor2web(object):
             self.error = {'message': 'Site Blocked','code': 503}
             return False
         
-        if self.verify_onion(self.hostname):
+        try:
+            verified = self.verify_onion(self.hostname)
+        except:
+            return False
+        
+        if verified:
             print "Verified!"
             return True
         else:
