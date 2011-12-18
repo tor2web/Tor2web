@@ -6,6 +6,7 @@
 import os
 import sys
 import hashlib
+import base64
 
 from mimetypes import guess_type
 from pprint import pprint
@@ -52,18 +53,34 @@ class Tor2web(object):
         # Blocklist
         self.blocklist = []
 
+        # Banner file
+        self.bannerfile = config.bannerfile
+
         # SOCKS proxy
         self.sockshost = config.sockshost
         self.socksport = config.socksport
         
         self.result = Storage()
+        
+        self.error = {}
 
-    def lookup_petname(self, address):
+    def petname_lookup(self, address):
         """ Do a lookup in the local database
         for an entry in the petname db
         """
-        # Currently just dummy
         return address
+
+    def verify_onion(self, address):
+        """Check to see if the address
+        is a .onion"""
+        onion, tld = address.split(".")
+        print "onion: %s tld: %s" % (onion, tld)
+        if tld == "onion" and \
+            len(onion) == 16 and \
+            onion.isalnum():
+            return address
+        else:
+            return False
 
     def resolve_hostname(self, req):
         """ Resolve the supplied request to a hostname.
@@ -73,18 +90,26 @@ class Tor2web(object):
         # Detect x.tor2web.org use mode
         if[req.host.split(".")[0] == "x"]:
             self.xdns = True
-            self.hostname = self.lookup_petname(req.uri.split("/")[1])
+            self.hostname = self.petname_lookup(req.uri.split("/")[1])
             if self.debug:
                 print "DETECTED x.tor2web Hostname: %s" % self.hostname
+        
         else:
             self.xdns = False
-            self.hostname = self.lookup_petname(req.host.split(".")[0])
+            self.hostname = self.petname_lookup(req.host.split(".")[0])
             if self.debug:
                 print "DETECTED <onion_url>.tor2web Hostname: %s" % self.hostname
-        
+                
         if hashlib.md5(self.hostname) in self.blocklist:
+            self.error = {'message': 'Site Blocked','code': 503}
             return False
-
+        
+        if self.verify_onion(self.hostname):
+            print "Verified!"
+            return True
+        else:
+            self.error = {'message': 'invalid hostname', 'code': 406}
+            return False
             
     def get_uri(self, req):
         if self.xdns:
@@ -99,7 +124,8 @@ class Tor2web(object):
     def get_address(self, req):
         address = req.protocol + "://"
         # Resolve the hostname
-        self.resolve_hostname(req)
+        if not self.resolve_hostname(req):
+            return False
         # Clean up the uri
         uri = self.get_uri(req)
         
@@ -111,6 +137,8 @@ class Tor2web(object):
 
     def process_request(self, req):
         self.address = self.get_address(req)
+        if not self.address:
+            return False
         self.headers = req.headers
         self.headers['Host'] = self.hostname
         if self.debug:
@@ -189,16 +217,26 @@ class Tor2web(object):
                 pass
         if self.debug:
             print "Finished processing links..."
-        return str(data)
+        return data
 
     def process_html(self, content):
-        soup = BeautifulSoup(content)
+        soup = BeautifulSoup(content)        
         if self.debug:
             print "Now processing head..."
-        head = self.process_links(soup.html.head)
+        try:
+            head = self.process_links(soup.html.head)
+        except:
+            print "ERROR: in processing HEAD HTML"
+            
         if self.debug:
             print "Now processing body..."
-        body = self.process_links(soup.html.body)
+        try:
+            body = self.process_links(soup.html.body)
+        except:
+            print "ERROR: in processing BODY HTML"
+            
+        banner = open(self.bannerfile, "r").read()
+        body.insert(0, banner)
         ret = str(head) + str(body)
         return ret
     

@@ -8,6 +8,9 @@ import sys
 from pprint import pprint
 import urllib
 import urllib2
+import ssl
+import gzip
+
 from StringIO import StringIO
 
 import socket
@@ -25,8 +28,6 @@ from utils import SocksiPyConnection, SocksiPyHandler
 
 config = Config("main")
 
-from tornado.httpclient import AsyncHTTPClient
-
 t2w = Tor2web(config)
 
 class Tor2webHandlerUL(tornado.web.RequestHandler):
@@ -35,11 +36,17 @@ class Tor2webHandlerUL(tornado.web.RequestHandler):
         XXX This needs a serious cleanup, but it is the result
         of one day going mad over a bug...
         """
+        print "Handling a request..."
         content = None
+        t2w.error = {}
+        
         result = t2w.process_request(self.request)
         
-        if t2w.result.error:
-            pass
+        if t2w.error:
+            self.set_status(t2w.error['code'])
+            self.write(t2w.error['message'])
+            self.finish()
+            return False
                 
         if self.request.body and len(self.request.body) > 0:
             body = urllib.urlencode(self.request.body)
@@ -68,8 +75,7 @@ class Tor2webHandlerUL(tornado.web.RequestHandler):
             headers = {}
         except:
             print "Error reading headers"
-        
-            self.set_status("200")
+            self.set_status(200)
         
         try:
             if config.debug:
@@ -79,9 +85,14 @@ class Tor2webHandlerUL(tornado.web.RequestHandler):
                 value = ':'.join(h.split(":")[1:]).strip()
                 headers[name] = value
                 # Ignore the Connection header
-                if name != "Connection" and \
-                    name != "Transfer-Encoding" and name != "Vary":
+                disabled_headers = ['Content-Encoding',
+                                    'Connection',
+                                    'Vary',
+                                    'Transfer-Encoding']
+                
+                if name not in disabled_headers:
                     self.set_header(name, value)
+                    
             pprint(headers)
         except:
             print "Error in going through headers..."
@@ -93,10 +104,12 @@ class Tor2webHandlerUL(tornado.web.RequestHandler):
         
         try:
             if content:
+                if headers.get("Content-Encoding") == "gzip":
+                    c_f = StringIO(content)
+                    content = gzip.GzipFile(fileobj=c_f).read()
                 ret = t2w.process_html(content)
                 self.write(ret)
                 self.finish()
-                
         except:
             if content:
                 self.write(content)
@@ -111,20 +124,14 @@ class Tor2webHandlerUL(tornado.web.RequestHandler):
 
 if __name__ == "__main__":
     application = tornado.web.Application([
-        (r"/(.*)", Tor2webHandlerUL),
+        (r"/"+config.staticmap+"/(.*)", tornado.web.StaticFileHandler, {"path": config.staticpath}),
+        (r"/.*", Tor2webHandlerUL)
     ])
     
-    if config.sslcertfile and config.sslkeyfile:
-        sslopt = {'certfile': config.sslcertfile,
-                  'keyfile': config.sslkeyfile
-                  }
-    else:
-        sslopt = None
-        
-    http_server = tornado.httpserver.HTTPServer(application,
-                                                ssl_options=sslopt)
+    http_server = tornado.httpserver.HTTPServer(application)
     
     http_server.listen(int(config.listen_port))
+    print "Starting on %s" % (config.basehost)
     tornado.ioloop.IOLoop.instance().start()
     
     
