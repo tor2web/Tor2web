@@ -95,7 +95,7 @@ class Tor2web(object):
         or in the x.<tor2web_domain>.<tld>/<onion_url>.onion/ format.
         """
         # Detect x.tor2web.org use mode
-        if[req.host.split(".")[0] == "x"]:
+        if req.host.split(".")[0] == "x":
             self.xdns = True
             self.hostname = self.petname_lookup(req.uri.split("/")[1])
             if self.debug:
@@ -103,7 +103,7 @@ class Tor2web(object):
         
         else:
             self.xdns = False
-            self.hostname = self.petname_lookup(req.host.split(".")[0])
+            self.hostname = self.petname_lookup(req.host.split(".")[0]) + ".onion"
             if self.debug:
                 print "DETECTED <onion_url>.tor2web Hostname: %s" % self.hostname
                 
