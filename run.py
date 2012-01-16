@@ -132,18 +132,21 @@ class Tor2webHandlerUL(tornado.web.RequestHandler):
 
 if __name__ == "__main__":
     application = tornado.web.Application([
-        (r"/"+config.staticmap+"/(.*)", tornado.web.StaticFileHandler, {"path": config.staticpath}),
+        (r"/"+config.staticmap+"/(.*)", tornado.web.StaticFileHandler, \
+                    {"path": config.staticpath}),
         (r"/.*", Tor2webHandlerUL)
     ])
 
     # SSL PYTHON BUGS
-    # - 1 NO EASY WAY TO DISABLE SSLv2
+    # - 1 NO EASY WAY TO DISABLE SSLv2 
     # - 2 NO WAY TO ENABLE DHE (PERFECT FORWARD SECRECY)
     
     # BUG  1 NO EASY WAY TO DISABLE SSLv2
     # http://bugs.python.org/issue4870
-    # http://www.velocityreviews.com/forums/t651673-re-ssl-module-how-can-i-accept-sslv3-and-tlsv1-protocols-only.html
-    # WORKAROUND: WE Leave SSLv2 enabled as a protocol, but disable SSLv2 in the Cipher selection
+    # http://www.velocityreviews.com/forums/t651673-re-ssl-module-
+    #        how-can-i-accept-sslv3-and-tlsv1-protocols-only.html
+    # WORKAROUND: WE Leave SSLv2 enabled as a protocol, but disable SSLv2 in the
+    #             Cipher selection
     # Note: SSLv3 is required due to safari, only TLSv1 doesn't work on all browsers
     #
     #
@@ -161,7 +164,8 @@ if __name__ == "__main__":
          # CURRENT CIPHERLIST
          'ciphers': 'HIGH:!aNULL:!SSLv2:!MD5:@STRENGTH'
         # FUTURE (When Python support SSL DH)
-        #        'ciphers': 'DHE-RSA-AES256-SHA:AES256-SHA:!CBC:!RC4:!RC2:!ADH:!aNULL:!EDH:!eNULL:!LOW:!SSLv2:!EXP:!NULL'    http_server = tornado.httpserver.HTTPServer(application)
+        #        'ciphers': 'DHE-RSA-AES256-SHA:AES256-SHA:\
+        #           !CBC:!RC4:!RC2:!ADH:!aNULL:!EDH:!eNULL:!LOW:!SSLv2:!EXP:!NULL'
         }
     else:
         sslopt = None
