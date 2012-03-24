@@ -25,7 +25,7 @@ from urlparse import urlparse
 import ConfigParser
 
 try:
-    from BeautifulSoup import BeautifulSoup
+    from bs4 import BeautifulSoup
 except:
     print "Error! Unable to import BeautifulSoup: BeautifulSoup not installed!"
 
@@ -321,8 +321,9 @@ class Tor2web(object):
         try:
             banner = open(self.bannerfile, "r").read()
             #print banner
-            body.insert(0, banner)
-            ret = str(head) + str(body)
+            banner_soup = BeautifulSoup(banner)
+            body.insert(0, banner_soup)
+            ret = head.prettify(formatter=None) + body.prettify(formatter=None)
             #print "RET: %s" % ret
         except:
             print "ERROR: in inserting banner!"
