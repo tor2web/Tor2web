@@ -6,6 +6,7 @@
         margin: 0;
         padding: 0;
         border: 0;
+        font-size: 15px;
     }
 </style>
 <script type="text/javascript">
@@ -16,7 +17,6 @@
 <script type="text/javascript">
 function disable_tor2webbanner() {
     document.getElementById("top_disclaimerbar_tor2web").style.visibility="hidden";
-    document.getElementById("").style.visibility="hidden";
     jaaulde.utils.cookies.set('tor2web_disclaimer', 'true');
     document.body.style.setProperty('padding-top', '')
 }
