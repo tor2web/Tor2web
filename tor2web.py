@@ -24,7 +24,11 @@ from urlparse import urlparse
 
 import ConfigParser
 
-from BeautifulSoup import BeautifulSoup
+try:
+    from BeautifulSoup import BeautifulSoup
+except:
+    print "Error! Unable to import BeautifulSoup: BeautifulSoup not installed!"
+
 # import gevent
 # from gevent import monkey
 
@@ -99,6 +103,7 @@ class Tor2web(object):
         """
         Do a lookup in the local database
         for an entry in the petname db.
+
         :address the address to lookup
         """
         # XXX make me do something actually useful :P
@@ -243,6 +248,12 @@ class Tor2web(object):
                     o.netloc.replace(".onion", "")
                 link = o.netloc + "." + self.basehost + o.path
                 link += "?" + o.query if o.query else ""
+
+        elif data.startswith("data:"):
+            if self.debug:
+                print "LINK starts with data:"
+            link = data
+
         else:
             if self.debug:
                 print "LINK starts with "
@@ -291,6 +302,7 @@ class Tor2web(object):
         """
         Process the result from the Hidden Services HTML
         """
+        print "Soupifying stuff..."
         soup = BeautifulSoup(content)
         if self.debug:
             print "Now processing head..."
@@ -306,9 +318,15 @@ class Tor2web(object):
         except:
             print "ERROR: in processing BODY HTML"
 
-        banner = open(self.bannerfile, "r").read()
-        body.insert(0, banner)
-        ret = str(head) + str(body)
+        try:
+            banner = open(self.bannerfile, "r").read()
+            #print banner
+            body.insert(0, banner)
+            ret = str(head) + str(body)
+            #print "RET: %s" % ret
+        except:
+            print "ERROR: in inserting banner!"
+
         return ret
 
 class Config(Storage):
