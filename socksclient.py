@@ -58,6 +58,9 @@ class SOCKSv4ClientProtocol(Protocol):
 
     def dataReceived(self, data):
         if self.isSuccess(data):
+            import traceback
+            print "--------- I have success!!!"
+            #traceback.print_stack()
             # Build protocol from provided factory and transfer control to it.
             self.transport.protocol = self.postHandshakeFactory.buildProtocol(
                 self.transport.getHost())
@@ -68,6 +71,13 @@ class SOCKSv4ClientProtocol(Protocol):
 
 class SOCKSv4ClientFactory(ClientFactory):
     protocol = SOCKSv4ClientProtocol
+
+    def buildProtocol(self, addr):
+        r=ClientFactory.buildProtocol(self, addr)
+        r.postHandshakeEndpoint = self.postHandshakeEndpoint
+        r.postHandshakeFactory = self.postHandshakeFactory
+        r.handshakeDone = self.handshakeDone
+        return r
 
 
 class SOCKSWrapper(object):
@@ -95,9 +105,9 @@ class SOCKSWrapper(object):
             # which then hands control to the provided protocolFactory
             # once a SOCKS connection has been established.
             f = self.factory()
-            f.protocol.postHandshakeEndpoint = self._endpoint
-            f.protocol.postHandshakeFactory = protocolFactory
-            f.protocol.handshakeDone = defer.Deferred()
+            f.postHandshakeEndpoint = self._endpoint
+            f.postHandshakeFactory = protocolFactory
+            f.handshakeDone = defer.Deferred()
             wf = _WrappingFactory(f, _canceller)
             self._reactor.connectTCP(self._host, self._port, wf)
             return f.protocol.handshakeDone
