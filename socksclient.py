@@ -110,6 +110,6 @@ class SOCKSWrapper(object):
             f.handshakeDone = defer.Deferred()
             wf = _WrappingFactory(f, _canceller)
             self._reactor.connectTCP(self._host, self._port, wf)
-            return f.protocol.handshakeDone
+            return f.handshakeDone
         except:
             return defer.fail()

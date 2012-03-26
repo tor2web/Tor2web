@@ -53,8 +53,9 @@ class Tor2webProxyClient(proxy.ProxyClient):
         self.gzip = False
 
     def handleHeader(self, key, value):
-        print "HEADERS!!"
-        print "%s: %s" % (key, value)
+        if config.debug:
+            print "HEADERS!!"
+            print "%s: %s" % (key, value)
 
         if key.lower() == "content-encoding" and value == "gzip":
             self.gzip = True
@@ -86,13 +87,14 @@ class Tor2webProxyClient(proxy.ProxyClient):
             c_f = StringIO(content)
             content = gzip.GzipFile(fileobj=c_f).read()
 
-        print type(content)
+        #print type(content)
         try:
             processed_content = t2w.process_html(content)
             content = processed_content
         except:
             htmlc = False
-            print "Non HTML content detected!"
+            if config.debug:
+                print "Non HTML content detected!"
 
         if content:
             #print "Y0 das iz th4 c0ntent."
@@ -137,27 +139,28 @@ class Tor2webProxyRequest(Request):
     ports = {'http': 80}
 
     def __init__(self, channel, queued, reactor=reactor):
-        print "INITING SHIT!"
         Request.__init__(self, channel, queued)
         self.reactor = reactor
 
 
     def process(self):
-        print "I AM HERE!"
         myrequest = Storage()
         myrequest.headers = self.getAllHeaders().copy()
         myrequest.uri = self.uri
         myrequest.host = myrequest.headers['host']
 
-        print myrequest
+        if config.debug:
+            print myrequest
 
         t2w.process_request(myrequest)
         # Rewrite the URI with the tor2web parsed one
         self.uri = t2w.address
 
         parsed = urlparse.urlparse(self.uri)
-        print parsed
-        print self.uri
+        if self.debug:
+            print parsed
+            print self.uri
+
         protocol = parsed[0]
         host = parsed[1]
         port = self.ports[protocol]
