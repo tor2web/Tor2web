@@ -53,6 +53,8 @@ class Tor2webProxyClient(proxy.ProxyClient):
         self.gzip = False
 
     def handleHeader(self, key, value):
+        print "HEADERS!!"
+        print "%s: %s" % (key, value)
 
         if key.lower() == "content-encoding" and value == "gzip":
             self.gzip = True
@@ -77,6 +79,7 @@ class Tor2webProxyClient(proxy.ProxyClient):
 
     def handleResponseEnd(self):
         content = ''.join(self.bf)
+        htmlc = True
 
         if self.gzip:
             #print "Detected GZIP"
@@ -84,10 +87,17 @@ class Tor2webProxyClient(proxy.ProxyClient):
             content = gzip.GzipFile(fileobj=c_f).read()
 
         print type(content)
-        content = t2w.process_html(content)
+        try:
+            processed_content = t2w.process_html(content)
+            content = processed_content
+        except:
+            htmlc = False
+            print "Non HTML content detected!"
+
         if content:
             #print "Y0 das iz th4 c0ntent."
-            content = content.encode('utf-8')
+            if htmlc:
+                content = content.encode('utf-8')
             proxy.ProxyClient.handleHeader(self, 'cache-control', 'no-cache')
             proxy.ProxyClient.handleHeader(self, "Content-Length", len(content))
             #print "INSIDE OF EndHeaders"
