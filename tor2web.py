@@ -132,6 +132,7 @@ class Tor2web(object):
         or in the x.<tor2web_domain>.<tld>/<onion_url>.onion/ format.
         """
         # Detect x.tor2web.org use mode
+        print "RESOLVING: %s" % req.host
         if req.host.split(".")[0] == "x":
             self.xdns = True
             self.hostname = self.petname_lookup(req.uri.split("/")[1])
@@ -302,6 +303,7 @@ class Tor2web(object):
         """
         Process the result from the Hidden Services HTML
         """
+        ret = None
         print "Soupifying stuff..."
         soup = BeautifulSoup(content)
         if self.debug:
