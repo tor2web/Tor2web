@@ -203,7 +203,8 @@ class ProxyFactory(http.HTTPFactory):
 
 if __name__ == "__main__":
 
-    reactor.listenTCP(8080, ProxyFactory())
+    reactor.listenTCP(int(config.listen_port), ProxyFactory())
+    print "Starting on %s" % (config.basehost)
     reactor.run()
 
     #application = tornado.web.Application([
