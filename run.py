@@ -38,109 +38,6 @@ config = Config("main")
 
 t2w = Tor2web(config)
 
-class Tor2webHandlerUL(tornado.web.RequestHandler):
-    def all(self):
-        """
-        Handle all requests coming from the client.
-        XXX This needs a serious cleanup, but it is the result
-        of one day going mad over a bug...
-        """
-        print "Handling a request..."
-        content = None
-        t2w.error = {}
-
-        result = t2w.process_request(self.request)
-
-        if t2w.error:
-            self.set_status(t2w.error['code'])
-            self.write(t2w.error['message'])
-            self.finish()
-            return False
-
-        if self.request.body and len(self.request.body) > 0:
-            body = urllib.urlencode(self.request.body)
-        else:
-            body = ""
-
-        if self.request.method == "POST":
-            req = urllib2.Request(t2w.address,
-                            data=body,
-                            headers=self.request.headers)
-        else:
-            req = urllib2.Request(t2w.address,
-                headers=self.request.headers)
-        try:
-            opener = urllib2.build_opener(SocksiPyHandler(
-                                          socks.PROXY_TYPE_SOCKS4,
-                                          config.sockshost, config.socksport))
-        except:
-            print "Error in opening connection to SOCKS proxy. Is Tor running?"
-
-        try:
-            response = opener.open(req)
-
-        except urllib2.HTTPError, e:
-            print "Got an error!"
-            self.set_status(e.code)
-            self.write(e.read())
-            self.finish()
-            return False
-
-        try:
-            header_array = response.info().headers
-            headers = {}
-        except:
-            print "Error reading headers"
-
-        try:
-            if config.debug:
-                print "Going Through the response headers..."
-            for h in header_array:
-                print h
-                name = h.split(":")[0]
-                value = ':'.join(h.split(":")[1:]).strip()
-                headers[name] = value
-                # Ignore the Connection header
-                disabled_headers = ['Content-Encoding',
-                                    'Connection',
-                                    'Vary',
-                                    'Transfer-Encoding',
-                                    'Content-Length']
-
-                if name not in disabled_headers:
-                    self.set_header(name, value)
-        except:
-            print "Error in going through headers..."
-
-        try:
-            content = response.read()
-            #print content
-        except:
-            print "ERROR: failed to process request"
-
-        try:
-            if content:
-                if headers.get("Content-Encoding") == "gzip":
-                    #print "Detected GZIP"
-                    c_f = StringIO(content)
-                    content = gzip.GzipFile(fileobj=c_f).read()
-                ret = t2w.process_html(content)
-                self.set_header('Content-Length', len(ret))
-                self.write(ret)
-                self.finish()
-
-        except:
-            print "Failure in doing the processing of shit..."
-            if content:
-                self.write(content)
-                self.finish()
-
-    def get(self, *a, **b):
-        self.all()
-
-    def post(self, *a, **b):
-        self.all()
-
 class Tor2webProxyClient(proxy.ProxyClient):
     def __init__(self, *args, **kwargs):
         proxy.ProxyClient.__init__(self, *args, **kwargs)
@@ -170,11 +67,13 @@ class Tor2webProxyClient(proxy.ProxyClient):
             proxy.ProxyClient.handleHeader(self, key, value)
 
     def handleEndHeaders(self):
-        proxy.ProxyClient.handleHeader(self, 'cache-control', 'no-cache')
-        proxy.ProxyClient.handleEndHeaders(self)
+        pass
 
     def handleResponsePart(self, buffer):
         self.bf.append(buffer)
+
+    def connectionLost(self, reason):
+        proxy.ProxyClient.handleResponseEnd(self)
 
     def handleResponseEnd(self):
         content = ''.join(self.bf)
@@ -187,16 +86,29 @@ class Tor2webProxyClient(proxy.ProxyClient):
         print type(content)
         content = t2w.process_html(content)
         if content:
+            #print "Y0 das iz th4 c0ntent."
             content = content.encode('utf-8')
+            proxy.ProxyClient.handleHeader(self, 'cache-control', 'no-cache')
             proxy.ProxyClient.handleHeader(self, "Content-Length", len(content))
+            #print "INSIDE OF EndHeaders"
             proxy.ProxyClient.handleEndHeaders(self)
             proxy.ProxyClient.handleResponsePart(self, content)
+            proxy.ProxyClient.handleResponseEnd(self)
             self.finish()
+            return server.NOT_DONE_YET
         else:
+            #print "ELSE!!"
+            proxy.ProxyClient.handleResponseEnd(self)
             self.finish()
+            return server.NOT_DONE_YET
 
     def finish(self):
-        proxy.ProxyClient.handleResponseEnd(self)
+        #import traceback
+        #print "McHacky McFinish"
+        #traceback.print_stack()
+        #proxy.ProxyClient.finish(self)
+        pass
+
 
 class Tor2webProxyClientFactory(proxy.ProxyClientFactory):
     protocol = Tor2webProxyClient
