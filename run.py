@@ -41,14 +41,7 @@ t2w = Tor2web(config)
 class Tor2webProxyClient(proxy.ProxyClient):
     def __init__(self, *args, **kwargs):
         proxy.ProxyClient.__init__(self, *args, **kwargs)
-#        self.a_client, created = m.Client.objects.get_or_create(
-#                client=self.father.received_headers.get('x-forwarded-for',
-#                    unicode(self.father.client.host)
-#                    )
-#                )
-#        self.modifications = []
         self.bf = []
-#        self.edit_live = False
         self.contenttype = 'unknown'
         self.gzip = False
 
@@ -185,13 +178,7 @@ class Tor2webProxyRequest(Request):
 
         f = clientFactory
 
-        # f.deferred.addCallback(clientcb)
-
         d = wrapper.connect(f)
-
-        # d.addCallback(wrappercb)
-
-        # self.reactor.connectTCP(host, port, clientFactory)
 
         return server.NOT_DONE_YET
 
@@ -209,51 +196,4 @@ if __name__ == "__main__":
     reactor.listenTCP(int(config.listen_port), ProxyFactory())
     print "Starting on %s" % (config.basehost)
     reactor.run()
-
-    #application = tornado.web.Application([
-    #    (r"/"+config.staticmap+"/(.*)", tornado.web.StaticFileHandler, \
-    #                {"path": config.staticpath}),
-    #    (r"/.*", Tor2webHandlerUL)
-    #])
-
-    # SSL PYTHON BUGS
-    # - 1 NO EASY WAY TO DISABLE SSLv2
-    # - 2 NO WAY TO ENABLE DHE (PERFECT FORWARD SECRECY)
-
-    # BUG  1 NO EASY WAY TO DISABLE SSLv2
-    # http://bugs.python.org/issue4870
-    # http://www.velocityreviews.com/forums/t651673-re-ssl-module-
-    #        how-can-i-accept-sslv3-and-tlsv1-protocols-only.html
-    # WORKAROUND: WE Leave SSLv2 enabled as a protocol, but disable SSLv2 in the
-    #             Cipher selection
-    # Note: SSLv3 is required due to safari, only TLSv1 doesn't work on all browsers
-    #
-    #
-    # BUG  2 NO WAY TO ENABLE DHE (PERFECT FORWARD SECRECY)
-    # WORKAROUND: NOT FONUD
-    # Test with openssl s_client -connect xx.xx.xx.xx:8888  -cipher 'DHE-RSA-AES256-SHA'
-    #if config.sslcertfile and config.sslkeyfile:
-    #    sslopt = {
-    #     'certfile': config.sslcertfile,
-    #     'keyfile': config.sslkeyfile,
-         #'ca_certs': config.sslcacert,
-         # FUTURE (Python 3) setup to fully disable SSLv2
-         #        'ssl_version':ssl.PROTOCOL_SSLv23,
-         #        'ssl_options':ssl.OP_NO_SSLv2,
-         # CURRENT CIPHERLIST
-    #     'ciphers': 'HIGH:!aNULL:!SSLv2:!MD5:@STRENGTH'
-        # FUTURE (When Python support SSL DH)
-        #        'ciphers': 'DHE-RSA-AES256-SHA:AES256-SHA:\
-        #           !CBC:!RC4:!RC2:!ADH:!aNULL:!EDH:!eNULL:!LOW:!SSLv2:!EXP:!NULL'
-    #        }
-    #else:
-    #    sslopt = None
-    #sslopt = None
-    #http_server = tornado.httpserver.HTTPServer(application,
-    #                                            ssl_options=sslopt)
-
-    #http_server.listen(int(config.listen_port))
-    #print "Starting on %s" % (config.basehost)
-    #tornado.ioloop.IOLoop.instance().start()
-
 
