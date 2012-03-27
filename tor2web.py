@@ -312,7 +312,7 @@ class Tor2web(object):
         try:
             soup = BeautifulSoup(content)
         except Exception, e:
-            print e
+            return content
 
         if self.debug:
             print "Now processing head..."
