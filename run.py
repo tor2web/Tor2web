@@ -119,6 +119,7 @@ class Tor2webProxyClient(proxy.ProxyClient):
 class Tor2webProxyClientFactory(proxy.ProxyClientFactory):
     protocol = Tor2webProxyClient
 
+
 class Tor2webProxyRequest(Request):
     """
     Used by Tor2webProxy to implement a simple web proxy.
@@ -192,7 +193,6 @@ class ProxyFactory(http.HTTPFactory):
 
 
 if __name__ == "__main__":
-
     reactor.listenTCP(int(config.listen_port), ProxyFactory())
     print "Starting on %s" % (config.basehost)
     reactor.run()

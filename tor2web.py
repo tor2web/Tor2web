@@ -309,17 +309,16 @@ class Tor2web(object):
         if self.debug:
             print "Soupifying stuff..."
 
-        try:
-            soup = BeautifulSoup(content)
-        except Exception, e:
-            return content
+        soup = BeautifulSoup(content)
 
         if self.debug:
             print "Now processing head..."
+
         try:
             head = self.process_links(soup.html.head)
         except:
             print "ERROR: in processing HEAD HTML"
+            ret = content
 
         if self.debug:
             print "Now processing body..."
@@ -327,6 +326,7 @@ class Tor2web(object):
             body = self.process_links(soup.html.body)
         except:
             print "ERROR: in processing BODY HTML"
+            ret = content
 
         try:
             banner = open(self.bannerfile, "r").read()
@@ -337,6 +337,7 @@ class Tor2web(object):
             #print "RET: %s" % ret
         except:
             print "ERROR: in inserting banner!"
+            ret = content
 
         return ret
 
