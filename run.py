@@ -150,7 +150,7 @@ class Tor2webProxyRequest(Request):
         self.uri = t2w.address
 
         parsed = urlparse.urlparse(self.uri)
-        if self.debug:
+        if config.debug:
             print parsed
             print self.uri
 
