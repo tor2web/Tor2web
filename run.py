@@ -20,6 +20,7 @@ from StringIO import StringIO
 from twisted.web import proxy, http, client, server
 from twisted.web.http import Request
 from twisted.internet import reactor, endpoints
+from twisted.application import service, internet
 from twisted.python import log
 
 from socksclient import SOCKSv4ClientProtocol, SOCKSWrapper
@@ -191,9 +192,15 @@ class Tor2webProxy(proxy.Proxy):
 class ProxyFactory(http.HTTPFactory):
     protocol = Tor2webProxy
 
+def startTor2web():
 
-if __name__ == "__main__":
-    reactor.listenTCP(int(config.listen_port), ProxyFactory())
-    print "Starting on %s" % (config.basehost)
-    reactor.run()
+    #reactor.listenTCP(int(config.listen_port), ProxyFactory())
+    #print "Starting on %s" % (config.basehost)
+    #reactor.run()
+    return internet.TCPServer(int(config.listen_port), ProxyFactory())
+
+
+application = service.Application("Tor2web")
+service = startTor2web()
+service.setServiceParent(application)
 
