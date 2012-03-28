@@ -17,6 +17,7 @@ import os
 import sys
 import hashlib
 import base64
+import re
 
 from mimetypes import guess_type
 from pprint import pprint
@@ -24,10 +25,10 @@ from urlparse import urlparse
 
 import ConfigParser
 
-try:
-    from bs4 import BeautifulSoup
-except:
-    print "Error! Unable to import BeautifulSoup: BeautifulSoup not installed!"
+# try:
+#     from bs4 import BeautifulSoup
+# except:
+#     print "Error! Unable to import BeautifulSoup: BeautifulSoup not installed!"
 
 # import gevent
 # from gevent import monkey
@@ -39,6 +40,13 @@ from tornado import httpclient
 from utils import Storage
 
 http_client = httpclient.HTTPClient()
+
+rexp = {
+    'href': re.compile(r'<[a-z]*\s*.*?\s*href\s*=\s*[\\\'"]?([a-z0-9/#:\-\.]*)[\\\'"]?\s*>', re.I),
+    'src': re.compile(r'<[a-z]*\s*.*?\s*src\s*=\s*[\\\'"]?([a-z0-9/#:\-\.]*)[\\\'"]?\s*>', re.I),
+    'action': re.compile(r'<[a-z]*\s*.*?\s*action\s*=\s*[\\\'"]?([a-z0-9/#:\-\.]*)[\\\'"]?\s*>', re.I),
+    'body': re.compile(r'(<body.*?\s*>)', re.I)
+    }
 
 class Tor2web(object):
     def __init__(self, config):
@@ -217,6 +225,15 @@ class Tor2web(object):
         # implementing... (too much code, too little sleep...)
         return self.result
 
+    def leaving_link(self, target):
+        """
+        Returns a link pointing to a resource outside of Tor2web.
+        """
+        link = target.netloc + target.path
+        link += "?" + target.query if target.query else ""
+
+        return 'https://leaving.' + self.basehost + '/' + link
+
     def fix_links(self, data):
         """
         Fix links in the result from HS to properly resolve to be pointing to
@@ -231,6 +248,10 @@ class Tor2web(object):
         /something -> /something
         <other_onion_url>/something -> <other_onion_url>.tor2web.org/something
         """
+        allmatch = data.group(0)
+        innermatch = data.group(1)
+        data = innermatch
+
         if data.startswith("/"):
             if self.debug:
                 print "LINK starts with /"
@@ -243,14 +264,21 @@ class Tor2web(object):
             if self.debug:
                 print "LINK starts with http://"
             o = urlparse(data)
+
+            if not o.netloc.endswith(".onion"):
+                # This is an external link outside of the deep web!
+                link = self.leaving_link(o)
+                return allmatch.replace(innermatch, link)
+
             if self.xdns:
                 link = "/" + o.netloc + o.path
                 link += "?" + o.query if o.query else ""
             else:
                 if o.netloc.endswith(".onion"):
                     o.netloc.replace(".onion", "")
-                link = o.netloc + "." + self.basehost + o.path
-                link += "?" + o.query if o.query else ""
+                    link = 'https://'
+                    link += o.netloc + "." + self.basehost + o.path
+                    link += "?" + o.query if o.query else ""
 
         elif data.startswith("data:"):
             if self.debug:
@@ -266,7 +294,14 @@ class Tor2web(object):
             else:
                 link = data
 
-        return link
+        return allmatch.replace(innermatch, link)
+
+    def add_banner(self, data):
+        data = data.group(1)
+        print "making pretty banners!!"
+        banner = open(self.bannerfile, "r").read()
+        return str(data)+str(banner)
+
 
     def process_links(self, data):
         """
@@ -276,30 +311,14 @@ class Tor2web(object):
         if self.debug:
             print "processing src attributes"
 
-        for el in data.findAll(['img','script']):
-            if self.debug:
-                print "el['href'] %s" % el
-            try:
-                el['src'] = self.fix_links(el['src'])
-            except:
-                pass
+        ret = re.sub(rexp['src'], self.fix_links, data)
+        ret = re.sub(rexp['href'], self.fix_links, ret)
+        ret = re.sub(rexp['action'], self.fix_links, ret)
 
-        if self.debug:
-            print "processing href attributes"
-
-        for el in data.findAll(['a','link']):
-            try:
-                el['href'] = self.fix_links(el['href'])
-            except:
-                pass
-        for el in data.findAll('form'):
-            try:
-                el['action'] = self.fix_links(el['action'])
-            except:
-                pass
         if self.debug:
             print "Finished processing links..."
-        return data
+
+        return ret
 
     def process_html(self, content):
         """
@@ -307,37 +326,11 @@ class Tor2web(object):
         """
         ret = None
         if self.debug:
-            print "Soupifying stuff..."
+            print "Processing HTML type content"
 
-        soup = BeautifulSoup(content)
+        final = self.process_links(content)
 
-        if self.debug:
-            print "Now processing head..."
-
-        try:
-            head = self.process_links(soup.html.head)
-        except:
-            print "ERROR: in processing HEAD HTML"
-            ret = content
-
-        if self.debug:
-            print "Now processing body..."
-        try:
-            body = self.process_links(soup.html.body)
-        except:
-            print "ERROR: in processing BODY HTML"
-            ret = content
-
-        try:
-            banner = open(self.bannerfile, "r").read()
-            #print banner
-            banner_soup = BeautifulSoup(banner)
-            body.insert(0, banner_soup)
-            ret = head.prettify(formatter=None) + body.prettify(formatter=None)
-            #print "RET: %s" % ret
-        except:
-            print "ERROR: in inserting banner!"
-            ret = content
+        ret = re.sub(rexp['body'], self.add_banner, final)
 
         return ret
 
