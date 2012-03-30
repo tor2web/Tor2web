@@ -25,11 +25,6 @@ from urlparse import urlparse
 
 import ConfigParser
 
-# try:
-#     from bs4 import BeautifulSoup
-# except:
-#     print "Error! Unable to import BeautifulSoup: BeautifulSoup not installed!"
-
 # import gevent
 # from gevent import monkey
 
