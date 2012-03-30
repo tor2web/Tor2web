@@ -192,15 +192,8 @@ class ProxyFactory(http.HTTPFactory):
     protocol = Tor2webProxy
 
 def startTor2web():
-    #reactor.listenTCP(int(config.listen_port), ProxyFactory())
-    #print "Starting on %s" % (config.basehost)
-    #reactor.run()
 
-    tor2web = static.File("static")
-    tor2web.putChild("", Tor2webProxyResource())
-    site = server.Site(tor2web)
-
-    return internet.TCPServer(int(config.listen_port), site)
+    return internet.TCPServer(int(config.listen_port), ProxyFactory())
 
 application = service.Application("Tor2web")
 service = startTor2web()
