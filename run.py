@@ -113,7 +113,6 @@ class Tor2webProxyClient(proxy.ProxyClient):
             return server.NOT_DONE_YET
 
     def finish(self):
-        print "Finishing shit!"
         #import traceback
         #print "McHacky McFinish"
         #traceback.print_stack()
@@ -148,12 +147,6 @@ class Tor2webProxyRequest(Request):
 
         if config.debug:
             print myrequest
-
-        resource = File('/Users/y/Documents/workspace/tor2web/static')
-
-        if self.uri.startswith("/static"):
-            print 'got a static file request!'
-
 
         t2w.process_request(myrequest)
         # Rewrite the URI with the tor2web parsed one
@@ -191,96 +184,6 @@ class Tor2webProxyRequest(Request):
         d = wrapper.connect(f)
 
         return server.NOT_DONE_YET
-
-
-class Tor2webProxyResource(Resource):
-    proxyClientFactoryClass = Tor2webProxyClientFactory
-
-    def __init__(self, reactor=reactor):
-        """
-        @param host: the host of the web server to proxy.
-        @type host: C{str}
-
-        @param port: the port of the web server to proxy.
-        @type port: C{port}
-
-        @param path: the base path to fetch data from. Note that you shouldn't
-            put any trailing slashes in it, it will be added automatically in
-            request. For example, if you put B{/foo}, a request on B{/bar} will
-            be proxied to B{/foo/bar}.  Any required encoding of special
-            characters (such as " " or "/") should have been done already.
-
-        @type path: C{str}
-        """
-        Resource.__init__(self)
-        self.reactor = reactor
-
-
-    def getChild(self, path, request):
-        """
-        Create and return a proxy resource with the same proxy configuration
-        as this one, except that its path also contains the segment given by
-        C{path} at the end.
-        """
-        return Tor2webProxyResource()
-
-
-    def render(self, request):
-        """
-        Render a request by forwarding it to the proxied server.
-        """
-        self.request = request
-        myrequest = Storage()
-        myrequest.headers = request.getAllHeaders().copy()
-        myrequest.uri = request.uri
-        myrequest.host = myrequest.headers['host']
-        port = 80
-
-        if config.debug:
-            print myrequest
-
-        t2w.process_request(myrequest)
-        # Rewrite the URI with the tor2web parsed one
-        self.uri = t2w.address
-
-        parsed = urlparse.urlparse(self.uri)
-        if config.debug:
-            print parsed
-            print self.uri
-
-        protocol = parsed[0]
-        host = parsed[1]
-
-        if ':' in host:
-            host, port = host.split(':')
-            port = int(port)
-        rest = urlparse.urlunparse(('', '') + parsed[2:])
-        if not rest:
-            rest = rest + '/'
-        headers = request.getAllHeaders().copy()
-        if 'host' not in headers:
-            headers['host'] = host
-        request.content.seek(0, 0)
-        s = request.content.read()
-
-        #clientFactory = proxyClientFactoryClass(self.method, rest, self.clientproto, headers, s, self)
-        #clientFactory = Tor2webProxyClientFactory(request.method, rest, request.clientproto, headers, s, self)
-        clientFactory = self.proxyClientFactoryClass(request.method, rest, request.clientproto, headers, s, self)
-
-        dest = client._parse(t2w.address) # scheme, host, port, path
-        proxy = (None, 'localhost', 9050, True, None, None)
-        endpoint = endpoints.TCP4ClientEndpoint(reactor, dest[1], dest[2])
-        wrapper = SOCKSWrapper(reactor, proxy[1], proxy[2], endpoint)
-
-        f = clientFactory
-
-        d = wrapper.connect(f)
-
-        return server.NOT_DONE_YET
-
-    def finish(self):
-        print "Finishing!"
-        self.request.finish()
 
 class Tor2webProxy(proxy.Proxy):
     requestFactory = Tor2webProxyRequest
