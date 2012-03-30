@@ -58,9 +58,6 @@ class SOCKSv4ClientProtocol(Protocol):
 
     def dataReceived(self, data):
         if self.isSuccess(data):
-            import traceback
-            print "--------- I have success!!!"
-            #traceback.print_stack()
             # Build protocol from provided factory and transfer control to it.
             self.transport.protocol = self.postHandshakeFactory.buildProtocol(
                 self.transport.getHost())
