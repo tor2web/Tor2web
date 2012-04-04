@@ -58,12 +58,12 @@ class Tor2webProxyClient(proxy.ProxyClient):
         http_cmd = '%s %s HTTP/1.0\r\n' % (command, path)
         self.transport.write(http_cmd)
 
-
     def handleHeader(self, key, value):
         print "HEADERS!!"
         print "%s: %s" % (key, value)
 
         if key.lower() == "content-encoding" and value == "gzip":
+            print "Detected GZIP!"
             self.gzip = True
 
         if key.lower() == 'content-type' and re.search('text/html', value):
@@ -81,17 +81,19 @@ class Tor2webProxyClient(proxy.ProxyClient):
     def handleEndHeaders(self):
         pass
 
+
     def handleResponsePart(self, buffer):
         self.bf.append(buffer)
 
     def connectionLost(self, reason):
-        print "Connection lost!!"
         proxy.ProxyClient.handleResponseEnd(self)
 
     def handleResponseEnd(self):
-        print "Handling response end!"
         content = ''.join(self.bf)
-        htmlc = True
+        if self.html:
+            htmlc = True
+        else:
+            htmlc = False
 
         if self.gzip:
             #print "Detected GZIP"
@@ -122,10 +124,6 @@ class Tor2webProxyClient(proxy.ProxyClient):
             return server.NOT_DONE_YET
 
     def finish(self):
-        #import traceback
-        #print "McHacky McFinish"
-        #traceback.print_stack()
-        #proxy.ProxyClient.finish(self)
         pass
 
 
@@ -177,6 +175,7 @@ class Tor2webProxyRequest(Request):
             rest = rest + '/'
         class_ = self.protocols[protocol]
         headers = self.getAllHeaders().copy()
+        #print headers
         if 'host' not in headers:
             headers['host'] = host
 
