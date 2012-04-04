@@ -49,10 +49,19 @@ class Tor2webProxyClient(proxy.ProxyClient):
         self.gzip = False
         self.html = False
 
+    def sendCommand(self, command, path):
+        # Claim that we only speak HTTP 1.0 so we
+        # will hopefully don't get chunked encoding.
+        # If we do then we are screwed...
+        # XXX nginx responds with chunked encoding even
+        #     if we claim to only support HTTP 1.0 :(
+        http_cmd = '%s %s HTTP/1.0\r\n' % (command, path)
+        self.transport.write(http_cmd)
+
+
     def handleHeader(self, key, value):
-        if config.debug:
-            print "HEADERS!!"
-            print "%s: %s" % (key, value)
+        print "HEADERS!!"
+        print "%s: %s" % (key, value)
 
         if key.lower() == "content-encoding" and value == "gzip":
             self.gzip = True
@@ -170,6 +179,7 @@ class Tor2webProxyRequest(Request):
         headers = self.getAllHeaders().copy()
         if 'host' not in headers:
             headers['host'] = host
+
         self.content.seek(0, 0)
         s = self.content.read()
         clientFactory = class_(self.method, rest, self.clientproto, headers, s, self)
