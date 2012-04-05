@@ -152,6 +152,11 @@ class Tor2webProxyRequest(Request):
         myrequest.uri = self.uri
         myrequest.host = myrequest.headers['host']
 
+        if self.uri.lower() == "/robots.txt" and config.blockcrawl:
+            self.write("User-Agent: *\nDisallow: /\n")
+            self.finish()
+            return server.NOT_DONE_YET
+
         if config.debug:
             print myrequest
 
