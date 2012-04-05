@@ -195,6 +195,9 @@ class Tor2webProxyRequest(Request):
             rest = rest + '/'
         class_ = self.protocols[protocol]
         headers = self.getAllHeaders().copy()
+        if 'accept-encoding' in headers:
+            del headers['accept-encoding']
+
         #print headers
         if 'host' not in headers:
             headers['host'] = host
