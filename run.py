@@ -49,15 +49,6 @@ class Tor2webProxyClient(proxy.ProxyClient):
         self.gzip = False
         self.html = False
 
-    def sendCommand(self, command, path):
-        # Claim that we only speak HTTP 1.0 so we
-        # will hopefully don't get chunked encoding.
-        # If we do then we are screwed...
-        # XXX nginx responds with chunked encoding even
-        #     if we claim to only support HTTP 1.0 :(
-        http_cmd = '%s %s HTTP/1.0\r\n' % (command, path)
-        self.transport.write(http_cmd)
-
     def handleHeader(self, key, value):
         print "HEADERS!!"
         print "%s: %s" % (key, value)
