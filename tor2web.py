@@ -149,7 +149,7 @@ class Tor2web(object):
             if self.debug:
                 print "DETECTED <onion_url>.tor2web Hostname: %s" % self.hostname
 
-        if hashlib.md5(self.hostname) in self.blocklist:
+        if hashlib.md5(self.hostname).hexdigest() in self.blocklist:
             self.error = {'message': 'Site Blocked','code': 503}
             return False
 
