@@ -160,6 +160,18 @@ class Tor2webProxyRequest(Request):
             self.finish()
             return server.NOT_DONE_YET
 
+        if self.uri.lower().endswith(('gif','jpg','png')):
+            # OMFG this is a monster!
+            # XXX refactor this into another "cleaner" place
+            if not 'referer' in myrequest.headers or ('referer' in myrequest.headers and \
+                        not re.search(config.basehost, myrequest.headers['referer'])):
+                if 'referer' in myrequest.headers:
+                    print re.search(config.basehost, myrequest.headers['referer'])
+                print "FUck you"
+                self.write(open('static/tor2web-small.png', 'r').read())
+                self.finish()
+                return server.NOT_DONE_YET
+
         if config.debug:
             print myrequest
 
