@@ -167,7 +167,6 @@ class Tor2webProxyRequest(Request):
                         not re.search(config.basehost, myrequest.headers['referer'])):
                 if 'referer' in myrequest.headers:
                     print re.search(config.basehost, myrequest.headers['referer'])
-                print "FUck you"
                 self.write(open('static/tor2web-small.png', 'r').read())
                 self.finish()
                 return server.NOT_DONE_YET
@@ -175,7 +174,11 @@ class Tor2webProxyRequest(Request):
         if config.debug:
             print myrequest
 
-        t2w.process_request(myrequest)
+        if not t2w.process_request(myrequest):
+            self.write("Content not found.")
+            self.finish()
+            return server.NOT_DONE_YET
+
         # Rewrite the URI with the tor2web parsed one
         self.uri = t2w.address
 

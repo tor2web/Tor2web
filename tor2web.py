@@ -98,7 +98,7 @@ class Tor2web(object):
         fh = open(filename, "r")
         blocklist = []
         for l in fh.readlines():
-            blocklist.append(l)
+            blocklist.append(l.strip())
         fh.close()
         return blocklist
 
@@ -150,6 +150,7 @@ class Tor2web(object):
                 print "DETECTED <onion_url>.tor2web Hostname: %s" % self.hostname
 
         if hashlib.md5(self.hostname).hexdigest() in self.blocklist:
+            print "SITE BLOCKED!"
             self.error = {'message': 'Site Blocked','code': 503}
             return False
 
