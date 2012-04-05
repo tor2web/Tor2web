@@ -65,6 +65,8 @@ class Tor2webProxyClient(proxy.ProxyClient):
         if key.lower() == "content-encoding" and value == "gzip":
             print "Detected GZIP!"
             self.gzip = True
+            # Ignore this
+            return
 
         if key.lower() == 'content-type' and re.search('text/html', value):
             self.html = True
@@ -75,12 +77,14 @@ class Tor2webProxyClient(proxy.ProxyClient):
         elif key.lower() == 'cache-control':
             pass
 
+        elif key.lower() == 'connection':
+            pass
+
         else:
             proxy.ProxyClient.handleHeader(self, key, value)
 
     def handleEndHeaders(self):
         pass
-
 
     def handleResponsePart(self, buffer):
         self.bf.append(buffer)
@@ -96,7 +100,6 @@ class Tor2webProxyClient(proxy.ProxyClient):
             htmlc = False
 
         if self.gzip:
-            #print "Detected GZIP"
             c_f = StringIO(content)
             content = gzip.GzipFile(fileobj=c_f).read()
 
