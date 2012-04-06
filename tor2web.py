@@ -25,13 +25,6 @@ from urlparse import urlparse
 
 import ConfigParser
 
-# import gevent
-# from gevent import monkey
-
-import tornado.ioloop
-import tornado.web
-from tornado import httpclient
-
 from utils import Storage
 
 http_client = httpclient.HTTPClient()
