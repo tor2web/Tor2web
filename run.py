@@ -1,39 +1,29 @@
-# Tor2web calamity edition.
-# Arturo Filasto' <art@globaleaks.org>
-#
-# a re-implementation of Tor2web in Python over Tornado
+# -*- coding: utf-8 -*-
+"""
+    Tor2web calamity edition.
+    ========================
+    Arturo Filasto' <art@globaleaks.org>
 
-import os
-import sys
-from pprint import pprint
-import urllib
-import urllib2
+    a re-implementation of Tor2web in Python over T̶o̶r̶n̶a̶d̶o̶ Twisted
+
+    run.py
+    ------
+
+    use this script to start tor2web. To run you need
+    twisted and you should do:
+    $ twistd -y run.py
+
+"""
 import urlparse
-import ssl
 import re
 import gzip
-import socket
-
-import tornado.web
 
 from StringIO import StringIO
 
-from twisted.application import service, internet
-from twisted.internet import reactor, endpoints
-from twisted.python import log
-from twisted.web import proxy, http, client, server, static
-from twisted.web.http import Request
-from twisted.web.resource import Resource
-
 from socksclient import SOCKSv4ClientProtocol, SOCKSWrapper
 
-try:
-    import socks
-except:
-    print "Error! Unable to import socks: SocksiPy not installed!"
-
 from tor2web import Tor2web, Config
-from utils import SocksiPyConnection, SocksiPyHandler, Storage
+from utils import Storage
 
 debug_mode = True
 
@@ -218,10 +208,8 @@ class ProxyFactory(http.HTTPFactory):
     protocol = Tor2webProxy
 
 def startTor2web():
-
     return internet.TCPServer(int(config.listen_port), ProxyFactory())
 
 application = service.Application("Tor2web")
 service = startTor2web()
 service.setServiceParent(application)
-
