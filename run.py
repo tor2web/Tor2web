@@ -46,6 +46,7 @@ class Tor2webProxyClient(proxy.ProxyClient):
         self.gzip = False
         self.html = False
         self.location = False
+        self._chunked = False
 
     def handleHeader(self, key, value):
 
@@ -58,6 +59,11 @@ class Tor2webProxyClient(proxy.ProxyClient):
         if key.lower() == "location":
             self.location = t2w.fix_link(value)
             # Ignore this
+            return
+
+        if key.lower() == "transfer-encoding" and value == "chunked":
+            self._chunked = http._ChunkedTransferDecoder(self.handleResponsePart,
+                                                         self.handleResponseEnd)
             return
 
         if key.lower() == 'content-type' and re.search('text/html', value):
@@ -79,13 +85,30 @@ class Tor2webProxyClient(proxy.ProxyClient):
         if self.location:
             proxy.ProxyClient.handleHeader(self, "Location", self.location)
 
+    def rawDataReceived(self, data):
+        if self.length is not None:
+            data, rest = data[:self.length], data[self.length:]
+            self.length -= len(data)
+        else:
+            rest = ''
+
+        if self._chunked:
+            print "I got chunked encoding.."
+            self._chunked.dataReceived(data)
+        else:
+            self.handleResponsePart(data)
+
+        if self.length == 0:
+            self.handleResponseEnd()
+            self.setLineMode(rest)
+
     def handleResponsePart(self, buffer):
         self.bf.append(buffer)
 
     def connectionLost(self, reason):
         proxy.ProxyClient.handleResponseEnd(self)
 
-    def handleResponseEnd(self):
+    def handleResponseEnd(self, *args, **kwargs):
         content = ''.join(self.bf)
         if self.html:
             htmlc = True
