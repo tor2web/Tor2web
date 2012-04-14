@@ -16,7 +16,6 @@
 import os
 import sys
 import hashlib
-import base64
 import re
 
 from mimetypes import guess_type
@@ -26,8 +25,6 @@ from urlparse import urlparse
 import ConfigParser
 
 from utils import Storage
-
-http_client = httpclient.HTTPClient()
 
 rexp = {
     'href': re.compile(r'<[a-z]*\s*.*?\s*href\s*=\s*[\\\'"]?([a-z0-9/#:\-\.]*)[\\\'"]?\s*>', re.I),
@@ -212,10 +209,7 @@ class Tor2web(object):
         if self.debug:
             print "Headers:"
             pprint(self.headers)
-        # XXX verify why here I return self.result, it appears to be
-        # empty and it is probably an idea I had, but did not finish
-        # implementing... (too much code, too little sleep...)
-        return self.result
+        return self.address
 
     def leaving_link(self, target):
         """
@@ -376,5 +370,4 @@ class Config(Storage):
             self._cfgparser.write(cfgfile)
         finally:
             cfgfile.close()
-
 

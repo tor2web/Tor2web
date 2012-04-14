@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
     Tor2web calamity edition.
-    ========================
+    =========================
     Arturo Filasto' <art@globaleaks.org>
 
     a re-implementation of Tor2web in Python over T̶o̶r̶n̶a̶d̶o̶ Twisted
@@ -17,6 +17,13 @@
 import urlparse
 import re
 import gzip
+
+from twisted.application import service, internet
+from twisted.internet import reactor, endpoints
+from twisted.python import log
+from twisted.web import proxy, http, client, server, static
+from twisted.web.http import Request
+from twisted.web.resource import Resource
 
 from StringIO import StringIO
 
@@ -194,10 +201,9 @@ class Tor2webProxyRequest(Request):
         proxy = (None, 'localhost', 9050, True, None, None)
         endpoint = endpoints.TCP4ClientEndpoint(reactor, dest[1], dest[2])
         wrapper = SOCKSWrapper(reactor, proxy[1], proxy[2], endpoint)
-
         f = clientFactory
-
         d = wrapper.connect(f)
+
 
         return server.NOT_DONE_YET
 

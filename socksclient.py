@@ -70,7 +70,7 @@ class SOCKSv4ClientFactory(ClientFactory):
     protocol = SOCKSv4ClientProtocol
 
     def buildProtocol(self, addr):
-        r=ClientFactory.buildProtocol(self, addr)
+        r = ClientFactory.buildProtocol(self, addr)
         r.postHandshakeEndpoint = self.postHandshakeEndpoint
         r.postHandshakeFactory = self.postHandshakeFactory
         r.handshakeDone = self.handshakeDone
