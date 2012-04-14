@@ -45,14 +45,18 @@ class Tor2webProxyClient(proxy.ProxyClient):
         self.contenttype = 'unknown'
         self.gzip = False
         self.html = False
+        self.location = False
 
     def handleHeader(self, key, value):
-        print "HEADERS!!"
-        print "%s: %s" % (key, value)
 
         if key.lower() == "content-encoding" and value == "gzip":
-            print "Detected GZIP!"
+            # print "Detected GZIP!"
             self.gzip = True
+            # Ignore this
+            return
+
+        if key.lower() == "location":
+            self.location = t2w.fix_link(value)
             # Ignore this
             return
 
@@ -72,7 +76,8 @@ class Tor2webProxyClient(proxy.ProxyClient):
             proxy.ProxyClient.handleHeader(self, key, value)
 
     def handleEndHeaders(self):
-        pass
+        if self.location:
+            proxy.ProxyClient.handleHeader(self, "Location", self.location)
 
     def handleResponsePart(self, buffer):
         self.bf.append(buffer)
@@ -203,7 +208,6 @@ class Tor2webProxyRequest(Request):
         wrapper = SOCKSWrapper(reactor, proxy[1], proxy[2], endpoint)
         f = clientFactory
         d = wrapper.connect(f)
-
 
         return server.NOT_DONE_YET
 
