@@ -27,9 +27,9 @@ import ConfigParser
 from utils import Storage
 
 rexp = {
-    'href': re.compile(r'<[a-z]*\s*.*?\s*href\s*=\s*[\\\'"]?([a-z0-9/#:\-\.]*)[\\\'"]?\s*>', re.I),
-    'src': re.compile(r'<[a-z]*\s*.*?\s*src\s*=\s*[\\\'"]?([a-z0-9/#:\-\.]*)[\\\'"]?\s*>', re.I),
-    'action': re.compile(r'<[a-z]*\s*.*?\s*action\s*=\s*[\\\'"]?([a-z0-9/#:\-\.]*)[\\\'"]?\s*>', re.I),
+    'href': re.compile(r'<[a-z]*\s*.*?\s*href\s*=\s*[\\\'"]?([a-z0-9/#:\-\.]*)[\\\'"]?\s*.*?>', re.I),
+    'src': re.compile(r'<[a-z]*\s*.*?\s*src\s*=\s*[\\\'"]?([a-z0-9/#:\-\.]*)[\\\'"]?\s*.*?>', re.I),
+    'action': re.compile(r'<[a-z]*\s*.*?\s*action\s*=\s*[\\\'"]?([a-z0-9/#:\-\.]*)[\\\'"]?\s*.*?>', re.I),
     'body': re.compile(r'(<body.*?\s*>)', re.I)
     }
 
@@ -119,7 +119,7 @@ class Tor2web(object):
         else:
             return False
 
-    def resolve_hostname(self, req):
+    def resolve_hostname(self, host, uri):
         """
         Resolve the supplied request to a hostname.
         Hostnames are accepted in the <onion_url>.<tor2web_domain>.<tld>/
@@ -127,15 +127,15 @@ class Tor2web(object):
         """
         # Detect x.tor2web.org use mode
         if self.debug:
-            print "RESOLVING: %s" % req.host
-        if req.host.split(".")[0] == "x":
+            print "RESOLVING: %s" % host
+        if host.split(".")[0] == "x":
             self.xdns = True
-            self.hostname = self.petname_lookup(req.uri.split("/")[1])
+            self.hostname = self.petname_lookup(uri.split("/")[1])
             if self.debug:
                 print "DETECTED x.tor2web Hostname: %s" % self.hostname
         else:
             self.xdns = False
-            self.hostname = self.petname_lookup(req.host.split(".")[0]) + ".onion"
+            self.hostname = self.petname_lookup(host.split(".")[0]) + ".onion"
             if self.debug:
                 print "DETECTED <onion_url>.tor2web Hostname: %s" % self.hostname
 
@@ -182,7 +182,7 @@ class Tor2web(object):
         # When connecting to HS use only HTTP
         address = "http://"
         # Resolve the hostname
-        if not self.resolve_hostname(req):
+        if not self.resolve_hostname(req.host, req.uri):
             return False
         # Clean up the uri
         uri = self.get_uri(req)
@@ -220,6 +220,57 @@ class Tor2web(object):
 
         return 'https://leaving.' + self.basehost + '/' + link
 
+    def fix_link(self, address):
+        data = address
+
+        if data.startswith("/"):
+            if self.debug:
+                print "LINK starts with /"
+            if self.xdns:
+                link = "/" + self.hostname + data
+            else:
+                link = data
+
+        elif data.startswith("http"):
+            if self.debug:
+                print "LINK starts with http://"
+            o = urlparse(data)
+
+            if not o.netloc.endswith(".onion"):
+                # This is an external link outside of the deep web!
+                link = self.leaving_link(o)
+                return link
+
+            if self.xdns:
+                link = "/" + o.netloc + o.path
+                link += "?" + o.query if o.query else ""
+            else:
+                if o.netloc.endswith(".onion"):
+                    netloc = o.netloc.replace(".onion", "")
+                    if o.scheme == "http":
+                        link = "http://"
+                    else:
+                        link = 'https://'
+                    link += netloc + "." + self.basehost + o.path
+                    link += "?" + o.query if o.query else ""
+
+        elif data.startswith("data:"):
+            if self.debug:
+                print "LINK starts with data:"
+            link = data
+
+        else:
+            if self.debug:
+                print "LINK starts with "
+                print "link: %s" % data
+            if self.xdns:
+                link = '/' + self.hostname + '/'.join(self.path.split("/")[:-1]) + '/' + data
+            else:
+                link = data
+
+        return link
+
+
     def fix_links(self, data):
         """
         Fix links in the result from HS to properly resolve to be pointing to
@@ -238,47 +289,7 @@ class Tor2web(object):
         innermatch = data.group(1)
         data = innermatch
 
-        if data.startswith("/"):
-            if self.debug:
-                print "LINK starts with /"
-            if self.xdns:
-                link = "/" + self.hostname + data
-            else:
-                link = data
-
-        elif data.startswith("http"):
-            if self.debug:
-                print "LINK starts with http://"
-            o = urlparse(data)
-
-            if not o.netloc.endswith(".onion"):
-                # This is an external link outside of the deep web!
-                link = self.leaving_link(o)
-                return allmatch.replace(innermatch, link)
-
-            if self.xdns:
-                link = "/" + o.netloc + o.path
-                link += "?" + o.query if o.query else ""
-            else:
-                if o.netloc.endswith(".onion"):
-                    o.netloc.replace(".onion", "")
-                    link = 'https://'
-                    link += o.netloc + "." + self.basehost + o.path
-                    link += "?" + o.query if o.query else ""
-
-        elif data.startswith("data:"):
-            if self.debug:
-                print "LINK starts with data:"
-            link = data
-
-        else:
-            if self.debug:
-                print "LINK starts with "
-                print "link: %s" % data
-            if self.xdns:
-                link = '/' + self.hostname + '/'.join(self.path.split("/")[:-1]) + '/' + data
-            else:
-                link = data
+        link = self.fix_link(data)
 
         return allmatch.replace(innermatch, link)
 
