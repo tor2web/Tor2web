@@ -176,8 +176,8 @@ class Tor2webProxyRequest(Request):
 
         if myrequest.headers['user-agent'] in t2w.blocked_ua:
             # Detected a blocked user-agent
-            # Setting response code to 403 and sending Blocked UA string
-            self.setResponseCode(403)
+            # Setting response code to 410 and sending Blocked UA string
+            self.setResponseCode(410)
             self.write("Blocked UA\n")
             self.finish()
             return server.NOT_DONE_YET
