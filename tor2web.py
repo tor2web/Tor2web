@@ -63,8 +63,9 @@ class Tor2web(object):
         # DEBUG MODE
         self.debug = True
 
-        # Blocklist
+        # Blocklists
         self.blocklist = self.parse_blocklist(config.blocklist)
+        self.blocked_ua = self.parse_blocklist(config.blocked_ua)
 
         # Banner file
         self.bannerfile = config.bannerfile
