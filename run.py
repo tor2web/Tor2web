@@ -174,6 +174,14 @@ class Tor2webProxyRequest(Request):
             self.finish()
             return server.NOT_DONE_YET
 
+        if myrequest.headers['user-agent'] in t2w.blocked_ua:
+            # Detected a blocked user-agent
+            # Setting response code to 403 and sending Blocked UA string
+            self.setResponseCode(403)
+            self.write("Blocked UA\n")
+            self.finish()
+            return server.NOT_DONE_YET
+
         if self.uri.lower().endswith(('gif','jpg','png')):
             # OMFG this is a monster!
             # XXX refactor this into another "cleaner" place
