@@ -125,8 +125,6 @@ class Tor2webProxyClient(proxy.ProxyClient):
 
         if content:
             #print "Y0 das iz th4 c0ntent."
-            if htmlc:
-                content = content.encode('utf-8')
             proxy.ProxyClient.handleHeader(self, 'cache-control', 'no-cache')
             proxy.ProxyClient.handleHeader(self, "Content-Length", len(content))
             #print "INSIDE OF EndHeaders"
@@ -179,10 +177,7 @@ class Tor2webProxyRequest(Request):
         if self.uri.lower().endswith(('gif','jpg','png')):
             # OMFG this is a monster!
             # XXX refactor this into another "cleaner" place
-            if not 'referer' in myrequest.headers or ('referer' in myrequest.headers and \
-                        not re.search(config.basehost, myrequest.headers['referer'])):
-                if 'referer' in myrequest.headers:
-                    print re.search(config.basehost, myrequest.headers['referer'])
+            if not 'referer' in myrequest.headers or not config.basehost in myrequest.headers['referer'].lower():
                 self.write(open('static/tor2web-small.png', 'r').read())
                 self.finish()
                 return server.NOT_DONE_YET
