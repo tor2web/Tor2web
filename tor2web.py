@@ -1,30 +1,49 @@
-# Tor2web Cataclysm edition.
-#
-# Tor2web allows users that are not using a Tor client
-# to access Tor Hidden Services. It trades user anonymity
-# (that is in now way guaranteed) for usability, while still
-# protecting the Tor Hidden Service from disclosure.
-#
-# This particular version is a re-implementation of Tor2web
-# in Python with the Tornado non-blocking HTTP server.
-# coded by:
-# Arturo Filasto' <art@globaleaks.org>
-# Original concept and implementation as apache config file by:
-# Aaaron Swartz
-#
+"""
+    Tor2web
+    Copyright (C) 2012 Hermes No Profit Association - GlobaLeaks Project
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
+
+"""
+
+:mod:`Tor2Web`
+=====================================================
+
+.. automodule:: Tor2Web
+   :synopsis: [GLOBALEAKS_MODULE_DESCRIPTION]
+
+.. moduleauthor:: Arturo Filasto' <art@globaleaks.org>
+.. moduleauthor:: Giovanni Pellerano <evilaliv3@globaleaks.org>
+
+"""
+
+# -*- coding: utf-8 -*-
+
+from twisted.python import log
 
 import os
 import sys
 import hashlib
 import re
+import pickle
 
 from mimetypes import guess_type
-from pprint import pprint
 from urlparse import urlparse
 
-import ConfigParser
-
-from utils import Storage
+from config import Config 
+from storage import Storage
 
 rexp = {
     'href': re.compile(r'<[a-z]*\s*.*?\s*href\s*=\s*[\\\'"]?([a-z0-9/#:\-\.]*)[\\\'"]?\s*.*?>', re.I),
@@ -60,15 +79,23 @@ class Tor2web(object):
         # The headers to be sent
         self.headers = None
 
-        # DEBUG MODE
-        self.debug = True
+        # Debug mode
+        self.debug = config.debugmode
 
         # Blocklists
-        self.blocklist = self.parse_blocklist(config.blocklist)
-        self.blocked_ua = self.parse_blocklist(config.blocked_ua)
+        self.blocklist = self.load_filelist(config.blocklist_hashed)
+        
+        itemlist = self.load_filelist(config.blocklist_cleartext)
+        for i in itemlist:
+            self.blocklist.append(hashlib.md5(i).hexdigest())
+        
+        self.blocklist = set(self.blocklist) # eliminate duplicates
+        self.dump_filelist(config.blocklist_hashed, self.blocklist)
 
-        # Banner file
-        self.bannerfile = config.bannerfile
+        self.blocked_ua = self.load_filelist(config.blocked_ua)
+
+        # Banner
+        self.banner = open(config.bannerfile, "r").read()
 
         # SOCKS proxy
         self.sockshost = config.sockshost
@@ -81,17 +108,27 @@ class Tor2web(object):
 
         self.error = {}
 
-    def parse_blocklist(self, filename):
+    def load_filelist(self, filename):
         """
-        Parse the blocklist file and return a list containing
-        the to be blocked sites.
+        Load the list from the specified file.
         """
         fh = open(filename, "r")
-        blocklist = []
+        entrylist = []
         for l in fh.readlines():
-            blocklist.append(l.strip())
+            # permit comments inside list following the first space 
+            entrylist.append(re.split('[ , \n,\t]', l)[0])
         fh.close()
-        return blocklist
+        return entrylist
+
+    def dump_filelist(self, filename, listtodump):
+        """
+        Dump the list to the specified file.
+        """
+        fh = open(filename, "w")
+        for l in listtodump:
+           fh.write(l+"\n")
+        fh.close()
+        return
 
     def petname_lookup(self, address):
         """
@@ -100,7 +137,6 @@ class Tor2web(object):
 
         :address the address to lookup
         """
-        # XXX make me do something actually useful :P
         return address
 
     def verify_onion(self, address):
@@ -111,8 +147,7 @@ class Tor2web(object):
         else returns False
         """
         onion, tld = address.split(".")
-        if self.debug:
-            print "onion: %s tld: %s" % (onion, tld)
+        log.msg("onion: %s tld: %s" % (onion, tld))
         if tld == "onion" and \
             len(onion) == 16 and \
             onion.isalnum():
@@ -127,31 +162,21 @@ class Tor2web(object):
         or in the x.<tor2web_domain>.<tld>/<onion_url>.onion/ format.
         """
         # Detect x.tor2web.org use mode
-        if self.debug:
-            print "RESOLVING: %s" % host
+        log.msg("RESOLVING: %s" % host)
         if host.split(".")[0] == "x":
             self.xdns = True
             self.hostname = self.petname_lookup(uri.split("/")[1])
-            if self.debug:
-                print "DETECTED x.tor2web Hostname: %s" % self.hostname
+            log.msg("DETECTED x.tor2web Hostname: %s" % self.hostname)
         else:
             self.xdns = False
             self.hostname = self.petname_lookup(host.split(".")[0]) + ".onion"
-            if self.debug:
-                print "DETECTED <onion_url>.tor2web Hostname: %s" % self.hostname
-
-        if hashlib.md5(self.hostname).hexdigest() in self.blocklist:
-            print "SITE BLOCKED!"
-            self.error = {'message': 'Site Blocked','code': 503}
-            return False
-
+            log.msg("DETECTED <onion_url>.tor2web Hostname: %s" % self.hostname)
         try:
             verified = self.verify_onion(self.hostname)
         except:
             return False
 
         if verified:
-            print "Verified!"
             return True
         else:
             self.error = {'message': 'invalid hostname', 'code': 406}
@@ -168,8 +193,7 @@ class Tor2web(object):
             uri = '/' + '/'.join(req.uri.split("/")[2:])
         else:
             uri = req.uri
-        if self.debug:
-            print "URI: %s" % uri
+        log.msg("URI: %s" % uri)
 
         return uri
 
@@ -182,11 +206,23 @@ class Tor2web(object):
         """
         # When connecting to HS use only HTTP
         address = "http://"
+
         # Resolve the hostname
         if not self.resolve_hostname(req.host, req.uri):
             return False
+  
         # Clean up the uri
         uri = self.get_uri(req)
+   
+        if hashlib.md5(self.hostname).hexdigest() in self.blocklist:
+          log.msg("HIDDEN SERVICE BLOCKED!")
+          self.error = {'message': 'Hidden Service Blocked','code': 503}
+          return False
+
+        if hashlib.md5(self.hostname + uri).hexdigest() in self.blocklist:
+          log.msg("SPECIFIC PAGE SITE BLOCKED!")
+          self.error = {'message': 'Specific Page Blocked','code': 503}
+          return False
 
         address += self.hostname + uri
 
@@ -207,9 +243,8 @@ class Tor2web(object):
         # Hack to avoid getting GZIP
         if 'accept-encoding' in self.headers:
             del self.headers['accept-encoding']
-        if self.debug:
-            print "Headers:"
-            pprint(self.headers)
+        log.msg("Headers:")
+        log.msg(self.headers)
         return self.address
 
     def leaving_link(self, target):
@@ -225,18 +260,15 @@ class Tor2web(object):
         data = address
 
         if data.startswith("/"):
-            if self.debug:
-                print "LINK starts with /"
+            log.msg("LINK starts with /")
             if self.xdns:
                 link = "/" + self.hostname + data
             else:
                 link = data
 
         elif data.startswith("http"):
-            if self.debug:
-                print "LINK starts with http://"
+            log.msg("LINK starts with http://")
             o = urlparse(data)
-
             if not o.netloc.endswith(".onion"):
                 # This is an external link outside of the deep web!
                 link = self.leaving_link(o)
@@ -256,19 +288,15 @@ class Tor2web(object):
                     link += "?" + o.query if o.query else ""
 
         elif data.startswith("data:"):
-            if self.debug:
-                print "LINK starts with data:"
+            log.msg("LINK starts with data:")
             link = data
 
         else:
-            if self.debug:
-                print "LINK starts with "
-                print "link: %s" % data
+            log.msg("LINK starts with link: %s" % data)
             if self.xdns:
                 link = '/' + self.hostname + '/'.join(self.path.split("/")[:-1]) + '/' + data
             else:
                 link = data
-
         return link
 
 
@@ -296,9 +324,7 @@ class Tor2web(object):
 
     def add_banner(self, data):
         data = data.group(1)
-        print "making pretty banners!!"
-        banner = open(self.bannerfile, "r").read()
-        return str(data)+str(banner)
+        return str(data)+str(self.banner)
 
 
     def process_links(self, data):
@@ -306,15 +332,13 @@ class Tor2web(object):
         Process all the possible HTML tag attributes that may contain
         links.
         """
-        if self.debug:
-            print "processing src attributes"
+        log.msg("processing src attributes")
 
         ret = re.sub(rexp['src'], self.fix_links, data)
         ret = re.sub(rexp['href'], self.fix_links, ret)
         ret = re.sub(rexp['action'], self.fix_links, ret)
 
-        if self.debug:
-            print "Finished processing links..."
+        log.msg("Finished processing links...")
 
         return ret
 
@@ -323,63 +347,11 @@ class Tor2web(object):
         Process the result from the Hidden Services HTML
         """
         ret = None
-        if self.debug:
-            print "Processing HTML type content"
+        log.msg("Processing HTML type content")
 
         final = self.process_links(content)
 
         ret = re.sub(rexp['body'], self.add_banner, final)
 
         return ret
-
-class Config(Storage):
-    """
-    A Storage-like class which loads and store each attribute into a portable
-    conf file.
-    """
-    def __init__(self, section, cfgfile="tor2web.conf"):
-        super(Config, self).__init__()
-
-        self._cfgfile = cfgfile
-        # setting up confgiparser
-        self._cfgparser = ConfigParser.ConfigParser()
-        self._cfgparser.read([self._cfgfile])
-        self._section = section
-
-    def __getattr__(self, name):
-        if name.startswith('_'):
-            return self.__dict__.get(name, None)
-
-        try:
-            value = self._cfgparser.get(self._section, name)
-            if value.isdigit():
-                return int(value)
-            elif value.lower() in ('true', 'false'):
-                return value.lower() == 'true'
-            else:
-                return value
-        except ConfigParser.NoOptionError:
-            return ''  # if option doesn't exists return an empty string
-
-    def __setattr__(self, name, value):
-        # keep an open port with private attributes
-        if name.startswith('_'):
-            self.__dict__[name] = value
-            return
-
-        try:
-            # XXX: Automagically discover variable type
-            self._cfgparser.set(self._section, name, value)
-        except ConfigParser.NoOptionError:
-            raise NameError(name)
-
-    def commit(self):
-        """
-        Commit changes in config file.
-        """
-        cfgfile = open(self._cfgfile, 'w')
-        try:
-            self._cfgparser.write(cfgfile)
-        finally:
-            cfgfile.close()
 
