@@ -1,61 +1,9 @@
-"""
-    Tor2web
-    Copyright (C) 2012 Hermes No Profit Association - GlobaLeaks Project
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
-
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-"""
-
-"""
-
-:mod:`Tor2Web`
-=====================================================
-
-.. automodule:: Tor2Web
-   :synopsis: [GLOBALEAKS_MODULE_DESCRIPTION]
-
-.. moduleauthor:: Arturo Filasto' <art@globaleaks.org>
-.. moduleauthor:: Giovanni Pellerano <evilaliv3@globaleaks.org>
-
-"""
-
 # -*- coding: utf-8 -*-
+"""
+    config.py
+    -------
 
-from twisted.application import service, internet
-from twisted.web import proxy, http, client, server, static
-from twisted.web.http import Request
-from twisted.internet import reactor, endpoints
-from twisted.web.resource import Resource
-from twisted.python import log
-
-import hashlib
-import gzip
-import os
-import sys
-import urlparse
-import re
-
-from socksclient import SOCKSv4ClientProtocol, SOCKSWrapper
-
-from StringIO import StringIO
-from mimetypes import guess_type
-
-from config import Config
-from storage import Storage
-from tor2web import Tor2web
-
-config = Config("main")
-t2w = Tor2web(config)
+"""
 
 class Tor2webProxyClient(proxy.ProxyClient):
     def __init__(self, *args, **kwargs):
@@ -134,6 +82,7 @@ class Tor2webProxyClient(proxy.ProxyClient):
             c_f = StringIO(content)
             content = gzip.GzipFile(fileobj=c_f).read()
 
+        #print type(content)
         if self.html:
             content = t2w.process_html(content)
 
@@ -168,7 +117,7 @@ class Tor2webProxyRequest(Request):
     """
 
     protocols = {'http': Tor2webProxyClientFactory}
-    ports = {'http': config.listen_port}
+    ports = {'http': 80}
 
     def __init__(self, channel, queued, reactor=reactor):
         Request.__init__(self, channel, queued)
@@ -201,7 +150,8 @@ class Tor2webProxyRequest(Request):
                 self.finish()
                 return server.NOT_DONE_YET
 
-        log.msg(myrequest)
+        if config.debug:
+            print myrequest
 
         if not t2w.process_request(myrequest):
             self.setResponseCode(t2w.error['code'])
@@ -213,8 +163,9 @@ class Tor2webProxyRequest(Request):
         self.uri = t2w.address
 
         parsed = urlparse.urlparse(self.uri)
-        log.msg(parsed)
-        log.msg(self.uri)
+        if config.debug:
+            print parsed
+            print self.uri
 
         protocol = parsed[0]
         host = parsed[1]
@@ -230,6 +181,7 @@ class Tor2webProxyRequest(Request):
         if 'accept-encoding' in headers:
             del headers['accept-encoding']
 
+        #Print headers
         if 'host' not in headers:
             headers['host'] = host
 
@@ -238,7 +190,7 @@ class Tor2webProxyRequest(Request):
         clientFactory = class_(self.method, rest, self.clientproto, headers, s, self)
 
         dest = client._parse(t2w.address) # scheme, host, port, path
-        proxy = (None, config.sockshost, config.socksport, True, None, None)
+        proxy = (None, 'localhost', 9050, True, None, None)
         endpoint = endpoints.TCP4ClientEndpoint(reactor, dest[1], dest[2])
         wrapper = SOCKSWrapper(reactor, proxy[1], proxy[2], endpoint)
         f = clientFactory
@@ -251,7 +203,3 @@ class Tor2webProxy(proxy.Proxy):
 
 class Tor2webProxyFactory(http.HTTPFactory):
     protocol = Tor2webProxy
-
-application = service.Application("Tor2web")
-service = internet.TCPServer(int(config.listen_port), Tor2webProxyFactory())
-service.setServiceParent(application)
