@@ -28,14 +28,12 @@
 .. moduleauthor:: Giovanni Pellerano <evilaliv3@globaleaks.org>
 
 """
-
 # -*- coding: utf-8 -*-
 
 from twisted.application import service, internet
-from twisted.web import proxy, http, client, server, static
+from twisted.web import proxy, http, client, server, static, resource
 from twisted.web.http import Request
-from twisted.internet import reactor, endpoints
-from twisted.web.resource import Resource
+from twisted.internet import ssl, reactor, endpoints
 from twisted.python import log
 
 import hashlib
@@ -168,14 +166,34 @@ class Tor2webProxyRequest(Request):
     """
 
     protocols = {'http': Tor2webProxyClientFactory}
-    ports = {'http': config.listen_port}
+    ports = {'http': 80}
 
     def __init__(self, channel, queued, reactor=reactor):
         Request.__init__(self, channel, queued)
         self.reactor = reactor
+        
+    def _onError(self, failure):
+        log.msg('Failure %s at %s' % (failure, self.__class__.__name__))
+        error = failure.trap(ConnectionLost)
+        if error == ConnectionLost:
+            # Do some beautiful things
+            log.msg('Connection is lost. I want to reconnect NOW')
+        return failure
+
+    def _responseFailed(self, failure, call):
+        call.cancel()
 
     def process(self):
         myrequest = Storage()
+        if not self.isSecure():
+            self.setResponseCode(301)
+            self.setHeader('Location', "https://" + self.getRequestHostname() + self.uri)
+            self.write("HTTP/1.1 301 Moved Permanently")
+            self.finish()
+            return server.NOT_DONE_YET
+        else:
+            self.setHeader('Strict-Transport-Security', 'max-age=31536000')
+
         myrequest.headers = self.getAllHeaders().copy()
         myrequest.uri = self.uri
         myrequest.host = myrequest.headers['host']
@@ -211,11 +229,11 @@ class Tor2webProxyRequest(Request):
 
         # Rewrite the URI with the tor2web parsed one
         self.uri = t2w.address
-
+        log.msg(self.uri)
+    
         parsed = urlparse.urlparse(self.uri)
         log.msg(parsed)
-        log.msg(self.uri)
-
+        
         protocol = parsed[0]
         host = parsed[1]
         port = self.ports[protocol]
@@ -249,9 +267,19 @@ class Tor2webProxyRequest(Request):
 class Tor2webProxy(proxy.Proxy):
     requestFactory = Tor2webProxyRequest
 
-class Tor2webProxyFactory(http.HTTPFactory):
+class ProxyFactory(http.HTTPFactory):
     protocol = Tor2webProxy
 
+def startTor2webHTTP():
+    return internet.TCPServer(int(config.listen_port_http), ProxyFactory())
+
+def startTor2webHTTPS():
+    return internet.SSLServer(int(config.listen_port_https), ProxyFactory(), ssl.DefaultOpenSSLContextFactory(config.sslkeyfile, config.sslcertfile))
+
 application = service.Application("Tor2web")
-service = internet.TCPServer(int(config.listen_port), Tor2webProxyFactory())
-service.setServiceParent(application)
+
+service_https = startTor2webHTTPS()
+service_https.setServiceParent(application)
+
+service_http = startTor2webHTTP()
+service_http.setServiceParent(application)
