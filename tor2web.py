@@ -216,12 +216,12 @@ class Tor2web(object):
    
         if hashlib.md5(self.hostname).hexdigest() in self.blocklist:
           log.msg("HIDDEN SERVICE BLOCKED!")
-          self.error = {'message': 'Hidden Service Blocked','code': 503}
+          self.error = {'message': 'Hidden Service Blocked','code': 403}
           return False
 
         if hashlib.md5(self.hostname + uri).hexdigest() in self.blocklist:
           log.msg("SPECIFIC PAGE SITE BLOCKED!")
-          self.error = {'message': 'Specific Page Blocked','code': 503}
+          self.error = {'message': 'Specific Page Blocked','code': 403}
           return False
 
         address += self.hostname + uri
@@ -257,6 +257,9 @@ class Tor2web(object):
         return 'https://leaving.' + self.basehost + '/' + link
 
     def fix_link(self, address):
+        """
+        Operates some links corrections.
+        """
         data = address
 
         if data.startswith("/"):
@@ -279,7 +282,7 @@ class Tor2web(object):
                 link += "?" + o.query if o.query else ""
             else:
                 if o.netloc.endswith(".onion"):
-                    netloc = o.netloc.replace(".onion", "")
+                    netloc = o.netloc.get_addrreplace(".onion", "")
                     if o.scheme == "http":
                         link = "http://"
                     else:
@@ -323,20 +326,24 @@ class Tor2web(object):
         return allmatch.replace(innermatch, link)
 
     def add_banner(self, data):
+        """
+        Inject tor2web banner inside the returned page
+        """
         data = data.group(1)
         return str(data)+str(self.banner)
 
 
     def process_links(self, data):
         """
-        Process all the possible HTML tag attributes that may contain
-        links.
+        Process all the possible HTML tag attributes that may contain links.
         """
-        log.msg("processing src attributes")
+        log.msg("processing url attributes")
 
-        ret = re.sub(rexp['src'], self.fix_links, data)
-        ret = re.sub(rexp['href'], self.fix_links, ret)
-        ret = re.sub(rexp['action'], self.fix_links, ret)
+        ret = None
+
+        items = ["src", "href", "action"]
+        for item in items:
+          ret = re.sub(rexp[item], self.fix_links, data)
 
         log.msg("Finished processing links...")
 
@@ -346,8 +353,9 @@ class Tor2web(object):
         """
         Process the result from the Hidden Services HTML
         """
-        ret = None
         log.msg("Processing HTML type content")
+
+        ret = None
 
         final = self.process_links(content)
 
