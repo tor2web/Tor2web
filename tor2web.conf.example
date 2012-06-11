@@ -1,19 +1,24 @@
 # Tor2web configuration file
 [main]
-listen_port = 8888
+debugmode  = True
+listen_port_http = 80
+listen_port_https = 443
 # This is the base hostname for the current tor2web node
-basehost = tor2web.org:8888
+basehost = tor2web.org
 # This is the SOCKS host and port on which Tor is listening
 sockshost = 127.0.0.1
 socksport = 9050
 # SSL configuration
-sslcertfile = certs/tor2web.pem
-sslkeyfile = certs/tor2web.key
-sslcacert = certs/tor2web-intermediate.pem
+sslkeyfile = certs/tor2web_key_test.key
+sslcertfile = certs/tor2web-intermediate_cert_test.pem
 debug = True
-bannerfile = banner.html
+bannerfile = interface/banner.html
 staticmap = 314159265antani
 staticpath = static/
-blocklist = blocklist.txt
 blockcrawl = True
-blocked_ua = blocked_ua.txt
+blocked_ua = lists/blocked_ua.txt
+blocklist_cleartext = lists/blocklist_cleartext.txt
+blocklist_hashed = lists/blocklist_hashed.txt
+cipher_list = HIGH:MEDIUM:!aNULL:!SSLv2:!MD5:@STRENGTH
+#cipher_list = DHE-RSA-AES256-SHA:DHE-DSS-AES256-SHA:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA
+
