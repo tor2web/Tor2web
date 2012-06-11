@@ -35,6 +35,7 @@ from twisted.web import proxy, http, client, server, static, resource
 from twisted.web.http import Request
 from twisted.internet import ssl, reactor, endpoints
 from twisted.python import log
+from OpenSSL import SSL
 
 import hashlib
 import gzip
@@ -54,6 +55,43 @@ from tor2web import Tor2web
 
 config = Config("main")
 t2w = Tor2web(config)
+
+class Tor2webSSLContextFactory():
+    """
+    """
+    _context = None
+
+    def __init__(self, privateKeyFileName, certificateFileName, cipherList):
+        """
+        @param privateKeyFileName: Name of a file containing a private key
+        @param certificateFileName: Name of a file containing a certificate
+        @param cipherList: The SSL cipher list selection to use
+        """
+        if self._context is None:
+            ctx = SSL.Context(SSL.SSLv23_METHOD)
+            # Disallow SSLv2!  It's insecure!
+            ctx.set_options(SSL.OP_NO_SSLv2)
+            ctx.use_certificate_file(certificateFileName)
+            ctx.use_privatekey_file(privateKeyFileName)
+            ctx.set_cipher_list(cipherList)
+            self._context = ctx
+
+    def __getstate__(self):
+        d = self.__dict__.copy()
+        del d['_context']
+        return d
+
+
+    def __setstate__(self, state):
+        self.__dict__ = state
+
+
+    def getContext(self):
+        """
+        Return an SSL context.
+        """
+        return self._context
+
 
 class Tor2webProxyClient(proxy.ProxyClient):
     def __init__(self, *args, **kwargs):
@@ -105,7 +143,6 @@ class Tor2webProxyClient(proxy.ProxyClient):
             self.length -= len(data)
         else:
             rest = ''
-
         if self._chunked:
             self._chunked.dataReceived(data)
         else:
@@ -274,7 +311,7 @@ def startTor2webHTTP():
     return internet.TCPServer(int(config.listen_port_http), ProxyFactory())
 
 def startTor2webHTTPS():
-    return internet.SSLServer(int(config.listen_port_https), ProxyFactory(), ssl.DefaultOpenSSLContextFactory(config.sslkeyfile, config.sslcertfile))
+    return internet.SSLServer(int(config.listen_port_https), ProxyFactory(), Tor2webSSLContextFactory(config.sslkeyfile, config.sslcertfile, config.cipher_list))
 
 application = service.Application("Tor2web")
 
