@@ -1,4 +1,0 @@
-127.0.0.1 - - [12/Jun/2012:19:58:38 +0000] "GET eqt5g4fuenphqinx.tor2web.orghttp://eqt5g4fuenphqinx.onion/ HTTP/1.1" 200 - "-" "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:13.0) Gecko/20100101 Firefox/13.0"
-127.0.0.1 - - [12/Jun/2012:19:58:41 +0000] "GET eqt5g4fuenphqinx.tor2web.orghttp://eqt5g4fuenphqinx.onion/favicon.ico HTTP/1.1" 404 19047 "-" "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:13.0) Gecko/20100101 Firefox/13.0"
-127.0.0.1 - - [12/Jun/2012:19:58:45 +0000] "GET eqt5g4fuenphqinx.tor2web.orghttp://eqt5g4fuenphqinx.onion/favicon.ico HTTP/1.1" 404 19047 "-" "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:13.0) Gecko/20100101 Firefox/13.0"
-127.0.0.1 - - [12/Jun/2012:20:07:31 +0000] "GET eqt5g4fuenphqinx.tor2web.orghttp://eqt5g4fuenphqinx.onion/ HTTP/1.1" 304 - "-" "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:13.0) Gecko/20100101 Firefox/13.0"
