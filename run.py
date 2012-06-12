@@ -61,7 +61,7 @@ class Tor2webSSLContextFactory():
     """
     _context = None
 
-    def __init__(self, privateKeyFileName, certificateFileName, cipherList):
+    def __init__(self, privateKeyFileName, certificateFileName, dhFileName, cipherList):
         """
         @param privateKeyFileName: Name of a file containing a private key
         @param certificateFileName: Name of a file containing a certificate
@@ -74,6 +74,7 @@ class Tor2webSSLContextFactory():
             ctx.use_certificate_file(certificateFileName)
             ctx.use_privatekey_file(privateKeyFileName)
             ctx.set_cipher_list(cipherList)
+            ctx.load_tmp_dh(dhFileName)
             self._context = ctx
 
     def __getstate__(self):
@@ -81,17 +82,14 @@ class Tor2webSSLContextFactory():
         del d['_context']
         return d
 
-
     def __setstate__(self, state):
         self.__dict__ = state
-
 
     def getContext(self):
         """
         Return an SSL context.
         """
         return self._context
-
 
 class Tor2webProxyClient(proxy.ProxyClient):
     def __init__(self, *args, **kwargs):
@@ -189,10 +187,8 @@ class Tor2webProxyClient(proxy.ProxyClient):
     def finish(self):
         pass
 
-
 class Tor2webProxyClientFactory(proxy.ProxyClientFactory):
     protocol = Tor2webProxyClient
-
 
 class Tor2webProxyRequest(Request):
     """
@@ -217,10 +213,9 @@ class Tor2webProxyRequest(Request):
             log.msg('Connection is lost. I want to reconnect NOW')
         return failure
 
-    def _responseFailed(self, failure, call):
-        call.cancel()
-
     def process(self):
+        print self.getClientIP() + self.getAllHeaders()['host']
+
         myrequest = Storage()
         if not self.isSecure():
             self.setResponseCode(301)
@@ -307,11 +302,18 @@ class Tor2webProxy(proxy.Proxy):
 class ProxyFactory(http.HTTPFactory):
     protocol = Tor2webProxy
 
+    def __init__(self, logPath=None):
+      """Initialize.
+      """
+      http.HTTPFactory.__init__(self, logPath=logPath)
+      self.sessions = {}
+      self.resource = resource
+
 def startTor2webHTTP():
-    return internet.TCPServer(int(config.listen_port_http), ProxyFactory())
+    return internet.TCPServer(int(config.listen_port_http), ProxyFactory(config.logpath))
 
 def startTor2webHTTPS():
-    return internet.SSLServer(int(config.listen_port_https), ProxyFactory(), Tor2webSSLContextFactory(config.sslkeyfile, config.sslcertfile, config.cipher_list))
+    return internet.SSLServer(int(config.listen_port_https), ProxyFactory(config.logpath), Tor2webSSLContextFactory(config.sslkeyfile, config.sslcertfile, config.ssldhfile, config.cipher_list))
 
 application = service.Application("Tor2web")
 
