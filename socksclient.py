@@ -91,8 +91,7 @@ class SOCKSv4ClientProtocol(Protocol):
     def dataReceived(self, data):
         if self.isSuccess(data):
             # Build protocol from provided factory and transfer control to it.
-            self.transport.protocol = self.postHandshakeFactory.buildProtocol(
-                self.transport.getHost())
+            self.transport.protocol = self.postHandshakeFactory.buildProtocol(self.transport.getHost())
             self.transport.protocol.transport = self.transport
             self.transport.protocol.connectionMade()
             self.handshakeDone.callback(self.transport.getPeer())

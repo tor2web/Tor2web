@@ -215,12 +215,10 @@ class Tor2web(object):
         uri = self.get_uri(req)
    
         if hashlib.md5(self.hostname).hexdigest() in self.blocklist:
-          log.msg("HIDDEN SERVICE BLOCKED!")
           self.error = {'message': 'Hidden Service Blocked','code': 403}
           return False
 
         if hashlib.md5(self.hostname + uri).hexdigest() in self.blocklist:
-          log.msg("SPECIFIC PAGE SITE BLOCKED!")
           self.error = {'message': 'Specific Page Blocked','code': 403}
           return False
 
@@ -317,20 +315,15 @@ class Tor2web(object):
         /something -> /something
         <other_onion_url>/something -> <other_onion_url>.tor2web.org/something
         """
-        allmatch = data.group(0)
-        innermatch = data.group(1)
-        data = innermatch
+        link = self.fix_link(data.group(1))
 
-        link = self.fix_link(data)
-
-        return allmatch.replace(innermatch, link)
+        return data.group(0).replace(data.group(1), link)
 
     def add_banner(self, data):
         """
         Inject tor2web banner inside the returned page
         """
-        data = data.group(1)
-        return str(data)+str(self.banner)
+        return str(data.group(1))+str(self.banner)
 
 
     def process_links(self, data):
@@ -345,7 +338,7 @@ class Tor2web(object):
         for item in items:
           ret = re.sub(rexp[item], self.fix_links, data)
 
-        log.msg("Finished processing links...")
+        log.msg("finished processing links...")
 
         return ret
 
@@ -353,7 +346,7 @@ class Tor2web(object):
         """
         Process the result from the Hidden Services HTML
         """
-        log.msg("Processing HTML type content")
+        log.msg("processing HTML type content")
 
         ret = None
 

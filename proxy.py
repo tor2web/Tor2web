@@ -1,13 +1,39 @@
-# -*- coding: utf-8 -*-
 """
-    config.py
-    -------
+    Tor2web
+    Copyright (C) 2012 Hermes No Profit Association - GlobaLeaks Project
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
 
 """
+
+:mod:`Tor2Web`
+=====================================================
+
+.. automodule:: Tor2Web
+   :synopsis: [GLOBALEAKS_MODULE_DESCRIPTION]
+
+.. moduleauthor:: Arturo Filasto' <art@globaleaks.org>
+.. moduleauthor:: Giovanni Pellerano <evilaliv3@globaleaks.org>
+
+"""
+
+# -*- coding: utf-8 -*-
 
 class Tor2webProxyClient(proxy.ProxyClient):
     def __init__(self, *args, **kwargs):
-        proxy.ProxyClient.__init__(self, *args, **kwargs)
+        super.__init__(self, *args, **kwargs)
         self.bf = []
         self.contenttype = 'unknown'
         self.gzip = False
@@ -16,30 +42,31 @@ class Tor2webProxyClient(proxy.ProxyClient):
         self._chunked = False
 
     def handleHeader(self, key, value):
+        keyLower = key.lower()
 
-        if key.lower() == "content-encoding" and value == "gzip":
+        if keyLower == "content-encoding" and value == "gzip":
             self.gzip = True
             return
 
-        if key.lower() == "location":
+        if keyLower == "location":
             self.location = t2w.fix_link(value)
             return
 
-        if key.lower() == "transfer-encoding" and value == "chunked":
+        if keyLower == "transfer-encoding" and value == "chunked":
             self._chunked = http._ChunkedTransferDecoder(self.handleResponsePart,
                                                          self.handleResponseEnd)
             return
 
-        if key.lower() == 'content-type' and re.search('text/html', value):
+        if keyLower == 'content-type' and re.search('text/html', value):
             self.html = True
 
-        if key.lower() == "content-length":
+        if keyLower == "content-length":
             pass
 
-        elif key.lower() == 'cache-control':
+        elif keyLower == 'cache-control':
             pass
 
-        elif key.lower() == 'connection':
+        elif keyLower == 'connection':
             pass
 
         else:
@@ -47,7 +74,7 @@ class Tor2webProxyClient(proxy.ProxyClient):
 
     def handleEndHeaders(self):
         if self.location:
-            proxy.ProxyClient.handleHeader(self, "Location", self.location)
+            proxy.ProxyClient.handleHeader(self, "location", self.location)
 
     def rawDataReceived(self, data):
         if self.length is not None:
@@ -73,32 +100,23 @@ class Tor2webProxyClient(proxy.ProxyClient):
 
     def handleResponseEnd(self, *args, **kwargs):
         content = ''.join(self.bf)
-        if self.html:
-            htmlc = True
-        else:
-            htmlc = False
 
         if self.gzip:
             c_f = StringIO(content)
             content = gzip.GzipFile(fileobj=c_f).read()
 
-        #print type(content)
         if self.html:
             content = t2w.process_html(content)
 
         if content:
             proxy.ProxyClient.handleHeader(self, 'cache-control', 'no-cache')
-            proxy.ProxyClient.handleHeader(self, "Content-Length", len(content))
+            proxy.ProxyClient.handleHeader(self, "content-length", len(content))
             proxy.ProxyClient.handleEndHeaders(self)
             proxy.ProxyClient.handleResponsePart(self, content)
-            proxy.ProxyClient.handleResponseEnd(self)
-            self.finish()
 
-            return server.NOT_DONE_YET
-        else:
-            proxy.ProxyClient.handleResponseEnd(self)
-            self.finish()
-            return server.NOT_DONE_YET
+        proxy.ProxyClient.handleResponseEnd(self)
+        self.finish()
+        return server.NOT_DONE_YET
 
     def finish(self):
         pass
@@ -116,9 +134,6 @@ class Tor2webProxyRequest(Request):
     @type reactor: object providing L{twisted.internet.interfaces.IReactorTCP}
     """
 
-    protocols = {'http': Tor2webProxyClientFactory}
-    ports = {'http': 80}
-
     def __init__(self, channel, queued, reactor=reactor):
         Request.__init__(self, channel, queued)
         self.reactor = reactor
@@ -129,7 +144,7 @@ class Tor2webProxyRequest(Request):
         myrequest.uri = self.uri
         myrequest.host = myrequest.headers['host']
 
-        if self.uri.lower() == "/robots.txt" and config.blockcrawl:
+        if self.uri == "/robots.txt" and config.blockcrawl:
             self.write("User-Agent: *\nDisallow: /\n")
             self.finish()
             return server.NOT_DONE_YET
@@ -156,6 +171,7 @@ class Tor2webProxyRequest(Request):
         if not t2w.process_request(myrequest):
             self.setResponseCode(t2w.error['code'])
             self.write(t2w.error['message'])
+            log.msg(t2w.error['code'] + ' ' + t2w.error['message'])
             self.finish()
             return server.NOT_DONE_YET
 
@@ -163,25 +179,23 @@ class Tor2webProxyRequest(Request):
         self.uri = t2w.address
 
         parsed = urlparse.urlparse(self.uri)
-        if config.debug:
-            print parsed
-            print self.uri
-
         protocol = parsed[0]
         host = parsed[1]
-        port = self.ports[protocol]
         if ':' in host:
             host, port = host.split(':')
             port = int(port)
+        else
+            port = self.ports[protocol]
+
         rest = urlparse.urlunparse(('', '') + parsed[2:])
         if not rest:
             rest = rest + '/'
         class_ = self.protocols[protocol]
         headers = self.getAllHeaders().copy()
+  
         if 'accept-encoding' in headers:
             del headers['accept-encoding']
 
-        #Print headers
         if 'host' not in headers:
             headers['host'] = host
 
