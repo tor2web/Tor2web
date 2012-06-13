@@ -214,8 +214,6 @@ class Tor2webProxyRequest(Request):
         return failure
 
     def process(self):
-        print self.getClientIP() + self.getAllHeaders()['host']
-
         myrequest = Storage()
         if not self.isSecure():
             self.setResponseCode(301)
@@ -261,10 +259,7 @@ class Tor2webProxyRequest(Request):
 
         # Rewrite the URI with the tor2web parsed one
         self.uri = t2w.address
-        log.msg(self.uri)
-    
         parsed = urlparse.urlparse(self.uri)
-        log.msg(parsed)
         
         protocol = parsed[0]
         host = parsed[1]

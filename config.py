@@ -43,7 +43,6 @@ class Config(Storage):
         super(Config, self).__init__()
 
         self._cfgfile = cfgfile
-        # setting up confgiparser
         self._cfgparser = ConfigParser.ConfigParser()
         self._cfgparser.read([self._cfgfile])
         self._section = section
