@@ -53,9 +53,6 @@ from config import Config
 from storage import Storage
 from tor2web import Tor2web
 
-config = Config("main")
-t2w = Tor2web(config)
-
 class Tor2webSSLContextFactory():
     """
     """
@@ -303,12 +300,33 @@ class ProxyFactory(http.HTTPFactory):
       http.HTTPFactory.__init__(self, logPath=logPath)
       self.sessions = {}
       self.resource = resource
+      
+    def log(self, request):
+        """
+        Log a request's result to the logfile, by default in combined log format.
+        """
+        if config.logreqs and hasattr(self, "logFile"):
+            line = '[CLIENT IP FILTERED] - - %s "%s" %d %s "%s" "%s"\n' % (
+                # request.getUser() or "-", # the remote user is almost never important
+                self._logDateTime,
+                '%s %s %s' % (self._escape(request.method),
+                              self._escape(request.uri),
+                              self._escape(request.clientproto)),
+                request.code,
+                request.sentLength or "-",
+                self._escape(request.getHeader("referer") or "-"),
+                self._escape(request.getHeader("user-agent") or "-"))
+            self.logFile.write(line)
+
 
 def startTor2webHTTP():
     return internet.TCPServer(int(config.listen_port_http), ProxyFactory(config.logpath))
 
 def startTor2webHTTPS():
     return internet.SSLServer(int(config.listen_port_https), ProxyFactory(config.logpath), Tor2webSSLContextFactory(config.sslkeyfile, config.sslcertfile, config.ssldhfile, config.cipher_list))
+
+config = Config("main")
+t2w = Tor2web(config)
 
 application = service.Application("Tor2web")
 
