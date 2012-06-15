@@ -161,7 +161,7 @@ class Tor2webProxyRequest(Request):
             # OMFG this is a monster!
             # XXX refactor this into another "cleaner" place
             if not 'referer' in myrequest.headers or not config.basehost in myrequest.headers['referer'].lower():
-                self.write(open('staticRequest/tor2web-small.png', 'r').read())
+                self.write(open('static/tor2web-small.png', 'r').read())
                 self.finish()
                 return server.NOT_DONE_YET
 
