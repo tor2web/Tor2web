@@ -306,7 +306,7 @@ class ProxyFactory(http.HTTPFactory):
         Log a request's result to the logfile, by default in combined log format.
         """
         if config.logreqs and hasattr(self, "logFile"):
-            line = '[CLIENT IP FILTERED] - - %s "%s" %d %s "%s" "%s"\n' % (
+            line = '127.0.0.1 - - %s "%s" %d %s "%s" "%s"\n' % (
                 # request.getUser() or "-", # the remote user is almost never important
                 self._logDateTime,
                 '%s %s %s' % (self._escape(request.method),
