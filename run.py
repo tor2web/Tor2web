@@ -31,10 +31,12 @@
 # -*- coding: utf-8 -*-
 
 from twisted.application import service, internet
-from twisted.web import proxy, http, client, server, static, resource
-from twisted.web.http import Request
 from twisted.internet import ssl, reactor, endpoints
 from twisted.python import log
+from twisted.web import proxy, http, client, server, static, resource
+from twisted.web.http import Request
+
+from socksclient import SOCKSv4ClientProtocol, SOCKSWrapper
 from OpenSSL import SSL
 
 import hashlib
@@ -44,16 +46,26 @@ import sys
 import urlparse
 import re
 
-from socksclient import SOCKSv4ClientProtocol, SOCKSWrapper
-
 from StringIO import StringIO
 from mimetypes import guess_type
 
 from config import Config
-from storage import Storage
 from tor2web import Tor2web
+from storage import Storage
 
-class Tor2webSSLContextFactory():
+def startTor2webHTTP(t2w):
+    return internet.TCPServer(int(t2w.config.listen_port_http), T2WProxyFactory())
+
+def startTor2webHTTPS(t2w):
+    return internet.SSLServer(int(t2w.config.listen_port_https), T2WProxyFactory(), T2WSSLContextFactory(t2w.config.sslkeyfile, t2w.config.sslcertfile, t2w.config.ssldhfile, t2w.config.cipher_list))
+
+config = Config("main")
+
+t2w = Tor2web(config)
+
+application = service.Application("Tor2web")
+
+class T2WSSLContextFactory():
     """
     """
     _context = None
@@ -88,7 +100,7 @@ class Tor2webSSLContextFactory():
         """
         return self._context
 
-class Tor2webProxyClient(proxy.ProxyClient):
+class T2WProxyClient(proxy.ProxyClient):
     def __init__(self, *args, **kwargs):
         proxy.ProxyClient.__init__(self, *args, **kwargs)
         self.bf = []
@@ -99,30 +111,31 @@ class Tor2webProxyClient(proxy.ProxyClient):
         self._chunked = False
 
     def handleHeader(self, key, value):
+        keyLower = key.lower()
 
-        if key.lower() == "content-encoding" and value == "gzip":
-            self.gzip = True
+        if keyLower == "content-encoding" and value == "gzip":
+            self.decoder = GzipIncrementalDecoder
             return
-
-        if key.lower() == "location":
+      
+        if keyLower == "location":
             self.location = t2w.fix_link(value)
             return
 
-        if key.lower() == "transfer-encoding" and value == "chunked":
+        if keyLower == "transfer-encoding" and value == "chunked":
             self._chunked = http._ChunkedTransferDecoder(self.handleResponsePart,
                                                          self.handleResponseEnd)
             return
 
-        if key.lower() == 'content-type' and re.search('text/html', value):
+        if keyLower == 'content-type' and re.search('text/html', value):
             self.html = True
 
-        if key.lower() == "content-length":
+        if keyLower == "content-length":
             pass
 
-        elif key.lower() == 'cache-control':
+        elif keyLower == 'cache-control':
             pass
 
-        elif key.lower() == 'connection':
+        elif keyLower == 'connection':
             pass
 
         else:
@@ -130,7 +143,7 @@ class Tor2webProxyClient(proxy.ProxyClient):
 
     def handleEndHeaders(self):
         if self.location:
-            proxy.ProxyClient.handleHeader(self, "Location", self.location)
+            proxy.ProxyClient.handleHeader(self, "location", self.location)
 
     def rawDataReceived(self, data):
         if self.length is not None:
@@ -138,6 +151,7 @@ class Tor2webProxyClient(proxy.ProxyClient):
             self.length -= len(data)
         else:
             rest = ''
+
         if self._chunked:
             self._chunked.dataReceived(data)
         else:
@@ -155,10 +169,6 @@ class Tor2webProxyClient(proxy.ProxyClient):
 
     def handleResponseEnd(self, *args, **kwargs):
         content = ''.join(self.bf)
-        if self.html:
-            htmlc = True
-        else:
-            htmlc = False
 
         if self.gzip:
             c_f = StringIO(content)
@@ -169,63 +179,34 @@ class Tor2webProxyClient(proxy.ProxyClient):
 
         if content:
             proxy.ProxyClient.handleHeader(self, 'cache-control', 'no-cache')
-            proxy.ProxyClient.handleHeader(self, "Content-Length", len(content))
+            proxy.ProxyClient.handleHeader(self, "content-length", len(content))
             proxy.ProxyClient.handleEndHeaders(self)
             proxy.ProxyClient.handleResponsePart(self, content)
-            proxy.ProxyClient.handleResponseEnd(self)
-            self.finish()
 
-            return server.NOT_DONE_YET
-        else:
-            proxy.ProxyClient.handleResponseEnd(self)
-            self.finish()
-            return server.NOT_DONE_YET
+        proxy.ProxyClient.handleResponseEnd(self)
+        self.finish()
+        return server.NOT_DONE_YET
 
     def finish(self):
         pass
 
-class Tor2webProxyClientFactory(proxy.ProxyClientFactory):
-    protocol = Tor2webProxyClient
+class T2WProxyClientFactory(proxy.ProxyClientFactory):
+    protocol = T2WProxyClient
 
-class Tor2webProxyRequest(Request):
+class T2WRequest(Request):
     """
     Used by Tor2webProxy to implement a simple web proxy.
-
-    @ivar reactor: the reactor used to create connections.
-    @type reactor: object providing L{twisted.internet.interfaces.IReactorTCP}
     """
-
-    protocols = {'http': Tor2webProxyClientFactory}
+    protocols = {'http': T2WProxyClientFactory}
     ports = {'http': 80}
-
-    def __init__(self, channel, queued, reactor=reactor):
-        Request.__init__(self, channel, queued)
-        self.reactor = reactor
-        
-    def _onError(self, failure):
-        log.msg('Failure %s at %s' % (failure, self.__class__.__name__))
-        error = failure.trap(ConnectionLost)
-        if error == ConnectionLost:
-            # Do some beautiful things
-            log.msg('Connection is lost. I want to reconnect NOW')
-        return failure
 
     def process(self):
         myrequest = Storage()
-        if not self.isSecure():
-            self.setResponseCode(301)
-            self.setHeader('Location', "https://" + self.getRequestHostname() + self.uri)
-            self.write("HTTP/1.1 301 Moved Permanently")
-            self.finish()
-            return server.NOT_DONE_YET
-        else:
-            self.setHeader('Strict-Transport-Security', 'max-age=31536000')
-
         myrequest.headers = self.getAllHeaders().copy()
         myrequest.uri = self.uri
         myrequest.host = myrequest.headers['host']
 
-        if self.uri.lower() == "/robots.txt" and config.blockcrawl:
+        if self.uri == "/robots.txt" and config.blockcrawl:
             self.write("User-Agent: *\nDisallow: /\n")
             self.finish()
             return server.NOT_DONE_YET
@@ -239,99 +220,80 @@ class Tor2webProxyRequest(Request):
             return server.NOT_DONE_YET
 
         if self.uri.lower().endswith(('gif','jpg','png')):
-            # OMFG this is a monster!
-            # XXX refactor this into another "cleaner" place
             if not 'referer' in myrequest.headers or not config.basehost in myrequest.headers['referer'].lower():
                 self.write(open('static/tor2web-small.png', 'r').read())
                 self.finish()
                 return server.NOT_DONE_YET
 
-        log.msg(myrequest)
-
         if not t2w.process_request(myrequest):
             self.setResponseCode(t2w.error['code'])
             self.write(t2w.error['message'])
+            log.msg(str(t2w.error['code']) + ' ' + t2w.error['message'])
             self.finish()
             return server.NOT_DONE_YET
 
         # Rewrite the URI with the tor2web parsed one
         self.uri = t2w.address
+
         parsed = urlparse.urlparse(self.uri)
-        
         protocol = parsed[0]
         host = parsed[1]
-        port = self.ports[protocol]
         if ':' in host:
             host, port = host.split(':')
             port = int(port)
+        else:
+            port = self.ports[protocol]
+
         rest = urlparse.urlunparse(('', '') + parsed[2:])
         if not rest:
             rest = rest + '/'
+
         class_ = self.protocols[protocol]
         headers = self.getAllHeaders().copy()
-        if 'accept-encoding' in headers:
-            del headers['accept-encoding']
-
-        if 'host' not in headers:
-            headers['host'] = host
 
         self.content.seek(0, 0)
-        s = self.content.read()
-        clientFactory = class_(self.method, rest, self.clientproto, headers, s, self)
 
         dest = client._parse(t2w.address) # scheme, host, port, path
-        proxy = (None, config.sockshost, config.socksport, True, None, None)
+        proxy = (None, 'localhost', 9050, True, None, None)
         endpoint = endpoints.TCP4ClientEndpoint(reactor, dest[1], dest[2])
         wrapper = SOCKSWrapper(reactor, proxy[1], proxy[2], endpoint)
-        f = clientFactory
+        f = class_(self.method, rest, self.clientproto, headers, self.content.read(), self)
         d = wrapper.connect(f)
 
         return server.NOT_DONE_YET
 
-class Tor2webProxy(proxy.Proxy):
-    requestFactory = Tor2webProxyRequest
+class T2WProxy(proxy.Proxy):
+      requestFactory = T2WRequest
 
-class ProxyFactory(http.HTTPFactory):
-    protocol = Tor2webProxy
+class T2WProxyFactory(http.HTTPFactory):
+    protocol = T2WProxy
 
-    def __init__(self, logPath=None):
-      """Initialize.
-      """
-      http.HTTPFactory.__init__(self, logPath=logPath)
-      self.sessions = {}
-      self.resource = resource
+    def __init__(self):
+        """Initialize.
+        """
+        http.HTTPFactory.__init__(self, logPath=config.logpath)
+        self.sessions = {}
+        self.resource = resource
       
     def log(self, request):
-        """
-        Log a request's result to the logfile, by default in combined log format.
-        """
-        if config.logreqs and hasattr(self, "logFile"):
-            line = '127.0.0.1 - - %s "%s" %d %s "%s" "%s"\n' % (
-                # request.getUser() or "-", # the remote user is almost never important
-                self._logDateTime,
-                '%s %s %s' % (self._escape(request.method),
-                              self._escape(request.uri),
-                              self._escape(request.clientproto)),
-                request.code,
-                request.sentLength or "-",
-                self._escape(request.getHeader("referer") or "-"),
-                self._escape(request.getHeader("user-agent") or "-"))
-            self.logFile.write(line)
+      """
+      Log a request's result to the logfile, by default in combined log format.
+      """
+      if config.logreqs and hasattr(self, "logFile"):
+        line = '127.0.0.1 - - %s "%s" %d %s "%s" "%s"\n' % (
+          self._logDateTime,
+          '%s %s %s' % (self._escape(request.method),
+                        self._escape(request.uri),
+                        self._escape(request.clientproto)),
+          request.code,
+          request.sentLength or "-",
+          self._escape(request.getHeader("referer") or "-"),
+          self._escape(request.getHeader("user-agent") or "-"))
+        self.logFile.write(line)
 
 
-def startTor2webHTTP():
-    return internet.TCPServer(int(config.listen_port_http), ProxyFactory(config.logpath))
-
-def startTor2webHTTPS():
-    return internet.SSLServer(int(config.listen_port_https), ProxyFactory(config.logpath), Tor2webSSLContextFactory(config.sslkeyfile, config.sslcertfile, config.ssldhfile, config.cipher_list))
-
-config = Config("main")
-t2w = Tor2web(config)
-
-application = service.Application("Tor2web")
-
-service_https = startTor2webHTTPS()
+service_https = startTor2webHTTPS(t2w)
 service_https.setServiceParent(application)
 
-service_http = startTor2webHTTP()
+service_http = startTor2webHTTP(t2w)
 service_http.setServiceParent(application)

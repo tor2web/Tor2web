@@ -61,6 +61,8 @@ class Tor2web(object):
 
         :config a config object
         """
+        self.config = config
+        
         self.basehost = config.basehost
 
         # This is set if we are contacting
@@ -233,13 +235,30 @@ class Tor2web(object):
         Set the proper headers, "resolve" the address
         and return a result object.
         """
+        log.msg(req)
+        
         self.address = self.get_address(req)
         if not self.address:
             return False
+
         self.headers = req.headers
-        self.headers['Host'] = self.hostname
-        log.msg("Headers:")
+    
+        log.msg("Headers before fix:")
         log.msg(self.headers)
+
+        self.headers.update({'X-tor2web':'encrypted'})
+  
+        if 'accept-encoding' in self.headers:
+            del self.headers['accept-encoding']
+            
+        self.headers.update({'accept-encoding':'gzip, deflate'})
+
+        if 'host' not in self.headers:
+            self.headers['host'] = self.hostname
+
+        log.msg("Headers after fix:")
+        log.msg(self.headers)
+
         return self.address
 
     def leaving_link(self, target):
