@@ -238,9 +238,6 @@ class Tor2web(object):
             return False
         self.headers = req.headers
         self.headers['Host'] = self.hostname
-        # Hack to avoid getting GZIP
-        if 'accept-encoding' in self.headers:
-            del self.headers['accept-encoding']
         log.msg("Headers:")
         log.msg(self.headers)
         return self.address
