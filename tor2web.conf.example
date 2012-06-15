@@ -1,7 +1,7 @@
 # Tor2web configuration file
 [main]
 debugmode = True
-logreq = True
+logreqs = True
 logpath = logs/access.log
 listen_port_http = 80
 listen_port_https = 443
