@@ -42,6 +42,7 @@ import pickle
 from mimetypes import guess_type
 from urlparse import urlparse
 
+from twisted.python import log
 from config import Config 
 from storage import Storage
 
@@ -62,6 +63,15 @@ class Tor2web(object):
         :config a config object
         """
         self.config = config
+        
+        self.Tor2webLog = log.LogPublisher()
+
+        if config.debugmode:
+            stdobserver = log.PythonLoggingObserver('Tor2web')
+            fileobserver = log.FileLogObserver(open(config.debuglogpath, 'w'))
+
+            self.Tor2webLog.addObserver(stdobserver.emit)
+            self.Tor2webLog.addObserver(fileobserver.emit)
         
         self.basehost = config.basehost
 
@@ -149,7 +159,7 @@ class Tor2web(object):
         else returns False
         """
         onion, tld = address.split(".")
-        log.msg("onion: %s tld: %s" % (onion, tld))
+        self.Tor2webLog.msg("onion: %s tld: %s" % (onion, tld))
         if tld == "onion" and \
             len(onion) == 16 and \
             onion.isalnum():
@@ -164,15 +174,15 @@ class Tor2web(object):
         or in the x.<tor2web_domain>.<tld>/<onion_url>.onion/ format.
         """
         # Detect x.tor2web.org use mode
-        log.msg("RESOLVING: %s" % host)
+        self.Tor2webLog.msg("RESOLVING: %s" % host)
         if host.split(".")[0] == "x":
             self.xdns = True
             self.hostname = self.petname_lookup(uri.split("/")[1])
-            log.msg("DETECTED x.tor2web Hostname: %s" % self.hostname)
+            self.Tor2webLog.msg("DETECTED x.tor2web Hostname: %s" % self.hostname)
         else:
             self.xdns = False
             self.hostname = self.petname_lookup(host.split(".")[0]) + ".onion"
-            log.msg("DETECTED <onion_url>.tor2web Hostname: %s" % self.hostname)
+            self.Tor2webLog.msg("DETECTED <onion_url>.tor2web Hostname: %s" % self.hostname)
         try:
             verified = self.verify_onion(self.hostname)
         except:
@@ -195,7 +205,7 @@ class Tor2web(object):
             uri = '/' + '/'.join(req.uri.split("/")[2:])
         else:
             uri = req.uri
-        log.msg("URI: %s" % uri)
+        self.Tor2webLog.msg("URI: %s" % uri)
 
         return uri
 
@@ -235,7 +245,7 @@ class Tor2web(object):
         Set the proper headers, "resolve" the address
         and return a result object.
         """
-        log.msg(req)
+        self.Tor2webLog.msg(req)
         
         self.address = self.get_address(req)
         if not self.address:
@@ -243,21 +253,21 @@ class Tor2web(object):
 
         self.headers = req.headers
     
-        log.msg("Headers before fix:")
-        log.msg(self.headers)
+        self.Tor2webLog.msg("Headers before fix:")
+        self.Tor2webLog.msg(self.headers)
 
         self.headers.update({'X-tor2web':'encrypted'})
   
         if 'accept-encoding' in self.headers:
             del self.headers['accept-encoding']
             
-        self.headers.update({'accept-encoding':'gzip, deflate'})
+        self.headers.update({'accept-encoding':'gzip'})
 
         if 'host' not in self.headers:
             self.headers['host'] = self.hostname
 
-        log.msg("Headers after fix:")
-        log.msg(self.headers)
+        self.Tor2webLog.msg("Headers after fix:")
+        self.Tor2webLog.msg(self.headers)
 
         return self.address
 
@@ -277,14 +287,14 @@ class Tor2web(object):
         data = address
 
         if data.startswith("/"):
-            log.msg("LINK starts with /")
+            self.Tor2webLog.msg("LINK starts with /")
             if self.xdns:
                 link = "/" + self.hostname + data
             else:
                 link = data
 
         elif data.startswith("http"):
-            log.msg("LINK starts with http://")
+            self.Tor2webLog.msg("LINK starts with http://")
             o = urlparse(data)
             if not o.netloc.endswith(".onion"):
                 # This is an external link outside of the deep web!
@@ -296,7 +306,7 @@ class Tor2web(object):
                 link += "?" + o.query if o.query else ""
             else:
                 if o.netloc.endswith(".onion"):
-                    netloc = o.netloc.get_addrreplace(".onion", "")
+                    netloc = o.netloc.replace(".onion", "")
                     if o.scheme == "http":
                         link = "http://"
                     else:
@@ -305,11 +315,11 @@ class Tor2web(object):
                     link += "?" + o.query if o.query else ""
 
         elif data.startswith("data:"):
-            log.msg("LINK starts with data:")
+            self.Tor2webLog.msg("LINK starts with data:")
             link = data
 
         else:
-            log.msg("LINK starts with link: %s" % data)
+            self.Tor2webLog.msg("LINK starts with link: %s" % data)
             if self.xdns:
                 link = '/' + self.hostname + '/'.join(self.path.split("/")[:-1]) + '/' + data
             else:
@@ -346,7 +356,7 @@ class Tor2web(object):
         """
         Process all the possible HTML tag attributes that may contain links.
         """
-        log.msg("processing url attributes")
+        self.Tor2webLog.msg("processing url attributes")
 
         ret = None
 
@@ -354,7 +364,7 @@ class Tor2web(object):
         for item in items:
           ret = re.sub(rexp[item], self.fix_links, data)
 
-        log.msg("finished processing links...")
+        self.Tor2webLog.msg("finished processing links...")
 
         return ret
 
@@ -362,7 +372,7 @@ class Tor2web(object):
         """
         Process the result from the Hidden Services HTML
         """
-        log.msg("processing HTML type content")
+        self.Tor2webLog.msg("processing HTML type content")
 
         ret = None
 
@@ -371,4 +381,3 @@ class Tor2web(object):
         ret = re.sub(rexp['body'], self.add_banner, final)
 
         return ret
-
