@@ -32,7 +32,6 @@
 
 from twisted.application import service, internet
 from twisted.internet import ssl, reactor, endpoints
-from twisted.python import log
 from twisted.web import proxy, http, client, server, static, resource
 from twisted.web.http import Request
 
@@ -52,12 +51,6 @@ from mimetypes import guess_type
 from config import Config
 from tor2web import Tor2web
 from storage import Storage
-
-def startTor2webHTTP(t2w):
-    return internet.TCPServer(int(t2w.config.listen_port_http), T2WProxyFactory())
-
-def startTor2webHTTPS(t2w):
-    return internet.SSLServer(int(t2w.config.listen_port_https), T2WProxyFactory(), T2WSSLContextFactory(t2w.config.sslkeyfile, t2w.config.sslcertfile, t2w.config.ssldhfile, t2w.config.cipher_list))
 
 config = Config("main")
 
@@ -112,9 +105,9 @@ class T2WProxyClient(proxy.ProxyClient):
 
     def handleHeader(self, key, value):
         keyLower = key.lower()
-
+        
         if keyLower == "content-encoding" and value == "gzip":
-            self.decoder = GzipIncrementalDecoder
+            self.gzip = True
             return
       
         if keyLower == "location":
@@ -141,10 +134,6 @@ class T2WProxyClient(proxy.ProxyClient):
         else:
             proxy.ProxyClient.handleHeader(self, key, value)
 
-    def handleEndHeaders(self):
-        if self.location:
-            proxy.ProxyClient.handleHeader(self, "location", self.location)
-
     def rawDataReceived(self, data):
         if self.length is not None:
             data, rest = data[:self.length], data[self.length:]
@@ -158,16 +147,17 @@ class T2WProxyClient(proxy.ProxyClient):
             self.handleResponsePart(data)
 
         if self.length == 0:
-            self.handleResponseEnd()
             self.setLineMode(rest)
+
+    def handleEndHeaders(self):
+        if self.location:
+            proxy.ProxyClient.handleHeader(self, "location", self.location)
 
     def handleResponsePart(self, buffer):
         self.bf.append(buffer)
 
-    def connectionLost(self, reason):
-        proxy.ProxyClient.handleResponseEnd(self)
-
-    def handleResponseEnd(self, *args, **kwargs):
+    def handleResponseEnd(self):
+          
         content = ''.join(self.bf)
 
         if self.gzip:
@@ -183,10 +173,6 @@ class T2WProxyClient(proxy.ProxyClient):
             proxy.ProxyClient.handleEndHeaders(self)
             proxy.ProxyClient.handleResponsePart(self, content)
 
-        proxy.ProxyClient.handleResponseEnd(self)
-        self.finish()
-        return server.NOT_DONE_YET
-
     def finish(self):
         pass
 
@@ -201,6 +187,15 @@ class T2WRequest(Request):
     ports = {'http': 80}
 
     def process(self):
+        if not self.isSecure():
+            self.setResponseCode(301)
+            self.setHeader('Location', "https://" + self.getRequestHostname() + self.uri)
+            self.write("HTTP/1.1 301 Moved Permanently")
+            self.finish()
+            return
+        else:
+            self.setHeader('Strict-Transport-Security', 'max-age=31536000')  
+    
         myrequest = Storage()
         myrequest.headers = self.getAllHeaders().copy()
         myrequest.uri = self.uri
@@ -209,7 +204,7 @@ class T2WRequest(Request):
         if self.uri == "/robots.txt" and config.blockcrawl:
             self.write("User-Agent: *\nDisallow: /\n")
             self.finish()
-            return server.NOT_DONE_YET
+            return
 
         if myrequest.headers['user-agent'] in t2w.blocked_ua:
             # Detected a blocked user-agent
@@ -217,20 +212,19 @@ class T2WRequest(Request):
             self.setResponseCode(410)
             self.write("Blocked UA\n")
             self.finish()
-            return server.NOT_DONE_YET
+            return
 
         if self.uri.lower().endswith(('gif','jpg','png')):
             if not 'referer' in myrequest.headers or not config.basehost in myrequest.headers['referer'].lower():
                 self.write(open('static/tor2web-small.png', 'r').read())
                 self.finish()
-                return server.NOT_DONE_YET
+                return
 
         if not t2w.process_request(myrequest):
             self.setResponseCode(t2w.error['code'])
             self.write(t2w.error['message'])
-            log.msg(str(t2w.error['code']) + ' ' + t2w.error['message'])
             self.finish()
-            return server.NOT_DONE_YET
+            return
 
         # Rewrite the URI with the tor2web parsed one
         self.uri = t2w.address
@@ -243,24 +237,24 @@ class T2WRequest(Request):
             port = int(port)
         else:
             port = self.ports[protocol]
-
+            
         rest = urlparse.urlunparse(('', '') + parsed[2:])
         if not rest:
             rest = rest + '/'
 
         class_ = self.protocols[protocol]
-        headers = self.getAllHeaders().copy()
 
         self.content.seek(0, 0)
 
         dest = client._parse(t2w.address) # scheme, host, port, path
+
         proxy = (None, 'localhost', 9050, True, None, None)
         endpoint = endpoints.TCP4ClientEndpoint(reactor, dest[1], dest[2])
         wrapper = SOCKSWrapper(reactor, proxy[1], proxy[2], endpoint)
-        f = class_(self.method, rest, self.clientproto, headers, self.content.read(), self)
+        f = class_(self.method, rest, self.clientproto, t2w.headers, self.content.read(), self)
         d = wrapper.connect(f)
 
-        return server.NOT_DONE_YET
+        return
 
 class T2WProxy(proxy.Proxy):
       requestFactory = T2WRequest
@@ -271,7 +265,7 @@ class T2WProxyFactory(http.HTTPFactory):
     def __init__(self):
         """Initialize.
         """
-        http.HTTPFactory.__init__(self, logPath=config.logpath)
+        http.HTTPFactory.__init__(self, logPath=config.accesslogpath)
         self.sessions = {}
         self.resource = resource
       
@@ -291,6 +285,11 @@ class T2WProxyFactory(http.HTTPFactory):
           self._escape(request.getHeader("user-agent") or "-"))
         self.logFile.write(line)
 
+def startTor2webHTTP(t2w):
+    return internet.TCPServer(int(t2w.config.listen_port_http), T2WProxyFactory())
+
+def startTor2webHTTPS(t2w):
+    return internet.SSLServer(int(t2w.config.listen_port_https), T2WProxyFactory(), T2WSSLContextFactory(t2w.config.sslkeyfile, t2w.config.sslcertfile, t2w.config.ssldhfile, t2w.config.cipher_list))
 
 service_https = startTor2webHTTPS(t2w)
 service_https.setServiceParent(application)
