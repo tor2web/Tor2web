@@ -285,14 +285,16 @@ class T2WProxyFactory(http.HTTPFactory):
           self._escape(request.getHeader("user-agent") or "-"))
         self.logFile.write(line)
 
-def startTor2webHTTP(t2w):
-    return internet.TCPServer(int(t2w.config.listen_port_http), T2WProxyFactory())
+def startTor2webHTTP(t2w, f):
+    return internet.TCPServer(int(t2w.config.listen_port_http), f)
 
-def startTor2webHTTPS(t2w):
-    return internet.SSLServer(int(t2w.config.listen_port_https), T2WProxyFactory(), T2WSSLContextFactory(t2w.config.sslkeyfile, t2w.config.sslcertfile, t2w.config.ssldhfile, t2w.config.cipher_list))
+def startTor2webHTTPS(t2w, f):
+    return internet.SSLServer(int(t2w.config.listen_port_https), f, T2WSSLContextFactory(t2w.config.sslkeyfile, t2w.config.sslcertfile, t2w.config.ssldhfile, t2w.config.cipher_list))
 
-service_https = startTor2webHTTPS(t2w)
+factory = T2WProxyFactory()
+
+service_https = startTor2webHTTPS(t2w, factory)
 service_https.setServiceParent(application)
 
-service_http = startTor2webHTTP(t2w)
+service_http = startTor2webHTTP(t2w, factory)
 service_http.setServiceParent(application)
