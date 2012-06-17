@@ -1,8 +1,9 @@
 # Tor2web configuration file
 [main]
 debugmode = True
-logreqs = True
-logpath = logs/access.log
+logreqs = False
+debuglogpath = logs/debug.log
+accesslogpath = logs/access.log
 listen_port_http = 80
 listen_port_https = 443
 # This is the base hostname for the current tor2web node
@@ -22,3 +23,4 @@ blockcrawl = True
 blocked_ua = lists/blocked_ua.txt
 blocklist_cleartext = lists/blocklist_cleartext.txt
 blocklist_hashed = lists/blocklist_hashed.txt
+~                                                     
