@@ -34,6 +34,7 @@ from twisted.application import service, internet
 from twisted.internet import ssl, reactor, endpoints
 from twisted.web import proxy, http, client, server, static, resource
 from twisted.web.http import Request
+from twisted.web.server import NOT_DONE_YET
 
 from socksclient import SOCKSv4ClientProtocol, SOCKSWrapper
 from OpenSSL import SSL
@@ -173,8 +174,7 @@ class T2WProxyClient(proxy.ProxyClient):
             proxy.ProxyClient.handleEndHeaders(self)
             proxy.ProxyClient.handleResponsePart(self, content)
 
-    def finish(self):
-        pass
+	proxy.ProxyClient.handleResponseEnd(self)
 
 class T2WProxyClientFactory(proxy.ProxyClientFactory):
     protocol = T2WProxyClient
@@ -254,7 +254,7 @@ class T2WRequest(Request):
         f = class_(self.method, rest, self.clientproto, t2w.headers, self.content.read(), self)
         d = wrapper.connect(f)
 
-        return
+        return NOT_DONE_YET
 
 class T2WProxy(proxy.Proxy):
       requestFactory = T2WRequest
@@ -285,14 +285,16 @@ class T2WProxyFactory(http.HTTPFactory):
           self._escape(request.getHeader("user-agent") or "-"))
         self.logFile.write(line)
 
-def startTor2webHTTP(t2w):
-    return internet.TCPServer(int(t2w.config.listen_port_http), T2WProxyFactory())
+def startTor2webHTTP(t2w, f):
+    return internet.TCPServer(int(t2w.config.listen_port_http), f)
 
-def startTor2webHTTPS(t2w):
-    return internet.SSLServer(int(t2w.config.listen_port_https), T2WProxyFactory(), T2WSSLContextFactory(t2w.config.sslkeyfile, t2w.config.sslcertfile, t2w.config.ssldhfile, t2w.config.cipher_list))
+def startTor2webHTTPS(t2w, f):
+    return internet.SSLServer(int(t2w.config.listen_port_https), f, T2WSSLContextFactory(t2w.config.sslkeyfile, t2w.config.sslcertfile, t2w.config.ssldhfile, t2w.config.cipher_list))
 
-service_https = startTor2webHTTPS(t2w)
+factory = T2WProxyFactory()
+
+service_https = startTor2webHTTPS(t2w, factory)
 service_https.setServiceParent(application)
 
-service_http = startTor2webHTTP(t2w)
+service_http = startTor2webHTTP(t2w, factory)
 service_http.setServiceParent(application)
