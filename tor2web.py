@@ -351,33 +351,30 @@ class Tor2web(object):
         """
         return str(data.group(1))+str(self.banner)
 
-
     def process_links(self, data):
         """
         Process all the possible HTML tag attributes that may contain links.
         """
         self.Tor2webLog.msg("processing url attributes")
 
-        ret = None
-
         items = ["src", "href", "action"]
         for item in items:
-          ret = re.sub(rexp[item], self.fix_links, data)
+          data = re.sub(rexp[item], self.fix_links, data)
+
+        print data
 
         self.Tor2webLog.msg("finished processing links...")
 
-        return ret
+        return data
 
-    def process_html(self, content):
+    def process_html(self, data):
         """
         Process the result from the Hidden Services HTML
         """
         self.Tor2webLog.msg("processing HTML type content")
 
-        ret = None
+        data = self.process_links(data)
 
-        final = self.process_links(content)
+        data = re.sub(rexp['body'], self.add_banner, data)
 
-        ret = re.sub(rexp['body'], self.add_banner, final)
-
-        return ret
+        return data
