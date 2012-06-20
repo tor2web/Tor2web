@@ -50,7 +50,7 @@ from StringIO import StringIO
 from mimetypes import guess_type
 
 from config import Config
-from tor2web import Tor2web
+from tor2web import Tor2web, Tor2webObj
 from storage import Storage
 
 config = Config("main")
@@ -95,11 +95,11 @@ class T2WSSLContextFactory():
         return self._context
 
 class T2WProxyClient(proxy.ProxyClient):
-    def __init__(self, *args, **kwargs):
-        proxy.ProxyClient.__init__(self, *args, **kwargs)
+    def __init__(self, command, rest, version, headers, data, father, obj):
+        proxy.ProxyClient.__init__(self, command, rest, version, headers, data, father)
+        self.obj = obj
         self.bf = []
         self.contenttype = 'unknown'
-        self.gzip = False
         self.html = False
         self.location = False
         self._chunked = False
@@ -108,9 +108,9 @@ class T2WProxyClient(proxy.ProxyClient):
         keyLower = key.lower()
         
         if keyLower == "content-encoding" and value == "gzip":
-            self.gzip = True
-            return
-      
+            self.obj.server_supports_gzip = True
+            return;
+              
         if keyLower == "location":
             self.location = t2w.fix_link(value)
             return
@@ -122,33 +122,19 @@ class T2WProxyClient(proxy.ProxyClient):
 
         if keyLower == 'content-type' and re.search('text/html', value):
             self.html = True
+            return;
 
         if keyLower == "content-length":
-            pass
+            return
 
-        elif keyLower == 'cache-control':
-            pass
+        if keyLower == 'cache-control':
+            return
 
-        elif keyLower == 'connection':
-            pass
+        if keyLower == 'connection':
+            return
 
         else:
             proxy.ProxyClient.handleHeader(self, key, value)
-
-    def rawDataReceived(self, data):
-        if self.length is not None:
-            data, rest = data[:self.length], data[self.length:]
-            self.length -= len(data)
-        else:
-            rest = ''
-
-        if self._chunked:
-            self._chunked.dataReceived(data)
-        else:
-            self.handleResponsePart(data)
-
-        if self.length == 0:
-            self.setLineMode(rest)
 
     def handleEndHeaders(self):
         if self.location:
@@ -161,23 +147,40 @@ class T2WProxyClient(proxy.ProxyClient):
           
         content = ''.join(self.bf)
 
-        if self.gzip:
-            c_f = StringIO(content)
-            content = gzip.GzipFile(fileobj=c_f).read()
-
-        if self.html:
-            content = t2w.process_html(content)
-
         if content:
-            proxy.ProxyClient.handleHeader(self, 'cache-control', 'no-cache')
-            proxy.ProxyClient.handleHeader(self, "content-length", len(content))
-            proxy.ProxyClient.handleEndHeaders(self)
-            proxy.ProxyClient.handleResponsePart(self, content)
+          if self.obj.server_supports_gzip:
+              c_f = StringIO(content)
+              content = gzip.GzipFile(fileobj=c_f).read()
+
+          if self.html:
+              content = t2w.process_html(self.obj, content)            
+              
+          if self.obj.client_supports_gzip:
+              stringio = StringIO()
+              ram_gzip_file = gzip.GzipFile(fileobj=stringio, mode='w')
+              ram_gzip_file.write(content)
+              ram_gzip_file.close()
+              content = stringio.getvalue()
+              proxy.ProxyClient.handleHeader(self, 'content-encoding', 'gzip')
+
+          proxy.ProxyClient.handleHeader(self, 'cache-control', 'no-cache')
+          proxy.ProxyClient.handleHeader(self, "content-length", len(content))
+          proxy.ProxyClient.handleEndHeaders(self)
+          proxy.ProxyClient.handleResponsePart(self, content)
 
 	proxy.ProxyClient.handleResponseEnd(self)
 
 class T2WProxyClientFactory(proxy.ProxyClientFactory):
     protocol = T2WProxyClient
+    
+    def __init__(self, command, rest, version, headers, data, father, obj):
+        self.obj = obj;
+        proxy.ProxyClientFactory.__init__(self, command, rest, version, headers, data, father)
+
+    def buildProtocol(self, addr):
+        return self.protocol(self.command, self.rest, self.version,
+                             self.headers, self.data, self.father, self.obj)
+
 
 class T2WRequest(Request):
     """
@@ -196,6 +199,7 @@ class T2WRequest(Request):
         else:
             self.setHeader('Strict-Transport-Security', 'max-age=31536000')  
     
+        obj = Tor2webObj()
         myrequest = Storage()
         myrequest.headers = self.getAllHeaders().copy()
         myrequest.uri = self.uri
@@ -205,6 +209,10 @@ class T2WRequest(Request):
             self.write("User-Agent: *\nDisallow: /\n")
             self.finish()
             return
+
+        if ('accept-encoding' in myrequest.headers and not (myrequest.headers['accept-encoding'] is None)):
+            if re.search('gzip', myrequest.headers['accept-encoding']):
+              obj.client_supports_gzip = True;
 
         if myrequest.headers['user-agent'] in t2w.blocked_ua:
             # Detected a blocked user-agent
@@ -220,14 +228,14 @@ class T2WRequest(Request):
                 self.finish()
                 return
 
-        if not t2w.process_request(myrequest):
+        if not t2w.process_request(obj, myrequest):
             self.setResponseCode(t2w.error['code'])
             self.write(t2w.error['message'])
             self.finish()
             return
 
         # Rewrite the URI with the tor2web parsed one
-        self.uri = t2w.address
+        self.uri = obj.address
 
         parsed = urlparse.urlparse(self.uri)
         protocol = parsed[0]
@@ -246,12 +254,12 @@ class T2WRequest(Request):
 
         self.content.seek(0, 0)
 
-        dest = client._parse(t2w.address) # scheme, host, port, path
+        dest = client._parse(obj.address) # scheme, host, port, path
 
         proxy = (None, 'localhost', 9050, True, None, None)
         endpoint = endpoints.TCP4ClientEndpoint(reactor, dest[1], dest[2])
         wrapper = SOCKSWrapper(reactor, proxy[1], proxy[2], endpoint)
-        f = class_(self.method, rest, self.clientproto, t2w.headers, self.content.read(), self)
+        f = class_(self.method, rest, self.clientproto, obj.headers, self.content.read(), self, obj)
         d = wrapper.connect(f)
 
         return NOT_DONE_YET
