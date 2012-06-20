@@ -53,6 +53,26 @@ rexp = {
     'body': re.compile(r'(<body.*?\s*>)', re.I)
     }
 
+from functools import partial
+
+class Tor2webObj():
+    # This is set if we are contacting tor2web from x.tor2web.org
+    xdns = False;
+    
+    # The path portion of the URI
+    path = None
+    
+    # The full address (hostname + uri) that must be requested
+    address = None
+
+    # The headers to be sent
+    headers = None
+    
+    uri = None
+    
+    client_supports_gzip = False;
+    server_supports_gzip = False;
+
 class Tor2web(object):
     def __init__(self, config):
         """
@@ -69,30 +89,10 @@ class Tor2web(object):
         if config.debugmode:
             stdobserver = log.PythonLoggingObserver('Tor2web')
             fileobserver = log.FileLogObserver(open(config.debuglogpath, 'w'))
-
             self.Tor2webLog.addObserver(stdobserver.emit)
             self.Tor2webLog.addObserver(fileobserver.emit)
         
         self.basehost = config.basehost
-
-        # This is set if we are contacting
-        # tor2web from x.tor2web.org
-        self.xdns = False
-
-        # The hostname of the requested HS
-        self.hostname = ""
-
-        # The path portion of the URI
-        self.path = None
-
-        # The full address (hostname + uri) that must be requested
-        self.address = None
-
-        # The headers to be sent
-        self.headers = None
-
-        # Debug mode
-        self.debug = config.debugmode
 
         # Blocklists
         self.blocklist = self.load_filelist(config.blocklist_hashed)
@@ -112,11 +112,6 @@ class Tor2web(object):
         # SOCKS proxy
         self.sockshost = config.sockshost
         self.socksport = config.socksport
-
-        # Hotlinking
-        self.hotlinking = False
-
-        self.result = Storage()
 
         self.error = {}
 
@@ -140,9 +135,9 @@ class Tor2web(object):
         for l in listtodump:
            fh.write(l+"\n")
         fh.close()
-        return
+        return True
 
-    def petname_lookup(self, address):
+    def petname_lookup(self, obj, address):
         """
         Do a lookup in the local database
         for an entry in the petname db.
@@ -163,11 +158,11 @@ class Tor2web(object):
         if tld == "onion" and \
             len(onion) == 16 and \
             onion.isalnum():
-            return address
+            return True
         else:
             return False
 
-    def resolve_hostname(self, host, uri):
+    def resolve_hostname(self, obj, host, uri):
         """
         Resolve the supplied request to a hostname.
         Hostnames are accepted in the <onion_url>.<tor2web_domain>.<tld>/
@@ -176,40 +171,37 @@ class Tor2web(object):
         # Detect x.tor2web.org use mode
         self.Tor2webLog.msg("RESOLVING: %s" % host)
         if host.split(".")[0] == "x":
-            self.xdns = True
-            self.hostname = self.petname_lookup(uri.split("/")[1])
-            self.Tor2webLog.msg("DETECTED x.tor2web Hostname: %s" % self.hostname)
+            obj.xdns = True
+            obj.hostname = self.petname_lookup(obj, uri.split("/")[1])
+            self.Tor2webLog.msg("DETECTED x.tor2web Hostname: %s" % obj.hostname)
         else:
-            self.xdns = False
-            self.hostname = self.petname_lookup(host.split(".")[0]) + ".onion"
-            self.Tor2webLog.msg("DETECTED <onion_url>.tor2web Hostname: %s" % self.hostname)
+            obj.xdns = False
+            obj.hostname = self.petname_lookup(obj, host.split(".")[0]) + ".onion"
+            self.Tor2webLog.msg("DETECTED <onion_url>.tor2web Hostname: %s" % obj.hostname)
         try:
-            verified = self.verify_onion(self.hostname)
+            if self.verify_onion(obj.hostname):
+              return True
+            else:
+              self.error = {'message': 'invalid hostname', 'code': 406}
         except:
             return False
 
-        if verified:
-            return True
-        else:
-            self.error = {'message': 'invalid hostname', 'code': 406}
-            return False
-
-    def get_uri(self, req):
+    def get_uri(self, obj, req):
         """
         Obtain the URI part of the request.
         This is non-trivial when the x.tor2web format is being used.
         In that case we need to remove the .onion from the requested
         URI and return the part after .onion.
         """
-        if self.xdns:
-            uri = '/' + '/'.join(req.uri.split("/")[2:])
+        if obj.xdns:
+            obj.uri = '/' + '/'.join(req.uri.split("/")[2:])
         else:
-            uri = req.uri
-        self.Tor2webLog.msg("URI: %s" % uri)
+            obj.uri = req.uri
+        self.Tor2webLog.msg("URI: %s" % obj.uri)
 
-        return uri
+        return obj.uri
 
-    def get_address(self, req):
+    def get_address(self, obj, req):
         """
         Returns the address of the request to be
         made of the Tor Network to contact the Tor
@@ -220,58 +212,58 @@ class Tor2web(object):
         address = "http://"
 
         # Resolve the hostname
-        if not self.resolve_hostname(req.host, req.uri):
-            return False
+        if not self.resolve_hostname(obj, req.host, req.uri):
+            return None
   
         # Clean up the uri
-        uri = self.get_uri(req)
+        uri = self.get_uri(obj, req)
    
-        if hashlib.md5(self.hostname).hexdigest() in self.blocklist:
+        if hashlib.md5(obj.hostname).hexdigest() in self.blocklist:
           self.error = {'message': 'Hidden Service Blocked','code': 403}
-          return False
+          return None
 
-        if hashlib.md5(self.hostname + uri).hexdigest() in self.blocklist:
+        if hashlib.md5(obj.hostname + uri).hexdigest() in self.blocklist:
           self.error = {'message': 'Specific Page Blocked','code': 403}
-          return False
+          return None
 
-        address += self.hostname + uri
+        address += obj.hostname + uri
 
         # Get the base path
-        self.path = urlparse(address).path
-        return address
+        self.obj = urlparse(address).path
+        
+        obj.address = address
+        return obj.address
 
-    def process_request(self, req):
+    def process_request(self, obj, req):
         """
         Set the proper headers, "resolve" the address
         and return a result object.
         """
         self.Tor2webLog.msg(req)
         
-        self.address = self.get_address(req)
-        if not self.address:
+        if not self.get_address(obj, req):
             return False
 
-        self.headers = req.headers
+        obj.headers = req.headers
     
         self.Tor2webLog.msg("Headers before fix:")
-        self.Tor2webLog.msg(self.headers)
+        self.Tor2webLog.msg(obj.headers)
 
-        self.headers.update({'X-tor2web':'encrypted'})
-  
-        if 'accept-encoding' in self.headers:
-            del self.headers['accept-encoding']
+        obj.headers.update({'X-tor2web':'encrypted'})
             
-        self.headers.update({'accept-encoding':'gzip'})
+        obj.headers['accept-encoding'] = 'gzip'
 
-        if 'host' not in self.headers:
-            self.headers['host'] = self.hostname
+        if 'host' not in obj.headers:
+            obj.headers['host'] = obj.hostname
 
         self.Tor2webLog.msg("Headers after fix:")
-        self.Tor2webLog.msg(self.headers)
+        self.Tor2webLog.msg(obj.headers)
+        
+        print obj.headers
 
-        return self.address
+        return True
 
-    def leaving_link(self, target):
+    def leaving_link(self, obj, target):
         """
         Returns a link pointing to a resource outside of Tor2web.
         """
@@ -280,16 +272,15 @@ class Tor2web(object):
 
         return 'https://leaving.' + self.basehost + '/' + link
 
-    def fix_link(self, address):
+    def fix_link(self, obj, data):
         """
         Operates some links corrections.
         """
-        data = address
 
         if data.startswith("/"):
             self.Tor2webLog.msg("LINK starts with /")
-            if self.xdns:
-                link = "/" + self.hostname + data
+            if obj.xdns:
+                link = "/" + obj.hostname + data
             else:
                 link = data
 
@@ -298,10 +289,10 @@ class Tor2web(object):
             o = urlparse(data)
             if not o.netloc.endswith(".onion"):
                 # This is an external link outside of the deep web!
-                link = self.leaving_link(o)
+                link = self.leaving_link(obj, o)
                 return link
 
-            if self.xdns:
+            if obj.xdns:
                 link = "/" + o.netloc + o.path
                 link += "?" + o.query if o.query else ""
             else:
@@ -320,14 +311,14 @@ class Tor2web(object):
 
         else:
             self.Tor2webLog.msg("LINK starts with link: %s" % data)
-            if self.xdns:
-                link = '/' + self.hostname + '/'.join(self.path.split("/")[:-1]) + '/' + data
+            if obj.xdns:
+                link = '/' + obj.hostname + '/'.join(obj.path.split("/")[:-1]) + '/' + data
             else:
                 link = data
         return link
 
 
-    def fix_links(self, data):
+    def fix_links(self, obj, data):
         """
         Fix links in the result from HS to properly resolve to be pointing to
         blabla.tor2web.org or x.tor2web.org.
@@ -341,17 +332,17 @@ class Tor2web(object):
         /something -> /something
         <other_onion_url>/something -> <other_onion_url>.tor2web.org/something
         """
-        link = self.fix_link(data.group(1))
+        link = self.fix_link(obj, data.group(1))
 
         return data.group(0).replace(data.group(1), link)
 
-    def add_banner(self, data):
+    def add_banner(self, obj, data):
         """
         Inject tor2web banner inside the returned page
         """
         return str(data.group(1))+str(self.banner)
 
-    def process_links(self, data):
+    def process_links(self, obj, data):
         """
         Process all the possible HTML tag attributes that may contain links.
         """
@@ -359,22 +350,20 @@ class Tor2web(object):
 
         items = ["src", "href", "action"]
         for item in items:
-          data = re.sub(rexp[item], self.fix_links, data)
-
-        print data
+          data = re.sub(rexp[item], partial(self.fix_links, obj), data)
 
         self.Tor2webLog.msg("finished processing links...")
 
         return data
 
-    def process_html(self, data):
+    def process_html(self, obj, data):
         """
         Process the result from the Hidden Services HTML
         """
         self.Tor2webLog.msg("processing HTML type content")
 
-        data = self.process_links(data)
+        data = self.process_links(obj, data)
 
-        data = re.sub(rexp['body'], self.add_banner, data)
+        data = re.sub(rexp['body'], partial(self.add_banner, obj), data)
 
         return data
