@@ -258,8 +258,6 @@ class Tor2web(object):
 
         self.Tor2webLog.msg("Headers after fix:")
         self.Tor2webLog.msg(obj.headers)
-        
-        print obj.headers
 
         return True
 
