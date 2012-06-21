@@ -229,8 +229,8 @@ class T2WRequest(Request):
                 return
 
         if not t2w.process_request(obj, myrequest):
-            self.setResponseCode(t2w.error['code'])
-            self.write(t2w.error['message'])
+            self.setResponseCode(obj.error['code'])
+            self.write(obj.error['message'])
             self.finish()
             return
 
