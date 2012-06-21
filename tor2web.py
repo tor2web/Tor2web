@@ -68,7 +68,10 @@ class Tor2webObj():
     # The headers to be sent
     headers = None
     
+    # The requested uri
     uri = None
+    
+    error = {}
     
     client_supports_gzip = False;
     server_supports_gzip = False;
@@ -112,8 +115,6 @@ class Tor2web(object):
         # SOCKS proxy
         self.sockshost = config.sockshost
         self.socksport = config.socksport
-
-        self.error = {}
 
     def load_filelist(self, filename):
         """
@@ -182,7 +183,7 @@ class Tor2web(object):
             if self.verify_onion(obj.hostname):
               return True
             else:
-              self.error = {'message': 'invalid hostname', 'code': 406}
+              obj.error = {'message': 'invalid hostname', 'code': 406}
         except:
             return False
 
@@ -219,11 +220,11 @@ class Tor2web(object):
         uri = self.get_uri(obj, req)
    
         if hashlib.md5(obj.hostname).hexdigest() in self.blocklist:
-          self.error = {'message': 'Hidden Service Blocked','code': 403}
+          obj.error = {'message': 'Hidden Service Blocked','code': 403}
           return None
 
         if hashlib.md5(obj.hostname + uri).hexdigest() in self.blocklist:
-          self.error = {'message': 'Specific Page Blocked','code': 403}
+          obj.error = {'message': 'Specific Page Blocked','code': 403}
           return None
 
         address += obj.hostname + uri
