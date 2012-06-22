@@ -59,6 +59,8 @@ class Tor2webObj():
     # This is set if we are contacting tor2web from x.tor2web.org
     xdns = False;
     
+    onion = ""
+    
     # The path portion of the URI
     path = None
     
@@ -134,7 +136,7 @@ class Tor2web(object):
         """
         fh = open(filename, "w")
         for l in listtodump:
-           fh.write(l+"\n")
+           fh.write(l + "\n")
         fh.close()
         return True
 
@@ -147,7 +149,7 @@ class Tor2web(object):
         """
         return address
 
-    def verify_onion(self, address):
+    def verify_onion(self, obj, address):
         """
         Check to see if the address
         is a .onion.
@@ -156,9 +158,8 @@ class Tor2web(object):
         """
         onion, tld = address.split(".")
         self.Tor2webLog.msg("onion: %s tld: %s" % (onion, tld))
-        if tld == "onion" and \
-            len(onion) == 16 and \
-            onion.isalnum():
+        if tld == "onion" and len(onion) == 16 and onion.isalnum():
+            obj.onion = onion
             return True
         else:
             return False
@@ -180,12 +181,13 @@ class Tor2web(object):
             obj.hostname = self.petname_lookup(obj, host.split(".")[0]) + ".onion"
             self.Tor2webLog.msg("DETECTED <onion_url>.tor2web Hostname: %s" % obj.hostname)
         try:
-            if self.verify_onion(obj.hostname):
-              return True
-            else:
-              obj.error = {'message': 'invalid hostname', 'code': 406}
+            if self.verify_onion(obj, obj.hostname):
+                return True
         except:
-            return False
+            pass
+        
+        obj.error = {'message': 'invalid hostname', 'code': 406}
+        return False
 
     def get_uri(self, obj, req):
         """
@@ -209,31 +211,26 @@ class Tor2web(object):
         Hidden Service.
         returns a string being http://<some>.onion/<URI>
         """
-        # When connecting to HS use only HTTP
-        address = "http://"
 
         # Resolve the hostname
         if not self.resolve_hostname(obj, req.host, req.uri):
-            return None
+            return False
   
         # Clean up the uri
         uri = self.get_uri(obj, req)
    
         if hashlib.md5(obj.hostname).hexdigest() in self.blocklist:
-          obj.error = {'message': 'Hidden Service Blocked','code': 403}
-          return None
+            obj.error = {'message': 'Hidden Service Blocked','code': 403}
+            return False
 
         if hashlib.md5(obj.hostname + uri).hexdigest() in self.blocklist:
-          obj.error = {'message': 'Specific Page Blocked','code': 403}
-          return None
+            obj.error = {'message': 'Specific Page Blocked','code': 403}
+            return False
 
-        address += obj.hostname + uri
-
-        # Get the base path
-        self.obj = urlparse(address).path
+        # When connecting to HS use only HTTP
+        obj.address = "http://" + obj.hostname + uri
         
-        obj.address = address
-        return obj.address
+        return True
 
     def process_request(self, obj, req):
         """
@@ -267,7 +264,8 @@ class Tor2web(object):
         Returns a link pointing to a resource outside of Tor2web.
         """
         link = target.netloc + target.path
-        link += "?" + target.query if target.query else ""
+        if target.query:
+            link += "?" + target.query
 
         return 'https://leaving.' + self.basehost + '/' + link
 
@@ -276,44 +274,45 @@ class Tor2web(object):
         Operates some links corrections.
         """
 
-        if data.startswith("/"):
-            self.Tor2webLog.msg("LINK starts with /")
+        parsed = urlparse(data)
+        
+        self.Tor2webLog.msg("LINK scheme: " + parsed.scheme)
+
+        scheme = parsed.scheme
+
+        if scheme == "http":
+            scheme = "https"
+            
+        if scheme == "data":
+            link = data
+            return link;
+        
+        if scheme == "":
             if obj.xdns:
                 link = "/" + obj.hostname + data
             else:
                 link = data
-
-        elif data.startswith("http"):
-            self.Tor2webLog.msg("LINK starts with http://")
-            o = urlparse(data)
-            if not o.netloc.endswith(".onion"):
-                # This is an external link outside of the deep web!
-                link = self.leaving_link(obj, o)
-                return link
-
-            if obj.xdns:
-                link = "/" + o.netloc + o.path
-                link += "?" + o.query if o.query else ""
-            else:
-                if o.netloc.endswith(".onion"):
-                    netloc = o.netloc.replace(".onion", "")
-                    if o.scheme == "http":
-                        link = "http://"
-                    else:
-                        link = 'https://'
-                    link += netloc + "." + self.basehost + o.path
-                    link += "?" + o.query if o.query else ""
-
-        elif data.startswith("data:"):
-            self.Tor2webLog.msg("LINK starts with data:")
-            link = data
-
         else:
-            self.Tor2webLog.msg("LINK starts with link: %s" % data)
-            if obj.xdns:
-                link = '/' + obj.hostname + '/'.join(obj.path.split("/")[:-1]) + '/' + data
+            if parsed.netloc == "":
+                netloc = obj.hostname
             else:
-                link = data
+                netloc = parsed.netloc
+        
+            if netloc.endswith(".onion"):
+                netloc = netloc.replace(".onion", "")
+                
+            link = scheme + "://"
+            
+            if netloc != obj.onion:
+                link = self.leaving_link(obj, parsed)
+            elif obj.xdns:
+                link += '/' + netloc + '/'.join(obj.path.split("/")[:-1]) + '/' + data
+            else:
+                link += netloc + "." + self.basehost + parsed.path
+
+            if parsed.query:
+              link += "?" + parsed.query
+        
         return link
 
 

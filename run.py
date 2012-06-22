@@ -192,6 +192,7 @@ class T2WRequest(Request):
     def process(self):
         if not self.isSecure():
             self.setResponseCode(301)
+            print "male"
             self.setHeader('Location', "https://" + self.getRequestHostname() + self.uri)
             self.write("HTTP/1.1 301 Moved Permanently")
             self.finish()
@@ -234,10 +235,7 @@ class T2WRequest(Request):
             self.finish()
             return
 
-        # Rewrite the URI with the tor2web parsed one
-        self.uri = obj.address
-
-        parsed = urlparse.urlparse(self.uri)
+        parsed = urlparse.urlparse(obj.address)
         protocol = parsed[0]
         host = parsed[1]
         if ':' in host:
@@ -248,7 +246,7 @@ class T2WRequest(Request):
             
         rest = urlparse.urlunparse(('', '') + parsed[2:])
         if not rest:
-            rest = rest + '/'
+            rest = "/"
 
         class_ = self.protocols[protocol]
 
