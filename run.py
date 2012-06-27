@@ -218,7 +218,7 @@ class T2WRequest(Request):
             if 'by' in self.args and 'url' in self.args and 'comment' in self.args:
               message = ""
               message += "TO: %s\n" % (config.smtpmailto)
-              message += "SUBJECT: Tor2web notification\n\n" 
+              message += "SUBJECT: Tor2web notification for %s\n\n" % (self.args['url'][0])
               message += "BY: %s\n" % (self.args['by'][0])
               message += "URL: %s\n" % (self.args['url'][0])
               message += "COMMENT: %s\n" % (self.args['comment'][0])
