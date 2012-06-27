@@ -252,7 +252,7 @@ class T2WRequest(Request):
 
         if not t2w.process_request(obj, myrequest):
             self.setResponseCode(obj.error['code'])
-            self.write(obj.error['message'])
+            self.write("Tor2web Error: " + obj.error['message'])
             self.finish()
             return
 
