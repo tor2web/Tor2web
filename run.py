@@ -30,6 +30,14 @@
 """
 # -*- coding: utf-8 -*-
 
+from OpenSSL.SSL import SSLv3_METHOD
+
+from twisted.mail.smtp import ESMTPSenderFactory
+from twisted.python.usage import Options, UsageError
+from twisted.internet.ssl import ClientContextFactory
+from twisted.internet.defer import Deferred
+from twisted.internet import reactor
+
 from twisted.application import service, internet
 from twisted.internet import ssl, reactor, endpoints
 from twisted.web import proxy, http, client, server, static, resource
@@ -45,6 +53,7 @@ import os
 import sys
 import urlparse
 import re
+import cgi
 
 from StringIO import StringIO
 from mimetypes import guess_type
@@ -192,7 +201,6 @@ class T2WRequest(Request):
     def process(self):
         if not self.isSecure():
             self.setResponseCode(301)
-            print "male"
             self.setHeader('Location', "https://" + self.getRequestHostname() + self.uri)
             self.write("HTTP/1.1 301 Moved Permanently")
             self.finish()
@@ -205,6 +213,19 @@ class T2WRequest(Request):
         myrequest.headers = self.getAllHeaders().copy()
         myrequest.uri = self.uri
         myrequest.host = myrequest.headers['host']
+
+        if(myrequest.uri.startswith('/' + config.staticmap + '/notification')):
+            if 'by' in self.args and 'url' in self.args and 'comment' in self.args:
+              message = ""
+              message += "TO: %s\n" % (config.smtpmailto)
+              message += "SUBJECT: Tor2web notification for %s\n\n" % (self.args['url'][0])
+              message += "BY: %s\n" % (self.args['by'][0])
+              message += "URL: %s\n" % (self.args['url'][0])
+              message += "COMMENT: %s\n" % (self.args['comment'][0])
+              message = StringIO(message)
+              sendmail(config.smtpuser, config.smtppass, config.smtpmailto, config.smtpmailto, message, config.smtpdomain, config.smtpport);
+            self.finish()
+            return          
 
         if self.uri == "/robots.txt" and config.blockcrawl:
             self.write("User-Agent: *\nDisallow: /\n")
@@ -231,7 +252,7 @@ class T2WRequest(Request):
 
         if not t2w.process_request(obj, myrequest):
             self.setResponseCode(obj.error['code'])
-            self.write(obj.error['message'])
+            self.write("Tor2web Error: " + obj.error['message'])
             self.finish()
             return
 
@@ -252,7 +273,7 @@ class T2WRequest(Request):
 
         self.content.seek(0, 0)
 
-        dest = client._parse(obj.address) # scheme, host, port, path
+        dest = client ._parse(obj.address) # scheme, host, port, path
 
         proxy = (None, 'localhost', 9050, True, None, None)
         endpoint = endpoints.TCP4ClientEndpoint(reactor, dest[1], dest[2])
@@ -296,6 +317,29 @@ def startTor2webHTTP(t2w, f):
 
 def startTor2webHTTPS(t2w, f):
     return internet.SSLServer(int(t2w.config.listen_port_https), f, T2WSSLContextFactory(t2w.config.sslkeyfile, t2w.config.sslcertfile, t2w.config.ssldhfile, t2w.config.cipher_list))
+
+
+def sendmail(authenticationUsername, authenticationSecret, fromAddress, toAddress, messageFile, smtpHost, smtpPort=25):
+    """
+    """
+
+    contextFactory = ClientContextFactory()
+    contextFactory.method = SSLv3_METHOD
+
+    resultDeferred = Deferred()
+
+    senderFactory = ESMTPSenderFactory(
+        authenticationUsername,
+        authenticationSecret,
+        fromAddress,
+        toAddress,
+        messageFile,
+        resultDeferred,
+        contextFactory=contextFactory)
+
+    reactor.connectTCP(smtpHost, smtpPort, senderFactory)
+
+    return resultDeferred
 
 factory = T2WProxyFactory()
 

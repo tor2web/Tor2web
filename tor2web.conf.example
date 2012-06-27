@@ -17,10 +17,14 @@ sslcertfile = certs/tor2web-intermediate_cert_test.pem
 ssldhfile = certs/tor2web_dh_test.pem
 cipher_list = DHE-RSA-AES256-SHA:DHE-DSS-AES256-SHA:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA
 bannerfile = interface/banner.html
-staticmap = 314159265antani
+staticmap = tor2webstaticmap
 staticpath = static/
 blockcrawl = True
 blocked_ua = lists/blocked_ua.txt
 blocklist_cleartext = lists/blocklist_cleartext.txt
 blocklist_hashed = lists/blocklist_hashed.txt
-~                                                     
+smtpuser = [USERNAME]
+smtppass = [PASSWORD]
+smtpmailto = [EMAIL]
+smtpdomain = smtp.gmail.com
+smtpport = 587
