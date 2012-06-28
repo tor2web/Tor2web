@@ -43,28 +43,34 @@ function sendNotification() {
 	http.send(params);
 }
 
-function disable_tor2web_bar() {
-  document.getElementById("tor2web").style.display = 'none';
-  jaaulde.utils.cookies.set('tor2web_disclaimer', 'true');
-}
-
-function show_hide() {
-  if(hidden == true) {
-    hidden = false;
-    document.getElementById("tor2web_notification").style.display = 'block';
+function show_hide_tor2web_header(status) {
+  if(status == true) {
+    document.getElementById("tor2web").style.display = 'none';
+    document.getElementById("tor2web-hidden").style.display = 'block';
+    jaaulde.utils.cookies.set('tor2web_header_hidden', 'true');
   } else {
-    hidden = true;
-    document.getElementById("tor2web_notification").style.display = 'none';
+    document.getElementById("tor2web-hidden").style.display = 'none';
+    document.getElementById("tor2web").style.display = 'block';
+    jaaulde.utils.cookies.set('tor2web_header_hidden', 'false');
   }
 }
 
-var hidden = true;
+function show_hide_notification_form() {
+  if(tor2web_notification_form_visible == true) {
+    tor2web_notification_form_visible = false;
+    document.getElementById("tor2web_notification_form").style.display = 'block';
+  } else {
+    tor2web_notification_form_visible = true;
+    document.getElementById("tor2web_notification_form").style.display = 'none';
+  }
+}
+
+var tor2web_notification_form_visible = true;
 var http = getHTTPObject();
 
 window.onload = function() {
-  if (jaaulde.utils.cookies.get('tor2web_disclaimer') && jaaulde.utils.cookies.get('tor2web_disclaimer') == true) {
-    document.getElementById("tor2web").style.display = 'none';
-    return;
+  if (jaaulde.utils.cookies.get('tor2web_header_hidden') && jaaulde.utils.cookies.get('tor2web_header_hidden') == true) {
+    show_hide_tor2web_header(true);
   }
   document.getElementById('url').value = document.location;
 }
@@ -83,13 +89,26 @@ a.tor2web_link:visited { color:#777000; }
   font-family: Verdana, sans-serif;
   font-size: 16px;
   font-weight: bold;
+  display: block;
+}
+
+#tor2web-hidden {
+  background-color: #f5f5f5;
+  margin: 20px auto;
+  border: 0;
+  padding: 20px;
+  width: 95%;
+  font-family: Verdana, sans-serif;
+  font-size: 16px;
+  font-weight: bold;
+  display: none;
 }
   
 #tor2web_logo, #tor2web_disclaimer {
   margin-bottom: 10px;
 }
   
-#tor2web_notification {
+#tor2web_notification_form {
   display: none;
   clear: both;
   width: 600px;
@@ -100,9 +119,9 @@ a.tor2web_link:visited { color:#777000; }
   margin-bottom: 10px;
 }
   
-#tor2web button, #tor2web_notification input, #tor2web_notification textarea, #tor2web_notification button {
+#tor2web button, #tor2web input, #tor2web textarea, tor2web-hidden button {
   width: 100%;
-}  
+}
 </style>
 
 <div id="tor2web" class="tor2web">
@@ -110,10 +129,11 @@ a.tor2web_link:visited { color:#777000; }
     <a href="https://www.tor2web.org"><img src="data:image/png;base64,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" alt="tor2web logo" /></a>
   </div>
   <div id="tor2web_disclaimer">
-    <div><b>tor2web does not host this content</b>&mdash;we are simply a conduit connecting Internet users to content hosted inside <a class="tor2web_link" href="https://www.torproject.org/docs/hidden-services.html.en">the Tor network</a>.</div>
-    <div>If you have concerns with this content, please send us an <a class="tor2web_link" href="javascript:show_hide()">abuse notice</a>.</div>
+    <div><b>Tor2web does not host this content</b>&mdash;we are simply a conduit connecting Internet users to content hosted inside <a class="tor2web_link" href="https://www.torproject.org/docs/hidden-services.html.en">the Tor network</a>.</div>
+    <div>If you have concerns with this content, please send us an <a class="tor2web_link" href="javascript:show_hide_notification_form()">abuse notice</a>.</div>
+    <div>If some problems occurs please also send us your <a class="tor2web_link" href="javascript:show_hide_notification_form()">feedback</a>.</div>
   </div>
-  <div id="tor2web_notification">
+  <div id="tor2web_notification_form">
     <fieldset>
     <legend>Notification:</legend>
     BY:
@@ -126,6 +146,11 @@ a.tor2web_link:visited { color:#777000; }
     </fieldset>
   </div>
   <div style="text-align: center">
-    <button onclick="javascript:disable_tor2web_bar()">hide this disclaimer</button>
+    <button onclick="javascript:show_hide_tor2web_header(true)">hide Tor2web header</button>
+  </div>
+</div>
+<div id="tor2web-hidden" class="tor2web-hidden">
+  <div style="text-align: center">
+    <button onclick="javascript:show_hide_tor2web_header(false)">show Tor2web header</button>
   </div>
 </div>
