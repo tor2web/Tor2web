@@ -260,7 +260,7 @@ class T2WRequest(proxy.ProxyRequest):
     def process(self):
         try:
             if self.isSecure():
-                self.setHeader('Strict-Transport-Security', 'max-age=31536000')
+                self.setHeader('strict-transport-security', 'max-age=31536000')
             else:
                 self.setResponseCode(301)
                 self.setHeader('Location', "https://" + self.getRequestHostname() + self.uri)
@@ -305,7 +305,9 @@ class T2WRequest(proxy.ProxyRequest):
                 return
 
             if self.uri.lower().endswith(('gif','jpg','png')):
+                # Avoid image hotlinking
                 if not 'referer' in myrequest.headers or not config.basehost in myrequest.headers['referer'].lower():
+                    self.setHeader('content-type', 'image/png')
                     self.write(open('static/tor2web-small.png', 'r').read())
                     self.finish()
                     return
