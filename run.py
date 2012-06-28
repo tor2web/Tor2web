@@ -370,7 +370,7 @@ class T2WProxyFactory(http.HTTPFactory):
                 request.sentLength or "-",
                 self._escape(request.getHeader("referer") or "-"),
                 self._escape(request.getHeader("user-agent") or "-"))
-        self.logFile.write(line)
+            self.logFile.write(line)
 
 def startTor2webHTTP(t2w, f):
     return internet.TCPServer(int(t2w.config.listen_port_http), f)
