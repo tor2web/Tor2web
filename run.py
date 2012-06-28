@@ -42,6 +42,7 @@ from twisted.internet import ssl, reactor, endpoints
 from twisted.web import proxy, http, client, server, static, resource
 from twisted.web.http import Request
 from twisted.web.server import NOT_DONE_YET
+from twisted.python.filepath import FilePath
 
 from socksclient import SOCKSv4ClientProtocol, SOCKSWrapper
 from OpenSSL import SSL
@@ -258,7 +259,7 @@ class T2WRequest(proxy.ProxyRequest):
     ports = {'http': 80}
 
     def process(self):
-        try:
+#        try:
             if self.isSecure():
                 self.setHeader('strict-transport-security', 'max-age=31536000')
             else:
@@ -304,6 +305,38 @@ class T2WRequest(proxy.ProxyRequest):
                 self.finish()
                 return
 
+            staticmap = '/'+config.staticmap+'/'
+            if myrequest.uri.startswith(staticmap):
+                myrequest.uri = re.sub('^'+staticmap, '', myrequest.uri)
+                try:
+                  staticpath = FilePath("static/")
+                  staticpath = staticpath.child(myrequest.uri)
+                  if staticpath.exists() == True:
+                    filename, ext = staticpath.splitext()
+                    filecontent = staticpath.open().read()
+                  else:
+                    raise FileNotFoundException
+                except:
+                  self.setResponseCode(404)
+                  self.write("HTTP/1.1 404 Not Found")
+                  self.finish()
+                  return;
+
+                if ext == ".html":
+                  self.setHeader('content-type', 'text/html')
+                elif ext == ".js":
+                  self.setHeader('content-type', 'text/javascript')
+                elif ext == ".css":
+                  self.setHeader('content-type', 'text/css')
+                elif ext == ".png":
+                  self.setHeader('content-type', 'image/png')
+                else:
+                  self.setHeader('content-type', 'application/x-unknown')
+
+                self.write(filecontent)
+                self.finish()
+                return
+
             if self.uri.lower().endswith(('gif','jpg','png')):
                 # Avoid image hotlinking
                 if not 'referer' in myrequest.headers or not config.basehost in myrequest.headers['referer'].lower():
@@ -341,9 +374,9 @@ class T2WRequest(proxy.ProxyRequest):
             wrapper = SOCKSWrapper(reactor, config.sockshost, config.socksport, endpoint)
             f = class_(self.method, rest, self.clientproto, obj.headers, self.content.read(), self, obj)
             d = wrapper.connect(f)
-        except:
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            MailException(exc_type, exc_value, exc_traceback)
+#        except:
+#            exc_type, exc_value, exc_traceback = sys.exc_info()
+#            MailException(exc_type, exc_value, exc_traceback)
 
 class T2WProxy(http.HTTPChannel):
  requestFactory = T2WRequest
@@ -380,7 +413,7 @@ def startTor2webHTTP(t2w, f):
 def startTor2webHTTPS(t2w, f):
     return internet.SSLServer(int(t2w.config.listen_port_https), f, T2WSSLContextFactory(t2w.config.sslkeyfile, t2w.config.sslcertfile, t2w.config.ssldhfile, t2w.config.cipher_list))
 
-sys.excepthook = MailException
+#sys.excepthook = MailException
 
 factory = T2WProxyFactory()
 

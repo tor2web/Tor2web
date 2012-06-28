@@ -1,0 +1,45 @@
+a.tor2web_link:link { color: #377e10; }
+a.tor2web_link:visited { color:#777000; }
+
+#tor2web {
+  background-color: #f5f5f5;
+  margin: 20px auto;
+  border: 0;
+  padding: 20px;
+  width: 95%;
+  font-family: Verdana, sans-serif;
+  font-size: 16px;
+  font-weight: bold;
+  display: block;
+}
+
+#tor2web-hidden {
+  background-color: #f5f5f5;
+  margin: 20px auto;
+  border: 0;
+  padding: 20px;
+  width: 95%;
+  font-family: Verdana, sans-serif;
+  font-size: 16px;
+  font-weight: bold;
+  display: none;
+}
+  
+#tor2web_logo, #tor2web_disclaimer {
+  margin-bottom: 10px;
+}
+  
+#tor2web_notification_form {
+  display: none;
+  clear: both;
+  width: 600px;
+  margin-bottom: 50px;
+}
+  
+#tor2web_notification div {
+  margin-bottom: 10px;
+}
+  
+#tor2web button, #tor2web input, #tor2web textarea, tor2web-hidden button {
+  width: 100%;
+}
