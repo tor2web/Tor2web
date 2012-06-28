@@ -48,6 +48,7 @@ from socksclient import SOCKSv4ClientProtocol, SOCKSWrapper
 from OpenSSL import SSL
 
 import hashlib
+import mimetypes
 import gzip
 import os
 import sys
@@ -57,7 +58,6 @@ import cgi
 import traceback
 
 from StringIO import StringIO
-from mimetypes import guess_type
 
 from config import Config
 from tor2web import Tor2web, Tor2webObj
@@ -268,14 +268,37 @@ class T2WRequest(proxy.ProxyRequest):
                 self.write("HTTP/1.1 301 Moved Permanently")
                 self.finish()
                 return
-        
-            obj = Tor2webObj()
-            myrequest = Storage()
-            myrequest.headers = self.getAllHeaders().copy()
-            myrequest.uri = self.uri
-            myrequest.host = myrequest.headers['host']
 
-            if(myrequest.uri.startswith('/' + config.staticmap + '/notification')):
+            if ('accept-encoding' in self.headers and not (self.headers['accept-encoding'] is None)):
+                if re.search('gzip', self.headers['accept-encoding']):
+                    obj.client_supports_gzip = True;
+            
+            # 1st the content requested is local? serve it direcly!
+            
+            staticmap = '/'+config.staticmap+'/'
+            if self.uri.startswith(staticmap):
+                localpath = re.sub('^'+staticmap, '', self.uri)
+                try:
+                  staticpath = FilePath("static/")
+                  localpath = staticpath.child(localpath)
+                  if staticpath.exists() == True:
+                    filename, ext = localpath.splitext()
+                    filecontent = localpath.open().read()
+                  else:
+                    raise FileNotFoundException
+                except:
+                  self.setResponseCode(404)
+                  self.write("HTTP/1.1 404 Not Found")
+                  self.finish()
+                  return;
+
+                self.setHeader('content-type', mimetypes.types_map[ext])
+
+                self.write(filecontent)
+                self.finish()
+                return
+
+            if(self.uri.startswith('/' + config.staticmap + '/notification')):
                 if 'by' in self.args and 'url' in self.args and 'comment' in self.args:
                     message = ""
                     message += "TO: %s\n" % (config.smtpmailto)
@@ -286,16 +309,20 @@ class T2WRequest(proxy.ProxyRequest):
                     message = StringIO(message)
                     sendmail(config.smtpuser, config.smtppass, config.smtpmailto, config.smtpmailto, message, config.smtpdomain, config.smtpport);
                     self.finish()
-                    return            
+                    return
+
+            # 2nd the content requested is remote: proxify the request!
 
             if self.uri == "/robots.txt" and config.blockcrawl:
                 self.write("User-Agent: *\nDisallow: /\n")
                 self.finish()
                 return
 
-            if ('accept-encoding' in myrequest.headers and not (myrequest.headers['accept-encoding'] is None)):
-                if re.search('gzip', myrequest.headers['accept-encoding']):
-                    obj.client_supports_gzip = True;
+            obj = Tor2webObj()
+            myrequest = Storage()
+            myrequest.headers = self.getAllHeaders().copy()
+            myrequest.uri = self.uri
+            myrequest.host = myrequest.headers['host']
 
             if myrequest.headers['user-agent'] in t2w.blocked_ua:
                 # Detected a blocked user-agent
@@ -305,43 +332,11 @@ class T2WRequest(proxy.ProxyRequest):
                 self.finish()
                 return
 
-            staticmap = '/'+config.staticmap+'/'
-            if myrequest.uri.startswith(staticmap):
-                myrequest.uri = re.sub('^'+staticmap, '', myrequest.uri)
-                try:
-                  staticpath = FilePath("static/")
-                  staticpath = staticpath.child(myrequest.uri)
-                  if staticpath.exists() == True:
-                    filename, ext = staticpath.splitext()
-                    filecontent = staticpath.open().read()
-                  else:
-                    raise FileNotFoundException
-                except:
-                  self.setResponseCode(404)
-                  self.write("HTTP/1.1 404 Not Found")
-                  self.finish()
-                  return;
-
-                if ext == ".html":
-                  self.setHeader('content-type', 'text/html')
-                elif ext == ".js":
-                  self.setHeader('content-type', 'text/javascript')
-                elif ext == ".css":
-                  self.setHeader('content-type', 'text/css')
-                elif ext == ".png":
-                  self.setHeader('content-type', 'image/png')
-                else:
-                  self.setHeader('content-type', 'application/x-unknown')
-
-                self.write(filecontent)
-                self.finish()
-                return
-
-            if self.uri.lower().endswith(('gif','jpg','png')):
+            if myrequest.uri.lower().endswith(('gif','jpg','png')):
                 # Avoid image hotlinking
                 if not 'referer' in myrequest.headers or not config.basehost in myrequest.headers['referer'].lower():
                     self.setHeader('content-type', 'image/png')
-                    self.write(open('static/tor2web-small.png', 'r').read())
+                    self.write(open('static/tor2web.png', 'r').read())
                     self.finish()
                     return
 
