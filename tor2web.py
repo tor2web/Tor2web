@@ -269,7 +269,6 @@ class Tor2web(object):
         """
         Operates some links corrections.
         """
-
         parsed = urlparse(data)
         
         self.Tor2webLog.msg("LINK scheme: " + parsed.scheme)
