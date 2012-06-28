@@ -114,10 +114,6 @@ class Tor2web(object):
         # Banner
         self.banner = open(config.bannerfile, "r").read()
 
-        # SOCKS proxy
-        self.sockshost = config.sockshost
-        self.socksport = config.socksport
-
     def load_filelist(self, filename):
         """
         Load the list from the specified file.

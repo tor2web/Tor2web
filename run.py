@@ -68,6 +68,28 @@ t2w = Tor2web(config)
 
 application = service.Application("Tor2web")
 
+def sendmail(authenticationUsername, authenticationSecret, fromAddress, toAddress, messageFile, smtpHost, smtpPort=25):
+    """
+    """
+
+    contextFactory = ClientContextFactory()
+    contextFactory.method = SSLv3_METHOD
+
+    resultDeferred = Deferred()
+
+    senderFactory = ESMTPSenderFactory(
+        authenticationUsername,
+        authenticationSecret,
+        fromAddress,
+        toAddress,
+        messageFile,
+        resultDeferred,
+        contextFactory=contextFactory)
+
+    reactor.connectTCP(smtpHost, smtpPort, senderFactory)
+
+    return resultDeferred
+
 class T2WSSLContextFactory():
     """
     """
@@ -176,8 +198,7 @@ class T2WProxyClient(proxy.ProxyClient):
           proxy.ProxyClient.handleHeader(self, "content-length", len(content))
           proxy.ProxyClient.handleEndHeaders(self)
           proxy.ProxyClient.handleResponsePart(self, content)
-
-	proxy.ProxyClient.handleResponseEnd(self)
+          proxy.ProxyClient.handleResponseEnd(self)
 
 class T2WProxyClientFactory(proxy.ProxyClientFactory):
     protocol = T2WProxyClient
@@ -190,8 +211,7 @@ class T2WProxyClientFactory(proxy.ProxyClientFactory):
         return self.protocol(self.command, self.rest, self.version,
                              self.headers, self.data, self.father, self.obj)
 
-
-class T2WRequest(Request):
+class T2WRequest(proxy.ProxyRequest):
     """
     Used by Tor2webProxy to implement a simple web proxy.
     """
@@ -199,14 +219,14 @@ class T2WRequest(Request):
     ports = {'http': 80}
 
     def process(self):
-        if not self.isSecure():
+        if self.isSecure():
+            self.setHeader('Strict-Transport-Security', 'max-age=31536000')
+        else:
             self.setResponseCode(301)
             self.setHeader('Location', "https://" + self.getRequestHostname() + self.uri)
             self.write("HTTP/1.1 301 Moved Permanently")
             self.finish()
             return
-        else:
-            self.setHeader('Strict-Transport-Security', 'max-age=31536000')  
     
         obj = Tor2webObj()
         myrequest = Storage()
@@ -273,18 +293,15 @@ class T2WRequest(Request):
 
         self.content.seek(0, 0)
 
-        dest = client ._parse(obj.address) # scheme, host, port, path
+        dest = client._parse(obj.address) # scheme, host, port, path
 
-        proxy = (None, 'localhost', 9050, True, None, None)
         endpoint = endpoints.TCP4ClientEndpoint(reactor, dest[1], dest[2])
-        wrapper = SOCKSWrapper(reactor, proxy[1], proxy[2], endpoint)
+        wrapper = SOCKSWrapper(reactor, config.sockshost, config.socksport, endpoint)
         f = class_(self.method, rest, self.clientproto, obj.headers, self.content.read(), self, obj)
         d = wrapper.connect(f)
 
-        return NOT_DONE_YET
-
-class T2WProxy(proxy.Proxy):
-      requestFactory = T2WRequest
+class T2WProxy(http.HTTPChannel):
+ requestFactory = T2WRequest
 
 class T2WProxyFactory(http.HTTPFactory):
     protocol = T2WProxy
@@ -317,29 +334,6 @@ def startTor2webHTTP(t2w, f):
 
 def startTor2webHTTPS(t2w, f):
     return internet.SSLServer(int(t2w.config.listen_port_https), f, T2WSSLContextFactory(t2w.config.sslkeyfile, t2w.config.sslcertfile, t2w.config.ssldhfile, t2w.config.cipher_list))
-
-
-def sendmail(authenticationUsername, authenticationSecret, fromAddress, toAddress, messageFile, smtpHost, smtpPort=25):
-    """
-    """
-
-    contextFactory = ClientContextFactory()
-    contextFactory.method = SSLv3_METHOD
-
-    resultDeferred = Deferred()
-
-    senderFactory = ESMTPSenderFactory(
-        authenticationUsername,
-        authenticationSecret,
-        fromAddress,
-        toAddress,
-        messageFile,
-        resultDeferred,
-        contextFactory=contextFactory)
-
-    reactor.connectTCP(smtpHost, smtpPort, senderFactory)
-
-    return resultDeferred
 
 factory = T2WProxyFactory()
 
