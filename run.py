@@ -259,7 +259,7 @@ class T2WRequest(proxy.ProxyRequest):
     ports = {'http': 80}
 
     def process(self):
-#        try:
+        try:
             if self.isSecure():
                 self.setHeader('strict-transport-security', 'max-age=31536000')
             else:
@@ -369,12 +369,12 @@ class T2WRequest(proxy.ProxyRequest):
             wrapper = SOCKSWrapper(reactor, config.sockshost, config.socksport, endpoint)
             f = class_(self.method, rest, self.clientproto, obj.headers, self.content.read(), self, obj)
             d = wrapper.connect(f)
-#        except:
-#            exc_type, exc_value, exc_traceback = sys.exc_info()
-#            MailException(exc_type, exc_value, exc_traceback)
+        except:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            MailException(exc_type, exc_value, exc_traceback)
 
 class T2WProxy(http.HTTPChannel):
- requestFactory = T2WRequest
+    requestFactory = T2WRequest
 
 class T2WProxyFactory(http.HTTPFactory):
     protocol = T2WProxy
@@ -408,7 +408,7 @@ def startTor2webHTTP(t2w, f):
 def startTor2webHTTPS(t2w, f):
     return internet.SSLServer(int(t2w.config.listen_port_https), f, T2WSSLContextFactory(t2w.config.sslkeyfile, t2w.config.sslcertfile, t2w.config.ssldhfile, t2w.config.cipher_list))
 
-#sys.excepthook = MailException
+sys.excepthook = MailException
 
 factory = T2WProxyFactory()
 
