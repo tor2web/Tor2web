@@ -117,16 +117,15 @@ class SOCKSWrapper(object):
         self._port = port
         self._reactor = reactor
         self._endpoint = endpoint
+    
+    def _canceller(deferred):
+            connector.stopConnecting()
+            deferred.errback(error.ConnectingCancelledError(connector.getDestination()))
 
     def connect(self, protocolFactory):
         """
         Return a deferred firing when the SOCKS connection is established.
         """
-
-        def _canceller(deferred):
-            connector.stopConnecting()
-            deferred.errback(
-                error.ConnectingCancelledError(connector.getDestination()))
 
         try:
             # Connect with an intermediate SOCKS factory/protocol,
@@ -136,7 +135,7 @@ class SOCKSWrapper(object):
             f.postHandshakeEndpoint = self._endpoint
             f.postHandshakeFactory = protocolFactory
             f.handshakeDone = defer.Deferred()
-            wf = _WrappingFactory(f, _canceller)
+            wf = _WrappingFactory(f, self._canceller)
             self._reactor.connectTCP(self._host, self._port, wf)
             return f.handshakeDone
         except:
