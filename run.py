@@ -30,24 +30,6 @@
 """
 
 # -*- coding: utf-8 -*-
-
-from twisted.web.template import Element, renderer, XMLString, flattenString
-from twisted.python.filepath import FilePath
-
-class ExampleElement(Element):
-    loader = XMLString(FilePath('test.xml').getContent())
-
-    @renderer
-    def header(self, request, tag):
-        return tag('Header.')
-
-    @renderer
-    def footer(self, request, tag):
-        return tag('Footer.')
-
-def renderDone(output):
-    print output
-
 from twisted.mail.smtp import ESMTPSenderFactory
 from twisted.python.usage import Options, UsageError
 from twisted.internet.ssl import ClientContextFactory
