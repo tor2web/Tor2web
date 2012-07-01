@@ -19,7 +19,7 @@ function getHTTPObject() {
 
 function handler() {
 	if(http.readyState == 4 && http.status == 200) {
-    show_hide()
+    show_hide_notification_form()
 	}
 }
 
@@ -29,7 +29,7 @@ function sendNotification() {
   var comment = document.getElementById('comment').value;
   var params = "by="+by+"&url="+url+"&comment="+comment;
   
-	http.open("POST", "/tor2webstaticmap/notification", true);
+	http.open("POST", "/antanistaticmap/notification", true);
 	
 	http.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
 	http.setRequestHeader("Content-length", params.length);
@@ -42,12 +42,12 @@ function sendNotification() {
 
 function show_hide_tor2web_header(status) {
   if(status == true) {
-    document.getElementById("tor2web").style.display = 'none';
+    document.getElementById("tor2web-visible").style.display = 'none';
     document.getElementById("tor2web-hidden").style.display = 'block';
     jaaulde.utils.cookies.set('tor2web_header_hidden', 'true');
   } else {
     document.getElementById("tor2web-hidden").style.display = 'none';
-    document.getElementById("tor2web").style.display = 'block';
+    document.getElementById("tor2web-visible").style.display = 'block';
     jaaulde.utils.cookies.set('tor2web_header_hidden', 'false');
   }
 }
@@ -71,4 +71,3 @@ window.onload = function() {
   }
   document.getElementById('url').value = document.location;
 }
-

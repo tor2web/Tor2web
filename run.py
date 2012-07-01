@@ -277,28 +277,37 @@ class T2WRequest(proxy.ProxyRequest):
             
             staticmap = '/'+config.staticmap+'/'
             if self.uri.startswith(staticmap):
-                localpath = re.sub('^'+staticmap, '', self.uri)
+                staticpath = re.sub('^'+staticmap, '', self.uri)
                 try:
-                  staticpath = FilePath("static/")
-                  localpath = staticpath.child(localpath)
-                  if staticpath.exists() == True:
+                  localpath = FilePath("static/")
+                  localpath = localpath.child(staticpath)
+                  if localpath.exists() == True:
                     filename, ext = localpath.splitext()
                     filecontent = localpath.open().read()
+                    self.setHeader('content-type', mimetypes.types_map[ext])
+                    self.write(filecontent)
+                  elif staticpath.startswith('notification'):
+                    if 'by' in self.args and 'url' in self.args and 'comment' in self.args:
+                      message = ""
+                      message += "TO: %s\n" % (config.smtpmailto)
+                      message += "SUBJECT: Tor2web notification for %s\n\n" % (self.args['url'][0])
+                      message += "BY: %s\n" % (self.args['by'][0])
+                      message += "URL: %s\n" % (self.args['url'][0])
+                      message += "COMMENT: %s\n" % (self.args['comment'][0])
+                      message = StringIO(message)
+                      sendmail(config.smtpuser, config.smtppass, config.smtpmailto, config.smtpmailto, message, config.smtpdomain, config.smtpport);
                   else:
                     raise FileNotFoundException
                 except:
                   self.setResponseCode(404)
                   self.write("HTTP/1.1 404 Not Found")
-                  self.finish()
-                  return;
 
-                self.setHeader('content-type', mimetypes.types_map[ext])
-
-                self.write(filecontent)
                 self.finish()
                 return
 
+            print self.uri
             if(self.uri.startswith('/' + config.staticmap + '/notification')):
+                print self.uri
                 if 'by' in self.args and 'url' in self.args and 'comment' in self.args:
                     message = ""
                     message += "TO: %s\n" % (config.smtpmailto)
