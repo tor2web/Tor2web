@@ -31,6 +31,23 @@
 
 # -*- coding: utf-8 -*-
 
+from twisted.web.template import Element, renderer, XMLString, flattenString
+from twisted.python.filepath import FilePath
+
+class ExampleElement(Element):
+    loader = XMLString(FilePath('test.xml').getContent())
+
+    @renderer
+    def header(self, request, tag):
+        return tag('Header.')
+
+    @renderer
+    def footer(self, request, tag):
+        return tag('Footer.')
+
+def renderDone(output):
+    print output
+
 from twisted.mail.smtp import ESMTPSenderFactory
 from twisted.python.usage import Options, UsageError
 from twisted.internet.ssl import ClientContextFactory
@@ -260,20 +277,47 @@ class T2WRequest(proxy.ProxyRequest):
 
     def process(self):
         try:
+            obj = Tor2webObj()
+            request = Storage()
+            request.headers = self.getAllHeaders().copy()
+            request.uri = self.uri
+            request.host = request.headers['host']
+          
+            content = ""
+
             if self.isSecure():
                 self.setHeader('strict-transport-security', 'max-age=31536000')
             else:
-                self.setResponseCode(301)
-                self.setHeader('Location', "https://" + self.getRequestHostname() + self.uri)
-                self.write("HTTP/1.1 301 Moved Permanently")
+                self.redirect("https://" + self.getRequestHostname() + self.uri);
                 self.finish()
                 return
 
-            if ('accept-encoding' in self.headers and not (self.headers['accept-encoding'] is None)):
-                if re.search('gzip', self.headers['accept-encoding']):
+            if ('accept-encoding' in request.headers and not (request.headers['accept-encoding'] is None)):
+                if re.search('gzip', request.headers['accept-encoding']):
                     obj.client_supports_gzip = True;
+                    
+            if request.uri == "/robots.txt" and config.blockcrawl:
+                self.write("User-Agent: *\nDisallow: /\n")
+                self.finish()
+                return
+
+            if request.headers['user-agent'] in t2w.blocked_ua:
+                # Detected a blocked user-agent
+                # Setting response code to 410 and sending Blocked UA string
+                self.setResponseCode(410)
+                self.write("Blocked UA\n")
+                self.finish()
+                return
+
+            if request.uri.lower().endswith(('gif','jpg','png')):
+                # Avoid image hotlinking
+                if not 'referer' in request.headers or not config.basehost in request.headers['referer'].lower():
+                    self.setHeader('content-type', 'image/png')
+                    self.write(open('static/tor2web.png', 'r').read())
+                    self.finish()
+                    return
             
-            # 1st the content requested is local? serve it direcly!
+            # 1st the content requested is local? serve it directly!
             
             staticmap = '/'+config.staticmap+'/'
             if self.uri.startswith(staticmap):
@@ -283,9 +327,8 @@ class T2WRequest(proxy.ProxyRequest):
                   localpath = localpath.child(staticpath)
                   if localpath.exists() == True:
                     filename, ext = localpath.splitext()
-                    filecontent = localpath.open().read()
                     self.setHeader('content-type', mimetypes.types_map[ext])
-                    self.write(filecontent)
+                    content = localpath.open().read()
                   elif staticpath.startswith('notification'):
                     if 'by' in self.args and 'url' in self.args and 'comment' in self.args:
                       message = ""
@@ -300,56 +343,25 @@ class T2WRequest(proxy.ProxyRequest):
                     raise FileNotFoundException
                 except:
                   self.setResponseCode(404)
-                  self.write("HTTP/1.1 404 Not Found")
+                  content = "HTTP/1.1 404 Not Found"
 
+                if obj.client_supports_gzip:
+                  stringio = StringIO()
+                  ram_gzip_file = gzip.GzipFile(fileobj=stringio, mode='w')
+                  ram_gzip_file.write(content)
+                  ram_gzip_file.close()
+                  content = stringio.getvalue()
+                  self.setHeader('content-encoding', 'gzip')
+
+                self.setHeader('content-length', len(content))
+
+                self.write(content)
                 self.finish()
                 return
-
-            print self.uri
-            if(self.uri.startswith('/' + config.staticmap + '/notification')):
-                print self.uri
-                if 'by' in self.args and 'url' in self.args and 'comment' in self.args:
-                    message = ""
-                    message += "TO: %s\n" % (config.smtpmailto)
-                    message += "SUBJECT: Tor2web notification for %s\n\n" % (self.args['url'][0])
-                    message += "BY: %s\n" % (self.args['by'][0])
-                    message += "URL: %s\n" % (self.args['url'][0])
-                    message += "COMMENT: %s\n" % (self.args['comment'][0])
-                    message = StringIO(message)
-                    sendmail(config.smtpuser, config.smtppass, config.smtpmailto, config.smtpmailto, message, config.smtpdomain, config.smtpport);
-                    self.finish()
-                    return
 
             # 2nd the content requested is remote: proxify the request!
 
-            if self.uri == "/robots.txt" and config.blockcrawl:
-                self.write("User-Agent: *\nDisallow: /\n")
-                self.finish()
-                return
-
-            obj = Tor2webObj()
-            myrequest = Storage()
-            myrequest.headers = self.getAllHeaders().copy()
-            myrequest.uri = self.uri
-            myrequest.host = myrequest.headers['host']
-
-            if myrequest.headers['user-agent'] in t2w.blocked_ua:
-                # Detected a blocked user-agent
-                # Setting response code to 410 and sending Blocked UA string
-                self.setResponseCode(410)
-                self.write("Blocked UA\n")
-                self.finish()
-                return
-
-            if myrequest.uri.lower().endswith(('gif','jpg','png')):
-                # Avoid image hotlinking
-                if not 'referer' in myrequest.headers or not config.basehost in myrequest.headers['referer'].lower():
-                    self.setHeader('content-type', 'image/png')
-                    self.write(open('static/tor2web.png', 'r').read())
-                    self.finish()
-                    return
-
-            if not t2w.process_request(obj, myrequest):
+            if not t2w.process_request(obj, request):
                 self.setResponseCode(obj.error['code'])
                 self.write("Tor2web Error: " + obj.error['message'])
                 self.finish()
