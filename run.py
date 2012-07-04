@@ -263,7 +263,13 @@ class T2WRequest(proxy.ProxyRequest):
             request = Storage()
             request.headers = self.getAllHeaders().copy()
             request.uri = self.uri
-            request.host = request.headers['host']
+            request.host = request.headers.get('host')
+            if request.host == None:
+		self.setResponseCode(400)
+                content = "HTTP/1.1 400 Bad Request"
+                self.write(content)
+                self.finish()
+                return
           
             content = ""
 
@@ -274,8 +280,8 @@ class T2WRequest(proxy.ProxyRequest):
                 self.finish()
                 return
 
-            if ('accept-encoding' in request.headers and not (request.headers['accept-encoding'] is None)):
-                if re.search('gzip', request.headers['accept-encoding']):
+            if request.headers.get('accept-encoding') != None:
+                if re.search('gzip', request.headers.get('accept-encoding')):
                     obj.client_supports_gzip = True;
                     
             if request.uri == "/robots.txt" and config.blockcrawl:
@@ -283,7 +289,7 @@ class T2WRequest(proxy.ProxyRequest):
                 self.finish()
                 return
 
-            if request.headers['user-agent'] in t2w.blocked_ua:
+            if request.headers.get('user-agent') in t2w.blocked_ua:
                 # Detected a blocked user-agent
                 # Setting response code to 410 and sending Blocked UA string
                 self.setResponseCode(410)
@@ -293,7 +299,7 @@ class T2WRequest(proxy.ProxyRequest):
 
             if request.uri.lower().endswith(('gif','jpg','png')):
                 # Avoid image hotlinking
-                if not 'referer' in request.headers or not config.basehost in request.headers['referer'].lower():
+                if request.headers.get('referer') == None or not config.basehost in request.headers.get('referer').lower():
                     self.setHeader('content-type', 'image/png')
                     self.write(open('static/tor2web.png', 'r').read())
                     self.finish()
