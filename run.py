@@ -30,37 +30,33 @@
 """
 
 # -*- coding: utf-8 -*-
-from twisted.mail.smtp import ESMTPSenderFactory
-from twisted.python.usage import Options, UsageError
-from twisted.internet.ssl import ClientContextFactory
-from twisted.internet.defer import Deferred
-from twisted.internet import reactor
 
-from twisted.application import service, internet
-from twisted.internet import ssl, reactor, endpoints
-from twisted.web import proxy, http, client, server, static, resource
-from twisted.web.http import Request
-from twisted.web.server import NOT_DONE_YET
-from twisted.python.filepath import FilePath
+from config import Config
+from tor2web import Tor2web, Tor2webObj
+from storage import Storage
+from templating import ErrorTemplate
 
-from socksclient import SOCKSv4ClientProtocol, SOCKSWrapper
-from OpenSSL import SSL
-
-import hashlib
 import mimetypes
 import gzip
-import os
 import sys
 import urlparse
 import re
 import cgi
 import traceback
-
 from StringIO import StringIO
 
-from config import Config
-from tor2web import Tor2web, Tor2webObj
-from storage import Storage
+from twisted.mail.smtp import ESMTPSenderFactory
+from twisted.internet import ssl, reactor, endpoints
+from twisted.internet.ssl import ClientContextFactory
+from twisted.internet.defer import Deferred
+from twisted.application import service, internet
+from twisted.web import proxy, http, client, resource
+from twisted.web.template import flattenString
+from twisted.python.filepath import FilePath
+from twisted.web.server import NOT_DONE_YET
+
+from socksclient import SOCKSv4ClientProtocol, SOCKSWrapper
+from OpenSSL import SSL
 
 config = Config("main")
 
@@ -169,7 +165,7 @@ class T2WProxyClient(proxy.ProxyClient):
         proxy.ProxyClient.__init__(self, command, rest, version, headers, data, father)
         self.obj = obj
         self.bf = []
-        self.contenttype = 'unknown'
+        contenttype = 'unknown'
         self.html = False
         self.location = False
         self._chunked = False
@@ -256,20 +252,38 @@ class T2WRequest(proxy.ProxyRequest):
     """
     protocols = {'http': T2WProxyClientFactory}
     ports = {'http': 80}
+    
+    obj = Tor2webObj()
+
+    def contentGzip(self, content):
+        self.setHeader('content-encoding', 'gzip')
+        stringio = StringIO()
+        ram_gzip_file = gzip.GzipFile(fileobj=stringio, mode='w')
+        ram_gzip_file.write(content)
+        ram_gzip_file.close()
+        content = stringio.getvalue()
+        return content
+    
+    def contentFinish(self, content):
+        if self.obj.client_supports_gzip:
+            content = self.contentGzip(content)
+
+        self.setHeader('content-length', len(content))
+        self.write(content)
+        self.finish()
+
+    def error(self, error):
+        self.setResponseCode(error)
+        return flattenString(None, ErrorTemplate(error)).addCallback(self.contentFinish)
 
     def process(self):
         try:
-            obj = Tor2webObj()
             request = Storage()
             request.headers = self.getAllHeaders().copy()
             request.uri = self.uri
             request.host = request.headers.get('host')
             if request.host == None:
-		self.setResponseCode(400)
-                content = "HTTP/1.1 400 Bad Request"
-                self.write(content)
-                self.finish()
-                return
+                return self.error(400)
           
             content = ""
 
@@ -282,7 +296,7 @@ class T2WRequest(proxy.ProxyRequest):
 
             if request.headers.get('accept-encoding') != None:
                 if re.search('gzip', request.headers.get('accept-encoding')):
-                    obj.client_supports_gzip = True;
+                    self.obj.client_supports_gzip = True;
                     
             if request.uri == "/robots.txt" and config.blockcrawl:
                 self.write("User-Agent: *\nDisallow: /\n")
@@ -291,19 +305,13 @@ class T2WRequest(proxy.ProxyRequest):
 
             if request.headers.get('user-agent') in t2w.blocked_ua:
                 # Detected a blocked user-agent
-                # Setting response code to 410 and sending Blocked UA string
-                self.setResponseCode(410)
-                self.write("Blocked UA\n")
-                self.finish()
-                return
+                return self.error(410)
 
             if request.uri.lower().endswith(('gif','jpg','png')):
                 # Avoid image hotlinking
                 if request.headers.get('referer') == None or not config.basehost in request.headers.get('referer').lower():
                     self.setHeader('content-type', 'image/png')
-                    self.write(open('static/tor2web.png', 'r').read())
-                    self.finish()
-                    return
+                    return self.contentFinish(open('static/tor2web.png', 'r').read())
             
             # 1st the content requested is local? serve it directly!
             
@@ -311,51 +319,38 @@ class T2WRequest(proxy.ProxyRequest):
             if self.uri.startswith(staticmap):
                 staticpath = re.sub('^'+staticmap, '', self.uri)
                 try:
-                  localpath = FilePath("static/")
-                  localpath = localpath.child(staticpath)
-                  if localpath.exists() == True:
-                    filename, ext = localpath.splitext()
-                    self.setHeader('content-type', mimetypes.types_map[ext])
-                    content = localpath.open().read()
-                  elif staticpath.startswith('notification'):
-                    if 'by' in self.args and 'url' in self.args and 'comment' in self.args:
-                      message = ""
-                      message += "TO: %s\n" % (config.smtpmailto)
-                      message += "SUBJECT: Tor2web notification for %s\n\n" % (self.args['url'][0])
-                      message += "BY: %s\n" % (self.args['by'][0])
-                      message += "URL: %s\n" % (self.args['url'][0])
-                      message += "COMMENT: %s\n" % (self.args['comment'][0])
-                      message = StringIO(message)
-                      sendmail(config.smtpuser, config.smtppass, config.smtpmailto, config.smtpmailto, message, config.smtpdomain, config.smtpport);
-                  else:
-                    raise FileNotFoundException
+                    localpath = FilePath("static/")
+                    localpath = localpath.child(staticpath)
+                    if localpath.exists() == True:
+                        filename, ext = localpath.splitext()
+                        self.setHeader('content-type', mimetypes.types_map[ext])
+                        content = localpath.open().read()
+                    elif staticpath.startswith('notification'):
+                        if 'by' in self.args and 'url' in self.args and 'comment' in self.args:
+                            message = ""
+                            message += "TO: %s\n" % (config.smtpmailto)
+                            message += "SUBJECT: Tor2web notification for %s\n\n" % (self.args['url'][0])
+                            message += "BY: %s\n" % (self.args['by'][0])
+                            message += "URL: %s\n" % (self.args['url'][0])
+                            message += "COMMENT: %s\n" % (self.args['comment'][0])
+                            message = StringIO(message)
+                            sendmail(config.smtpuser, config.smtppass, config.smtpmailto, config.smtpmailto, message, config.smtpdomain, config.smtpport);
+                    else:
+                        raise FileNotFoundException
                 except:
-                  self.setResponseCode(404)
-                  content = "HTTP/1.1 404 Not Found"
+                    return self.error(404)
 
-                if obj.client_supports_gzip:
-                  stringio = StringIO()
-                  ram_gzip_file = gzip.GzipFile(fileobj=stringio, mode='w')
-                  ram_gzip_file.write(content)
-                  ram_gzip_file.close()
-                  content = stringio.getvalue()
-                  self.setHeader('content-encoding', 'gzip')
-
-                self.setHeader('content-length', len(content))
-
-                self.write(content)
-                self.finish()
-                return
+                return self.contentFinish(content)
 
             # 2nd the content requested is remote: proxify the request!
 
-            if not t2w.process_request(obj, request):
-                self.setResponseCode(obj.error['code'])
-                self.write("Tor2web Error: " + obj.error['message'])
+            if not t2w.process_request(self.obj, request):
+                self.setResponseCode(self.obj.error['code'])
+                self.write("Tor2web Error: " + self.obj.error['message'])
                 self.finish()
                 return
 
-            parsed = urlparse.urlparse(obj.address)
+            parsed = urlparse.urlparse(self.obj.address)
             protocol = parsed[0]
             host = parsed[1]
             if ':' in host:
@@ -370,14 +365,15 @@ class T2WRequest(proxy.ProxyRequest):
 
             class_ = self.protocols[protocol]
 
-            self.content.seek(0, 0)
-
-            dest = client._parse(obj.address) # scheme, host, port, path
+            dest = client._parse(self.obj.address) # scheme, host, port, path
 
             endpoint = endpoints.TCP4ClientEndpoint(reactor, dest[1], dest[2])
             wrapper = SOCKSWrapper(reactor, config.sockshost, config.socksport, endpoint)
-            f = class_(self.method, rest, self.clientproto, obj.headers, self.content.read(), self, obj)
+            f = class_(self.method, rest, self.clientproto, self.obj.headers, content, self, self.obj)
             d = wrapper.connect(f)
+            
+            return NOT_DONE_YET
+            
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             MailException(exc_type, exc_value, exc_traceback)

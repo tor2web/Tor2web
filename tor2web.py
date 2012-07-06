@@ -31,20 +31,16 @@
 
 # -*- coding: utf-8 -*-
 
-from twisted.python import log
+from config import Config 
+from storage import Storage
 
-import os
 import sys
 import hashlib
 import re
-import pickle
 
-from mimetypes import guess_type
 from urlparse import urlparse
 
 from twisted.python import log
-from config import Config 
-from storage import Storage
 
 rexp = {
     'href': re.compile(r'<[a-z]*\s*.*?\s*href\s*=\s*[\\\'"]?([a-z0-9/#:\-\.]*)[\\\'"]?\s*.*?>', re.I),
