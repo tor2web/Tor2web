@@ -253,7 +253,9 @@ class T2WRequest(proxy.ProxyRequest):
     protocols = {'http': T2WProxyClientFactory}
     ports = {'http': 80}
     
-    obj = Tor2webObj()
+    def __init__(self, *args, **kw ):
+       proxy.ProxyRequest.__init__(self, *args, **kw)
+       self.obj = Tor2webObj()
 
     def contentGzip(self, content):
         self.setHeader('content-encoding', 'gzip')
@@ -272,9 +274,9 @@ class T2WRequest(proxy.ProxyRequest):
         self.write(content)
         self.finish()
 
-    def error(self, error):
+    def error(self, error, errormsg=None):
         self.setResponseCode(error)
-        return flattenString(None, ErrorTemplate(error)).addCallback(self.contentFinish)
+        return flattenString(None, ErrorTemplate(error, errormsg)).addCallback(self.contentFinish)
 
     def process(self):
         try:
@@ -345,10 +347,7 @@ class T2WRequest(proxy.ProxyRequest):
             # 2nd the content requested is remote: proxify the request!
 
             if not t2w.process_request(self.obj, request):
-                self.setResponseCode(self.obj.error['code'])
-                self.write("Tor2web Error: " + self.obj.error['message'])
-                self.finish()
-                return
+                return self.error(self.obj.error['code'], self.obj.error['message'])
 
             parsed = urlparse.urlparse(self.obj.address)
             protocol = parsed[0]

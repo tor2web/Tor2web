@@ -48,8 +48,9 @@ class Subtemplate(Element):
 class ErrorTemplate(Element):
     loader = XMLString(FilePath('interface/error.xml').getContent())
     
-    def __init__(self, error):
+    def __init__(self, error, errormsg=None):
         self.error = error
+        self.errormsg = errormsg
 
     @renderer
     def header(self, request, tag):
@@ -57,7 +58,9 @@ class ErrorTemplate(Element):
 
     @renderer
     def content(self, request, tag):
-        return tag('%s %s\r\n' % (self.error, messages.get(self.error, 'ERROR')))
+        if self.errormsg == None:
+          self.errormsg = messages.get(self.error, 'ERROR')
+        return tag('%s %s\r\n' % (self.error, self.errormsg))
 
     @renderer
     def footer(self, request, tag):
