@@ -43,19 +43,21 @@ import urlparse
 import re
 import cgi
 import traceback
+import threading
+
 from StringIO import StringIO
 
 from twisted.mail.smtp import ESMTPSenderFactory
 from twisted.internet import ssl, reactor, endpoints
 from twisted.internet.ssl import ClientContextFactory
-from twisted.internet.defer import Deferred
+from twisted.internet.defer import Deferred, DeferredQueue
 from twisted.application import service, internet
 from twisted.web import proxy, http, client, resource
 from twisted.web.template import flattenString
 from twisted.python.filepath import FilePath
 from twisted.web.server import NOT_DONE_YET
 
-from socksclient import SOCKSv4ClientProtocol, SOCKSWrapper
+from socksclient import SOCKSv5ClientFactory, SOCKSWrapper
 from OpenSSL import SSL
 
 config = Config("main")
@@ -98,7 +100,7 @@ def MailException(etype, value, tb):
             try:
                 message += str(val)
             except:
-                message += '<ERROR WHILE PRINTING VALUE>'
+                message += '<ERROR WHILE PRINTPRINTING VALUE>'
 
     message = StringIO(message)
     sendmail(config.smtpuser, config.smtppass, config.smtpmailto, config.smtpmailto, message, config.smtpdomain, config.smtpport);
@@ -161,56 +163,67 @@ class T2WSSLContextFactory():
         return self._context
 
 class T2WProxyClient(proxy.ProxyClient):
+    """
+    """
     def __init__(self, command, rest, version, headers, data, father, obj):
-        proxy.ProxyClient.__init__(self, command, rest, version, headers, data, father)
+        self.father = father
+        self.command = command
+        self.rest = rest
+        self.headers = headers
+        self.data = data
+
         self.obj = obj
         self.bf = []
         contenttype = 'unknown'
         self.html = False
         self.location = False
-        self._chunked = False
+        self._chunked = True
+        self.keepalive = False
+        
+        self.contentNeedFix = False
 
     def handleHeader(self, key, value):
         keyLower = key.lower()
+        valueLower = value.lower()
         
-        if keyLower == "content-encoding" and value == "gzip":
+        if keyLower == "content-encoding" and valueLower == "gzip":
             self.obj.server_supports_gzip = True
-            return;
+            return
                 
-        if keyLower == "location":
-            self.location = t2w.fix_link(value)
+        elif keyLower == "location":
+            self.location = t2w.fix_link(self.obj, valueLower)
             return
 
-        if keyLower == "transfer-encoding" and value == "chunked":
-            self._chunked = http._ChunkedTransferDecoder(self.handleResponsePart,
-                                                         self.handleResponseEnd)
+        elif keyLower == 'transfer-encoding' and valueLower == 'chunked':
+            http._ChunkedTransferDecoder(self.handleResponsePart, self.handleResponseEnd)
             return
 
-        if keyLower == 'content-type' and re.search('text/html', value):
+        elif keyLower == 'content-type' and re.search('text/html', valueLower):
             self.html = True
-            return;
 
-        if keyLower == "content-length":
+        elif keyLower == 'content-length':
             return
 
-        if keyLower == 'cache-control':
+        elif keyLower == 'cache-control':
             return
 
-        if keyLower == 'connection':
+        elif keyLower == 'connection' and valueLower == "keep-alive":
+            self.keepalive = True
             return
-
-        else:
-            proxy.ProxyClient.handleHeader(self, key, value)
+        
+        proxy.ProxyClient.handleHeader(self, key, value)
 
     def handleEndHeaders(self):
         if self.location:
             proxy.ProxyClient.handleHeader(self, "location", self.location)
 
     def handleResponsePart(self, buffer):
-        self.bf.append(buffer)
+        if self.contentNeedFix == True:
+          self.bf.append(buffer)
+        else:
+          self.father.write(buffer)
 
     def handleResponseEnd(self):
-            
         content = ''.join(self.bf)
 
         if content:
@@ -219,8 +232,8 @@ class T2WProxyClient(proxy.ProxyClient):
                 content = gzip.GzipFile(fileobj=c_f).read()
 
             if self.html:
-                content = t2w.process_html(self.obj, content)            
-                
+                content = t2w.process_html(self.obj, content)  
+            
             if self.obj.client_supports_gzip:
                 stringio = StringIO()
                 ram_gzip_file = gzip.GzipFile(fileobj=stringio, mode='w')
@@ -230,11 +243,22 @@ class T2WProxyClient(proxy.ProxyClient):
                 proxy.ProxyClient.handleHeader(self, 'content-encoding', 'gzip')
 
             proxy.ProxyClient.handleHeader(self, 'cache-control', 'no-cache')
-            proxy.ProxyClient.handleHeader(self, "content-length", len(content))
             proxy.ProxyClient.handleEndHeaders(self)
-            proxy.ProxyClient.handleResponsePart(self, content)
-            proxy.ProxyClient.handleResponseEnd(self)
+            self.father.write(content)
 
+        else:
+            proxy.ProxyClient.handleEndHeaders(self)
+            self.father.write('')
+
+        if not self._finished:
+            self._finished = True
+            self.father.finish()
+            
+    def connectionLost(self, reason):
+        if not self._finished:
+            self._finished = True
+            self.father.finish()
+ 
 class T2WProxyClientFactory(proxy.ProxyClientFactory):
     protocol = T2WProxyClient
     
@@ -243,8 +267,7 @@ class T2WProxyClientFactory(proxy.ProxyClientFactory):
         proxy.ProxyClientFactory.__init__(self, command, rest, version, headers, data, father)
 
     def buildProtocol(self, addr):
-        return self.protocol(self.command, self.rest, self.version,
-                             self.headers, self.data, self.father, self.obj)
+        return self.protocol(self.command, self.rest, self.version, self.headers, self.data, self.father, self.obj)
 
 class T2WRequest(proxy.ProxyRequest):
     """
@@ -252,7 +275,7 @@ class T2WRequest(proxy.ProxyRequest):
     """
     protocols = {'http': T2WProxyClientFactory}
     ports = {'http': 80}
-    
+
     def __init__(self, *args, **kw ):
        proxy.ProxyRequest.__init__(self, *args, **kw)
        self.obj = Tor2webObj()
@@ -272,12 +295,14 @@ class T2WRequest(proxy.ProxyRequest):
 
         self.setHeader('content-length', len(content))
         self.write(content)
-        self.finish()
 
     def error(self, error, errormsg=None):
         self.setResponseCode(error)
         return flattenString(None, ErrorTemplate(error, errormsg)).addCallback(self.contentFinish)
 
+    def sockserror(self, err=None):
+        self.error(502, "Socks Error: " + str(err.value))
+        
     def process(self):
         try:
             request = Storage()
@@ -313,6 +338,7 @@ class T2WRequest(proxy.ProxyRequest):
                 # Avoid image hotlinking
                 if request.headers.get('referer') == None or not config.basehost in request.headers.get('referer').lower():
                     self.setHeader('content-type', 'image/png')
+                    print "finishaaa"
                     return self.contentFinish(open('static/tor2web.png', 'r').read())
             
             # 1st the content requested is local? serve it directly!
@@ -342,6 +368,7 @@ class T2WRequest(proxy.ProxyRequest):
                 except:
                     return self.error(404)
 
+                print "aaa"
                 return self.contentFinish(content)
 
             # 2nd the content requested is remote: proxify the request!
@@ -357,10 +384,10 @@ class T2WRequest(proxy.ProxyRequest):
                 port = int(port)
             else:
                 port = self.ports[protocol]
-                
-            rest = urlparse.urlunparse(('', '') + parsed[2:])
-            if not rest:
-                rest = "/"
+
+            self.rest = urlparse.urlunparse(('', '') + parsed[2:])
+            if not self.rest:
+                self.rest = "/"
 
             class_ = self.protocols[protocol]
 
@@ -368,11 +395,12 @@ class T2WRequest(proxy.ProxyRequest):
 
             endpoint = endpoints.TCP4ClientEndpoint(reactor, dest[1], dest[2])
             wrapper = SOCKSWrapper(reactor, config.sockshost, config.socksport, endpoint)
-            f = class_(self.method, rest, self.clientproto, self.obj.headers, content, self, self.obj)
+            f = class_(self.method, self.rest, self.clientproto, self.obj.headers, content, self, self.obj)
             d = wrapper.connect(f)
-            
+            d.addErrback(self.sockserror)
+
             return NOT_DONE_YET
-            
+
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             MailException(exc_type, exc_value, exc_traceback)
@@ -389,7 +417,7 @@ class T2WProxyFactory(http.HTTPFactory):
         http.HTTPFactory.__init__(self, logPath=config.accesslogpath)
         self.sessions = {}
         self.resource = resource
-        
+
     def log(self, request):
         """
         Log a request's result to the logfile, by default in combined log format.

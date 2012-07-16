@@ -235,16 +235,15 @@ class Tor2web(object):
             return False
 
         obj.headers = req.headers
-    
+        
         self.Tor2webLog.msg("Headers before fix:")
         self.Tor2webLog.msg(obj.headers)
 
         obj.headers.update({'X-tor2web':'encrypted'})
             
-        obj.headers['accept-encoding'] = 'gzip'
+        obj.headers.update({'accept-encoding':''})
 
-        if 'host' not in obj.headers:
-            obj.headers['host'] = obj.hostname
+        obj.headers['host'] = obj.hostname
 
         self.Tor2webLog.msg("Headers after fix:")
         self.Tor2webLog.msg(obj.headers)
@@ -266,8 +265,6 @@ class Tor2web(object):
         Operates some links corrections.
         """
         parsed = urlparse(data)
-        
-        self.Tor2webLog.msg("LINK scheme: " + parsed.scheme)
 
         scheme = parsed.scheme
 
