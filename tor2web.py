@@ -71,11 +71,13 @@ class Tor2webObj():
     
     error = {}
     
-    client_supports_gzip = False;
-    client_supports_keepalive = False;
+    client_supports_keepalive = False
+    client_supports_chunked = False
+    client_supports_gzip = False
 
-    server_supports_gzip = False;
-    server_supports_keepalive = False;
+    server_response_is_keepalive = False
+    server_response_is_chunked = False
+    server_response_is_gzip = False
 
 class Tor2web(object):
     def __init__(self, config):
@@ -246,7 +248,7 @@ class Tor2web(object):
 
         obj.headers.update({'connection':'close'})
 
-        obj.headers.update({'accept-encoding':'gzip'})
+        obj.headers.update({'accept-encoding':''})
 
         obj.headers['host'] = obj.hostname
 
@@ -307,7 +309,6 @@ class Tor2web(object):
               link += "?" + parsed.query
         
         return link
-
 
     def fix_links(self, obj, data):
         """

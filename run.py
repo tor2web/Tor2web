@@ -44,6 +44,7 @@ import re
 import cgi
 import traceback
 import threading
+import zlib
 
 from StringIO import StringIO
 
@@ -56,6 +57,7 @@ from twisted.web import proxy, http, client, resource
 from twisted.web.template import flattenString
 from twisted.python.filepath import FilePath
 from twisted.web.server import NOT_DONE_YET
+from twisted.web.client import HTTPConnectionPool
 
 from socksclient import SOCKSv5ClientFactory, SOCKSWrapper
 from OpenSSL import SSL
@@ -178,9 +180,19 @@ class T2WProxyClient(proxy.ProxyClient):
         self.html = False
         self.location = False
         self._chunked = True
-        self.decoder = None
+        self.decoderChunked = None        
+        self.decoderGzip = None
+        self.encoderGzip = None
         
         self.contentNeedFix = False
+
+    def fatherEndHeaders(self, dataresponse, gzipped):
+        if self.location:
+            proxy.ProxyClient.handleHeader(self, "location", self.location)
+        if dataresponse:
+            proxy.ProxyClient.handleHeader(self, 'cache-control', 'no-cache')
+            if gzipped:
+                proxy.ProxyClient.handleHeader(self, 'content-encoding', 'gzip')
 
     def handleHeader(self, key, value):
 
@@ -192,16 +204,20 @@ class T2WProxyClient(proxy.ProxyClient):
             return
 
         elif keyLower == 'transfer-encoding' and valueLower == 'chunked':
-            self.decoder = http._ChunkedTransferDecoder(self.handleResponsePart, self.handleResponseEnd)
+            self.obj.server_response_is_chunked = True
+            self.decoderChunked = http._ChunkedTransferDecoder(self.handleResponsePart, self.handleResponseEnd)
             return
 
         elif keyLower == "content-encoding" and valueLower == "gzip":
-            self.obj.server_supports_gzip = True
+            self.obj.server_response_is_gzip = True
             return
 
         elif keyLower == 'content-type' and re.search('text/html', valueLower):
             self.contentNeedFix = True
             self.html = True
+            
+        elif keyLower == 'content-length':
+            return
 
         elif keyLower == 'cache-control':
             return
@@ -213,37 +229,101 @@ class T2WProxyClient(proxy.ProxyClient):
         proxy.ProxyClient.handleHeader(self, key, value)
 
     def handleEndHeaders(self):
-        if self.location:
-            proxy.ProxyClient.handleHeader(self, "location", self.location)
+        pass
 
-    def handleResponsePart(self, buffer):
-        self.bf.append(buffer)
+    def handleResponsePart(self, data):
+        gzipped = self.obj.server_response_is_gzip
+        if gzipped == True:
+            if self.contentNeedFix == True or self.obj.client_supports_gzip == False:
+                gzipped = False
+                try:
+                    if self.decoderGzip == None:
+                        self.decoderGzip = zlib.decompressobj(16 + zlib.MAX_WBITS)
+                    data = self.decoderGzip.decompress(data)
+                except zlib.error:
+                    #FIXME: handle with exceptions
+                    print "panic zlib 1"
+        else:
+            if self.contentNeedFix != True and self.obj.client_supports_gzip == True:
+                gzipped = True
+                try:
+                    if self.encoderGzip == None:
+                        self.encoderGzip = zlib.compressobj()
+                    data = self.encoderGzip.compress(data)
+                except zlib.error:
+                    #FIXME: handle with exceptions
+                    print "panic zlib 2"
+
+        if data:
+            if self.contentNeedFix == True:
+                self.bf.append(data)
+            else:
+                if not self.father.startedWriting:
+                    self.fatherEndHeaders(True, gzipped)
+                self.father.write(data)
 
     def handleResponseEnd(self):
-        content = ''.join(self.bf)
+        gzipped = self.obj.server_response_is_gzip
+        data = 0
 
-        if content:
-            if self.obj.server_supports_gzip:
-                c_f = StringIO(content)
-                content = gzip.GzipFile(fileobj=c_f).read()
+        if self.encoderGzip != None:
+            gzipped = True
+            try:
+                data = self.encoderGzip.flush()
+            except zlib.error:
+                #FIXME: handle with exceptions
+                print "panic zlib 3"
+                
+            if data:
+                if not self.father.startedWriting:
+                  self.fatherEndHeaders(True, gzipped)
+                self.father.write(data)
 
-            if self.html:
-                content = t2w.process_html(self.obj, content)  
-            
-            if self.obj.client_supports_gzip:
-                stringio = StringIO()
-                ram_gzip_file = gzip.GzipFile(fileobj=stringio, mode='w')
-                ram_gzip_file.write(content)
-                ram_gzip_file.close()
-                content = stringio.getvalue()
-                proxy.ProxyClient.handleHeader(self, 'content-encoding', 'gzip')
+            if not self._finished:
+                self._finished = True
+                self.father.finish()
+            return
 
-            proxy.ProxyClient.handleHeader(self, 'cache-control', 'no-cache')
+        if self.decoderGzip != None:
+            # the Gzip decoder is defined in the following conditions:
+            # + the HS response is gzipped
+            # + one of following:
+            #   - the content response has to be modified
+            #   - the client does not support gzip
+            gzipped = False
+            try:
+                data = self.decoderGzip.flush()
+            except zlib.error:
+                #FIXME: handle with exceptions
+                print "panic zlib 4"
+                
+            if data:
+              self.bf.append(data)
+
+        data = ''.join(self.bf)
+
+        if self.contentNeedFix:
+            if data and self.html:
+                data = t2w.process_html(self.obj, data)
+        
+        if gzipped == False and self.obj.client_supports_gzip:
+            gzipped = True
+            stringio = StringIO()
+            ram_gzip_file = gzip.GzipFile(fileobj=stringio, mode='w')
+            ram_gzip_file.write(data)
+            ram_gzip_file.close()
+            data = stringio.getvalue()        
+
             proxy.ProxyClient.handleEndHeaders(self)
-            self.father.write(content)
 
+        if(data):
+            proxy.ProxyClient.handleHeader(self, 'content-length', len(data))
+            if not self.father.startedWriting:
+                self.fatherEndHeaders(True, gzipped)
+            self.father.write(data)
         else:
-            proxy.ProxyClient.handleEndHeaders(self)
+            if not self.father.startedWriting:
+                self.fatherEndHeaders(False, False)
             self.father.write('')
 
         if not self._finished:
@@ -251,7 +331,7 @@ class T2WProxyClient(proxy.ProxyClient):
             self.father.finish()
 
     def rawDataReceived(self, data):
-        if self.decoder != None:
+        if self.decoderChunked != None:
           self.decoder.dataReceived(data)
         else:
           self.handleResponsePart(data)
