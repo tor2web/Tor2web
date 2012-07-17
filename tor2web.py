@@ -72,7 +72,10 @@ class Tor2webObj():
     error = {}
     
     client_supports_gzip = False;
+    client_supports_keepalive = False;
+
     server_supports_gzip = False;
+    server_supports_keepalive = False;
 
 class Tor2web(object):
     def __init__(self, config):
@@ -240,8 +243,10 @@ class Tor2web(object):
         self.Tor2webLog.msg(obj.headers)
 
         obj.headers.update({'X-tor2web':'encrypted'})
-            
-        obj.headers.update({'accept-encoding':''})
+
+        obj.headers.update({'connection':'close'})
+
+        obj.headers.update({'accept-encoding':'gzip'})
 
         obj.headers['host'] = obj.hostname
 

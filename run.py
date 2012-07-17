@@ -178,37 +178,36 @@ class T2WProxyClient(proxy.ProxyClient):
         self.html = False
         self.location = False
         self._chunked = True
-        self.keepalive = False
+        self.decoder = None
         
         self.contentNeedFix = False
 
     def handleHeader(self, key, value):
+
         keyLower = key.lower()
         valueLower = value.lower()
         
-        if keyLower == "content-encoding" and valueLower == "gzip":
-            self.obj.server_supports_gzip = True
-            return
-                
-        elif keyLower == "location":
+        if keyLower == "location":
             self.location = t2w.fix_link(self.obj, valueLower)
             return
 
         elif keyLower == 'transfer-encoding' and valueLower == 'chunked':
-            http._ChunkedTransferDecoder(self.handleResponsePart, self.handleResponseEnd)
+            self.decoder = http._ChunkedTransferDecoder(self.handleResponsePart, self.handleResponseEnd)
+            return
+
+        elif keyLower == "content-encoding" and valueLower == "gzip":
+            self.obj.server_supports_gzip = True
             return
 
         elif keyLower == 'content-type' and re.search('text/html', valueLower):
+            self.contentNeedFix = True
             self.html = True
-
-        elif keyLower == 'content-length':
-            return
 
         elif keyLower == 'cache-control':
             return
 
         elif keyLower == 'connection' and valueLower == "keep-alive":
-            self.keepalive = True
+            self.obj.server_supports_keepalive = True
             return
         
         proxy.ProxyClient.handleHeader(self, key, value)
@@ -218,10 +217,7 @@ class T2WProxyClient(proxy.ProxyClient):
             proxy.ProxyClient.handleHeader(self, "location", self.location)
 
     def handleResponsePart(self, buffer):
-        if self.contentNeedFix == True:
-          self.bf.append(buffer)
-        else:
-          self.father.write(buffer)
+        self.bf.append(buffer)
 
     def handleResponseEnd(self):
         content = ''.join(self.bf)
@@ -253,11 +249,15 @@ class T2WProxyClient(proxy.ProxyClient):
         if not self._finished:
             self._finished = True
             self.father.finish()
-            
+
+    def rawDataReceived(self, data):
+        if self.decoder != None:
+          self.decoder.dataReceived(data)
+        else:
+          self.handleResponsePart(data)
+
     def connectionLost(self, reason):
-        if not self._finished:
-            self._finished = True
-            self.father.finish()
+        self.handleResponseEnd()
  
 class T2WProxyClientFactory(proxy.ProxyClientFactory):
     protocol = T2WProxyClient
@@ -295,6 +295,7 @@ class T2WRequest(proxy.ProxyRequest):
 
         self.setHeader('content-length', len(content))
         self.write(content)
+        self.finish()
 
     def error(self, error, errormsg=None):
         self.setResponseCode(error)
@@ -320,15 +321,19 @@ class T2WRequest(proxy.ProxyRequest):
                 self.redirect("https://" + self.getRequestHostname() + self.uri);
                 self.finish()
                 return
-
-            if request.headers.get('accept-encoding') != None:
-                if re.search('gzip', request.headers.get('accept-encoding')):
-                    self.obj.client_supports_gzip = True;
                     
             if request.uri == "/robots.txt" and config.blockcrawl:
                 self.write("User-Agent: *\nDisallow: /\n")
                 self.finish()
                 return
+                
+            if request.headers.get('accept-encoding') != None:
+                if re.search('gzip', request.headers.get('accept-encoding')):
+                    self.obj.client_supports_gzip = True;
+
+            if request.headers.get('connection') != None:
+                if re.search('keep-alive', request.headers.get('connection')):
+                    self.obj.client_supports_keepalive = True;                  
 
             if request.headers.get('user-agent') in t2w.blocked_ua:
                 # Detected a blocked user-agent
@@ -338,7 +343,6 @@ class T2WRequest(proxy.ProxyRequest):
                 # Avoid image hotlinking
                 if request.headers.get('referer') == None or not config.basehost in request.headers.get('referer').lower():
                     self.setHeader('content-type', 'image/png')
-                    print "finishaaa"
                     return self.contentFinish(open('static/tor2web.png', 'r').read())
             
             # 1st the content requested is local? serve it directly!
@@ -368,7 +372,6 @@ class T2WRequest(proxy.ProxyRequest):
                 except:
                     return self.error(404)
 
-                print "aaa"
                 return self.contentFinish(content)
 
             # 2nd the content requested is remote: proxify the request!
@@ -388,7 +391,7 @@ class T2WRequest(proxy.ProxyRequest):
             self.rest = urlparse.urlunparse(('', '') + parsed[2:])
             if not self.rest:
                 self.rest = "/"
-
+            
             class_ = self.protocols[protocol]
 
             dest = client._parse(self.obj.address) # scheme, host, port, path
