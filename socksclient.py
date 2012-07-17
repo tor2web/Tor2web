@@ -101,7 +101,6 @@ class SOCKSv5ClientProtocol(Protocol):
         self.transport.protocol = self.postHandshakeFactory.buildProtocol(self.transport.getHost())
         self.transport.protocol.transport = self.transport
         self.transport.protocol.connectionMade()
-        #self.handshakeDone.callback("aaa")
 
     def thisMustNeverHappen(self, data):
         self.transport.loseConnection()
