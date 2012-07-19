@@ -78,6 +78,8 @@ class Tor2webObj():
     server_response_is_keepalive = False
     server_response_is_chunked = False
     server_response_is_gzip = False
+    
+    contentNeedFix = False
 
 class Tor2web(object):
     def __init__(self, config):
@@ -248,7 +250,7 @@ class Tor2web(object):
 
         obj.headers.update({'connection':'close'})
 
-        obj.headers.update({'accept-encoding':''})
+        obj.headers.update({'accept-encoding':'gzip, chunked'})
 
         obj.headers['host'] = obj.hostname
 
@@ -272,6 +274,7 @@ class Tor2web(object):
         Operates some links corrections.
         """
         parsed = urlparse(data)
+        exiting = True
 
         scheme = parsed.scheme
 
@@ -292,14 +295,19 @@ class Tor2web(object):
                 netloc = obj.hostname
             else:
                 netloc = parsed.netloc
-        
-            if netloc.endswith(".onion"):
+
+            if netloc == obj.onion:
+                exiting = False
+            elif netloc.endswith(".onion"):
                 netloc = netloc.replace(".onion", "")
+                exiting = False
                 
             link = scheme + "://"
-            
-            if netloc != obj.onion:
-                link = self.leaving_link(obj, parsed)
+
+            if exiting == True:
+                # Actually not implemented: need some study.
+                # link = self.leaving_link(obj, parsed)
+                link = data
             elif obj.xdns:
                 link += '/' + netloc + '/'.join(obj.path.split("/")[:-1]) + '/' + data
             else:
