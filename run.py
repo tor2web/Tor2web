@@ -57,7 +57,6 @@ from twisted.web import proxy, http, client, resource
 from twisted.web.template import flattenString
 from twisted.python.filepath import FilePath
 from twisted.web.server import NOT_DONE_YET
-from twisted.web.client import HTTPConnectionPool
 
 from socksclient import SOCKSv5ClientFactory, SOCKSWrapper
 from OpenSSL import SSL
