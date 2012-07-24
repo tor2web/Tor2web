@@ -2,6 +2,5 @@
   <body>
 <div t:render="header" />
 <div t:render="content" />
-<div t:render="footer" />
   </body>
 </html>
