@@ -31,37 +31,36 @@
 
 # -*- coding: utf-8 -*-
 
-from twisted.web.template import Element, XMLString, renderer
+from twisted.web.template import Element, XMLString, renderer, tags
 from twisted.python.filepath import FilePath
 
 messages = {
     200 : 'OK',
     400 : 'Bad Request',
+    403 : 'Forbidden',
     404 : 'Not Found',
     410 : 'Gone'
 }
 
-class Subtemplate(Element):
-    def __init__(self, templatename):
-        self.loader = XMLString(FilePath('interface/'+templatename+'.xml').getContent())
+class Template(Element):
+    def __init__(self, template):
+        self.template = template
+        self.loader = XMLString(FilePath('templates/'+self.template).getContent())
 
-class ErrorTemplate(Element):
-    loader = XMLString(FilePath('interface/error.xml').getContent())
-    
+class PageTemplate(Template):
+    @renderer
+    def header(self, request, tag):
+        yield Template('header.xml')
+
+class ErrorTemplate(PageTemplate):
     def __init__(self, error, errormsg=None):
         self.error = error
         self.errormsg = errormsg
-
-    @renderer
-    def header(self, request, tag):
-      yield Subtemplate('header')
+        PageTemplate.__init__(self, 'error.xml')
 
     @renderer
     def content(self, request, tag):
         if self.errormsg == None:
           self.errormsg = messages.get(self.error, 'ERROR')
-        return tag('%s %s\r\n' % (self.error, self.errormsg))
+        return tag(tags.h1('%s %s' % (self.error, self.errormsg)))
 
-    @renderer
-    def footer(self, request, tag):
-      yield Subtemplate('footer')

@@ -34,16 +34,16 @@
 from config import Config
 from tor2web import Tor2web, Tor2webObj
 from storage import Storage
-from templating import ErrorTemplate
+from templating import ErrorTemplate, PageTemplate
 
+import os
+import sys
+import traceback
+
+import re
+import urlparse
 import mimetypes
 import gzip
-import sys
-import urlparse
-import re
-import cgi
-import traceback
-import threading
 import zlib
 
 from StringIO import StringIO
@@ -421,8 +421,7 @@ class T2WRequest(proxy.ProxyRequest):
             if request.uri.lower().endswith(('gif','jpg','png')):
                 # Avoid image hotlinking
                 if request.headers.get('referer') == None or not config.basehost in request.headers.get('referer').lower():
-                    self.setHeader('content-type', 'image/png')
-                    return self.contentFinish(open('static/tor2web.png', 'r').read())
+                    return self.error(403)
             
             # 1st the content requested is local? serve it directly!
             
@@ -430,12 +429,13 @@ class T2WRequest(proxy.ProxyRequest):
             if self.uri.startswith(staticmap):
                 staticpath = re.sub('^'+staticmap, '', self.uri)
                 try:
-                    localpath = FilePath("static/")
-                    localpath = localpath.child(staticpath)
-                    if localpath.exists() == True:
-                        filename, ext = localpath.splitext()
-                        self.setHeader('content-type', mimetypes.types_map[ext])
-                        content = localpath.open().read()
+                    if staticpath in antanistaticmap:
+                        if type(antanistaticmap[staticpath]) == str:
+                            filename, ext = os.path.splitext(staticpath)
+                            self.setHeader('content-type', mimetypes.types_map[ext])
+                            content = antanistaticmap[staticpath]
+                        elif type(antanistaticmap[staticpath]) == PageTemplate:
+                            return flattenString(None, antanistaticmap[staticpath]).addCallback(self.contentFinish)
                     elif staticpath.startswith('notification'):
                         if 'by' in self.args and 'url' in self.args and 'comment' in self.args:
                             message = ""
@@ -447,7 +447,7 @@ class T2WRequest(proxy.ProxyRequest):
                             message = StringIO(message)
                             sendmail(config.smtpuser, config.smtppass, config.smtpmailto, config.smtpmailto, message, config.smtpdomain, config.smtpport);
                     else:
-                        raise FileNotFoundException
+                        return self.error(404)
                 except:
                     return self.error(404)
 
@@ -523,6 +523,14 @@ def startTor2webHTTPS(t2w, f):
     return internet.SSLServer(int(t2w.config.listen_port_https), f, T2WSSLContextFactory(t2w.config.sslkeyfile, t2w.config.sslcertfile, t2w.config.ssldhfile, t2w.config.cipher_list))
 
 sys.excepthook = MailException
+
+antanistaticmap = {}
+localpath = FilePath("static/")
+files = localpath.globChildren("*")
+for file in files:
+    antanistaticmap[file.basename()] = file.open().read()
+
+antanistaticmap['tos.html'] = PageTemplate('tos.xml')
 
 factory = T2WProxyFactory()
 
