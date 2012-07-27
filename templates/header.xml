@@ -12,7 +12,7 @@
     <div id="tor2web_disclaimer">
       <div><b>Tor2web does not host this content.</b> we are simply a conduit connecting Internet users to content hosted inside <a href="https://www.torproject.org/docs/hidden-services.html.en">the Tor network</a>.</div>
       <div>If you have concerns with this content, please send us an <a href="javascript:show_hide_notification_form()">abuse notice</a>. Please also send us your <a href="javascript:show_hide_notification_form()">feedback</a>.</div>
-      For more informations please refer to <a href="https://www.tor2web.org/antanistaticmap/tos.html">Tor2Web Terms of Services</a>
+      For more informations please refer to <a href="/antanistaticmap/tos.html">Tor2Web Terms of Services</a>
     </div>
     <div id="tor2web_notification_form">
       <fieldset>

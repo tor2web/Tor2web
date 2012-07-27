@@ -31,8 +31,9 @@
 
 # -*- coding: utf-8 -*-
 
-from config import Config 
-from storage import Storage
+from torExitNodes import torExitNodeList
+
+from twisted.python import log
 
 import sys
 import hashlib
@@ -40,7 +41,7 @@ import re
 
 from urlparse import urlparse
 
-from twisted.python import log
+from functools import partial
 
 rexp = {
     'href': re.compile(r'<[a-z]*\s*.*?\s*href\s*=\s*[\\\'"]?([a-z0-9/#:\-\.]*)[\\\'"]?\s*.*?>', re.I),
@@ -49,13 +50,12 @@ rexp = {
     'body': re.compile(r'(<body.*?\s*>)', re.I)
     }
 
-from functools import partial
-
 class Tor2webObj():
+
     # This is set if we are contacting tor2web from x.tor2web.org
     xdns = False;
     
-    onion = ""
+    onion = None
     
     # The path portion of the URI
     path = None
@@ -92,6 +92,7 @@ class Tor2web(object):
         """
         self.config = config
         
+        # Enable debug if configured in config file 
         self.Tor2webLog = log.LogPublisher()
 
         if config.debugmode:
@@ -102,7 +103,7 @@ class Tor2web(object):
         
         self.basehost = config.basehost
 
-        # Blocklists
+        # Load Blocklists files
         self.blocklist = self.load_filelist(config.blocklist_hashed)
         
         itemlist = self.load_filelist(config.blocklist_cleartext)
@@ -114,19 +115,23 @@ class Tor2web(object):
 
         self.blocked_ua = self.load_filelist(config.blocked_ua)
 
-        # Banner
+        # Load banner template that will be injected in HTML pges
         self.banner = open(config.bannerfile, "r").read()
+        
+        # Load Exit Nodes list with the refresh rate configured  in config file
+        self.TorExitNodes = torExitNodeList(config.exit_nodes_list_refresh)
 
     def load_filelist(self, filename):
         """
         Load the list from the specified file.
         """
-        fh = open(filename, "r")
         entrylist = []
+        fh = open(filename, "r")
         for l in fh.readlines():
             # permit comments inside list following the first space 
             entrylist.append(re.split('[ , \n,\t]', l)[0])
         fh.close()
+
         return entrylist
 
     def dump_filelist(self, filename, listtodump):
@@ -137,6 +142,7 @@ class Tor2web(object):
         for l in listtodump:
            fh.write(l + "\n")
         fh.close()
+
         return True
 
     def petname_lookup(self, obj, address):
@@ -146,24 +152,23 @@ class Tor2web(object):
 
         :address the address to lookup
         """
+
         return address
 
     def verify_onion(self, obj, address):
         """
-        Check to see if the address
-        is a .onion.
-        returns the onion address as a string if True
-        else returns False
+        Check to see if the address is a .onion.
+        returns the onion address as a string if True else returns False
         """
         onion, tld = address.split(".")
         self.Tor2webLog.msg("onion: %s tld: %s" % (onion, tld))
         if tld == "onion" and len(onion) == 16 and onion.isalnum():
             obj.onion = onion
             return True
-        else:
-            return False
+        
+        return False
 
-    def resolve_hostname(self, obj, host, uri):
+    def verify_hostname(self, obj, host, uri):
         """
         Resolve the supplied request to a hostname.
         Hostnames are accepted in the <onion_url>.<tor2web_domain>.<tld>/
@@ -176,16 +181,17 @@ class Tor2web(object):
             obj.hostname = self.petname_lookup(obj, uri.split("/")[1])
             self.Tor2webLog.msg("DETECTED x.tor2web Hostname: %s" % obj.hostname)
         else:
-            obj.xdns = False
             obj.hostname = self.petname_lookup(obj, host.split(".")[0]) + ".onion"
             self.Tor2webLog.msg("DETECTED <onion_url>.tor2web Hostname: %s" % obj.hostname)
+
         try:
             if self.verify_onion(obj, obj.hostname):
                 return True
         except:
             pass
-        
+
         obj.error = {'message': 'invalid hostname', 'code': 406}
+
         return False
 
     def get_uri(self, obj, req):
@@ -199,6 +205,7 @@ class Tor2web(object):
             obj.uri = '/' + '/'.join(req.uri.split("/")[2:])
         else:
             obj.uri = req.uri
+
         self.Tor2webLog.msg("URI: %s" % obj.uri)
 
         return obj.uri
@@ -210,11 +217,7 @@ class Tor2web(object):
         Hidden Service.
         returns a string being http://<some>.onion/<URI>
         """
-
-        # Resolve the hostname
-        if not self.resolve_hostname(obj, req.host, req.uri):
-            return False
-  
+ 
         # Clean up the uri
         uri = self.get_uri(obj, req)
    
@@ -228,7 +231,7 @@ class Tor2web(object):
 
         # When connecting to HS use only HTTP
         obj.address = "http://" + obj.hostname + uri
-        
+
         return True
 
     def process_request(self, obj, req):
@@ -304,7 +307,7 @@ class Tor2web(object):
                 
             link = scheme + "://"
 
-            if exiting == True:
+            if exiting:
                 # Actually not implemented: need some study.
                 # link = self.leaving_link(obj, parsed)
                 link = data
@@ -314,7 +317,7 @@ class Tor2web(object):
                 link += netloc + "." + self.basehost + parsed.path
 
             if parsed.query:
-              link += "?" + parsed.query
+                link += "?" + parsed.query
         
         return link
 
@@ -340,7 +343,8 @@ class Tor2web(object):
         """
         Inject tor2web banner inside the returned page
         """
-        return str(data.group(1))+str(self.banner)
+
+        return str(data.group(1)) + str(self.banner)
 
     def process_links(self, obj, data):
         """
@@ -350,7 +354,7 @@ class Tor2web(object):
 
         items = ["src", "href", "action"]
         for item in items:
-          data = re.sub(rexp[item], partial(self.fix_links, obj), data)
+            data = re.sub(rexp[item], partial(self.fix_links, obj), data)
 
         self.Tor2webLog.msg("finished processing links...")
 

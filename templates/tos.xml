@@ -1,6 +1,8 @@
 <html xmlns:t="http://twistedmatrix.com/ns/twisted.web.template/0.1">
   <body>
 <div t:render="header" />
-[Tor2Web Terms of Service]
+Warning: Tor2Web Node Terms of Service Not Configured<br />
+This could lead to risks and legal Implications for the legal entity behind the Tor2web node<br /><br />
+It's suggested to stop the software and to fill the template file /templates/tos.xml with TOS compliant to the appropriate jurisdiction.
   </body>
 </html>

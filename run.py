@@ -36,6 +36,16 @@ from tor2web import Tor2web, Tor2webObj
 from storage import Storage
 from templating import ErrorTemplate, PageTemplate
 
+from twisted.mail.smtp import ESMTPSenderFactory
+from twisted.internet import ssl, reactor, endpoints
+from twisted.internet.ssl import ClientContextFactory
+from twisted.internet.defer import Deferred
+from twisted.application import service, internet
+from twisted.web import proxy, http, client, resource
+from twisted.web.template import flattenString
+from twisted.web.server import NOT_DONE_YET
+from twisted.python.filepath import FilePath
+
 import os
 import sys
 import traceback
@@ -44,19 +54,10 @@ import re
 import urlparse
 import mimetypes
 import gzip
+import json
 import zlib
 
 from StringIO import StringIO
-
-from twisted.mail.smtp import ESMTPSenderFactory
-from twisted.internet import ssl, reactor, endpoints
-from twisted.internet.ssl import ClientContextFactory
-from twisted.internet.defer import Deferred, DeferredQueue
-from twisted.application import service, internet
-from twisted.web import proxy, http, client, resource
-from twisted.web.template import flattenString
-from twisted.python.filepath import FilePath
-from twisted.web.server import NOT_DONE_YET
 
 from socksclient import SOCKSv5ClientFactory, SOCKSWrapper
 from OpenSSL import SSL
@@ -83,7 +84,7 @@ def MailException(etype, value, tb):
     message += "%s %s" % (excType, etype.__doc__)
 
     for line in traceback.extract_tb(tb):
-        message += '\tFile: "%s"\n\t\t%s %s: %s\n' % (line[0], line[2], line[1], line[3])
+        message += '\tFile: "%s"\n\t\t%s %s: %s\n' %(line[0], line[2], line[1], line[3])
     while 1:
         if not tb.tb_next: break
         tb = tb.tb_next
@@ -141,7 +142,7 @@ class T2WSSLContextFactory():
         """
         if self._context is None:
             ctx = SSL.Context(SSL.SSLv23_METHOD)
-            # Disallow SSLv2!    It's insecure!
+            # Disallow SSLv2! It's insecure!
             ctx.set_options(SSL.OP_NO_SSLv2)
             ctx.use_certificate_file(certificateFileName)
             ctx.use_privatekey_file(privateKeyFileName)
@@ -223,64 +224,71 @@ class T2WProxyClient(proxy.ProxyClient):
             proxy.ProxyClient.handleHeader(self, "location", self.location)
 
     def unzip(self, data, end=False):
+        data1 = data2 = ''
+
         try:
             if self.decoderGzip == None:
                 self.decoderGzip = zlib.decompressobj(16 + zlib.MAX_WBITS)
 
             if data != '':
-                data = ''.join(self.decoderGzip.decompress(data))
+                data1 = self.decoderGzip.decompress(data)
             
             if end:
-                data = data.join(self.decoderGzip.flush())
+                data2 = self.decoderGzip.flush()
 
-            return data
+            return data1 + data2
             
-        except zlib.error:
+        except:
             self.finish()
 
     def zip(self, data, end=False):
-        if self.encoderGzip == None:
-            self.stringio = StringIO()
-            self.encoderGzip = gzip.GzipFile(fileobj=self.stringio, mode='w')
-            self.nextseek = 0
+        data1 = data2 = ''
+ 
+        try:     
+            if self.encoderGzip == None:
+                self.stringio = StringIO()
+                self.encoderGzip = gzip.GzipFile(fileobj=self.stringio, mode='w')
+                self.nextseek = 0
 
-        self.stringio.seek(self.nextseek)
+            if data != '':
+                self.encoderGzip.write(data)
+                self.stringio.seek(self.nextseek)
+                data1 = self.stringio.read()
+                self.nextseek = self.nextseek + len(data1)
 
-        if data != '':
-            self.encoderGzip.write(data)
-            self.stringio.seek(self.nextseek)
-            data = self.stringio.read()
-            self.nextseek = self.nextseek + len(data)
+            if end:
+                self.encoderGzip.close()
+                self.stringio.seek(self.nextseek)
+                data2 = self.stringio.read()
+                self.stringio.close()
+                
+            return data1 + data2
 
-        if end:
-            self.encoderGzip.close()
-            self.stringio.seek(self.nextseek)
-            data = ''.join([data, self.stringio.read()])
-            self.stringio.close()
-            
-        return data
+        except:
+            self.finish()
+
 
     def handleResponsePart(self, data):
-        if self.obj.server_response_is_gzip == True:
-            if self.obj.contentNeedFix == True:
+        if self.obj.server_response_is_gzip:
+            if self.obj.contentNeedFix:
                 data = self.unzip(data)
                 self.bf.append(data)
             else:
                 self.handleGzippedForwardPart(data)
         else:
-            if self.obj.contentNeedFix == True:
+            if self.obj.contentNeedFix:
                 self.bf.append(data)
             else:
                 self.handleCleartextForwardPart(data)
                
     def handleGzippedForwardPart(self, data, end=False):
-        if self.obj.client_supports_gzip == False:
+        if not self.obj.client_supports_gzip:
             data = self.unzip(data, end)
 
         self.forwardData(data, end)
 
     def handleCleartextForwardPart(self, data, end=False):
-        if self.obj.client_supports_gzip == True:
+        if self.obj.client_supports_gzip:
            data = self.zip(data, end)
 
         self.forwardData(data, end)
@@ -294,11 +302,11 @@ class T2WProxyClient(proxy.ProxyClient):
         #   => we have to terminate the unzip process
         #      we have to check if the content has to be modified
 
-        if self.decoderGzip != None:
+        if self.decoderGzip is not None:
             data = self.unzip('', True)
                 
             if data:
-              self.bf.append(data)
+                self.bf.append(data)
 
         data = ''.join(self.bf)
 
@@ -309,19 +317,20 @@ class T2WProxyClient(proxy.ProxyClient):
         self.handleCleartextForwardPart(data, True)
 
     def rawDataReceived(self, data):
-        if self.decoderChunked != None:
+        if self.decoderChunked is not None:
             self.decoder.dataReceived(data)
         else:
             self.handleResponsePart(data)
 
     def forwardData(self, data, end=False):
-        if self.startedWriting == False:
+        if not self.startedWriting:
             self.startedWriting = True
-            if data != '':
-              if self.obj.client_supports_gzip == True:
-                  proxy.ProxyClient.handleHeader(self, 'content-encoding', 'gzip')
-              if end:
-                  proxy.ProxyClient.handleHeader(self, 'content-length', len(data))
+
+            if self.obj.client_supports_gzip:
+                proxy.ProxyClient.handleHeader(self, 'content-encoding', 'gzip')
+
+            if data != '' and end:
+                proxy.ProxyClient.handleHeader(self, 'content-length', len(data))
 
         if data != '':
             self.father.write(data)
@@ -353,6 +362,7 @@ class T2WRequest(proxy.ProxyRequest):
     """
     protocols = {'http': T2WProxyClientFactory}
     ports = {'http': 80}
+    staticmap = '/'+config.staticmap+'/'
 
     def __init__(self, *args, **kw ):
        proxy.ProxyRequest.__init__(self, *args, **kw)
@@ -385,27 +395,63 @@ class T2WRequest(proxy.ProxyRequest):
         
     def process(self):
         try:
+            content = ""
+          
             request = Storage()
             request.headers = self.getAllHeaders().copy()
-            request.uri = self.uri
             request.host = request.headers.get('host')
-            if request.host == None:
-                return self.error(400)
-          
-            content = ""
+            request.uri = self.uri
+            request.resourceislocal = False
 
-            if self.isSecure():
-                self.setHeader('strict-transport-security', 'max-age=31536000')
-            else:
-                self.redirect("https://" + self.getRequestHostname() + self.uri);
-                self.finish()
-                return
-                    
+            # 0: we try to deny some ua/crawlers regardless the request is (valid or not) / (local or not)
+            if request.headers.get('user-agent') in t2w.blocked_ua:
+                # Firstly we deny EVERY request to known user agents reconized with pattern matching
+                return self.error(410)
+
             if request.uri == "/robots.txt" and config.blockcrawl:
+                # Secondly we try to instruct unknown robots that we don't want to be indexed
                 self.write("User-Agent: *\nDisallow: /\n")
                 self.finish()
                 return
+            
+            # 1: we need to validate the request to avoid useless processing
+            if not request.host:
+                return self.error(400)
+            
+            if not t2w.verify_hostname(self.obj, request.host, request.uri):
+                return self.error(self.obj.error['code'], self.obj.error['message'])
+
+            # 2: we need to verify if the requested resource is local (/antanistaticmap/*) or remote
+            request.resourceislocal = request.uri.startswith(self.staticmap)
+
+            # 3: if the requested resource is remote we need to verify if the user is using tor
+            #    on this condition it's better to redirect on the .onion             
+            if not request.resourceislocal:
+                if self.getClientIP() in t2w.TorExitNodes:
+                    self.redirect("http://" + self.obj.hostname + request.uri)
+                    self.finish()
+                    return
+
+            # 4: ok, we will serve the requested resource (ragardless local or not).
+            #    by design, if the channel is not secure we need to make a redirect on https,
+            #    but this is stupid if we just know that we won't serve the content due to some reason
+            #
+            #    future pattern matching checks for denied content and conditions must be put in the stage
+            #
+            if request.uri.lower().endswith(('gif','jpg','png')):
+                # Avoid image hotlinking
+                if request.headers.get('referer') == None or not config.basehost in request.headers.get('referer').lower():
+                    return self.error(403)
+
+            # 5: we serve contents only over https
+            if not self.isSecure():
+                self.redirect("https://" + self.getRequestHostname() + request.uri);
+                self.finish()
+                return
+
+            self.setHeader('strict-transport-security', 'max-age=31536000') 
                 
+            # 5: we register the client capabilities to optimize the response    
             if request.headers.get('accept-encoding') != None:
                 if re.search('gzip', request.headers.get('accept-encoding')):
                     self.obj.client_supports_gzip = True;
@@ -413,21 +459,11 @@ class T2WRequest(proxy.ProxyRequest):
             if request.headers.get('connection') != None:
                 if re.search('keep-alive', request.headers.get('connection')):
                     self.obj.client_supports_keepalive = True;                  
-
-            if request.headers.get('user-agent') in t2w.blocked_ua:
-                # Detected a blocked user-agent
-                return self.error(410)
-
-            if request.uri.lower().endswith(('gif','jpg','png')):
-                # Avoid image hotlinking
-                if request.headers.get('referer') == None or not config.basehost in request.headers.get('referer').lower():
-                    return self.error(403)
             
-            # 1st the content requested is local? serve it directly!
-            
-            staticmap = '/'+config.staticmap+'/'
-            if self.uri.startswith(staticmap):
-                staticpath = re.sub('^'+staticmap, '', self.uri)
+            # 6: serve the content
+            if request.resourceislocal:
+                # the requested resource is local, we serve it directly
+                staticpath = re.sub('^'+self.staticmap, '', request.uri)
                 try:
                     if staticpath in antanistaticmap:
                         if type(antanistaticmap[staticpath]) == str:
@@ -453,10 +489,10 @@ class T2WRequest(proxy.ProxyRequest):
 
                 return self.contentFinish(content)
 
-            # 2nd the content requested is remote: proxify the request!
-
-            if not t2w.process_request(self.obj, request):
-                return self.error(self.obj.error['code'], self.obj.error['message'])
+            else:
+                # the requested resource is remote, we act as proxy
+                if not t2w.process_request(self.obj, request):
+                    return self.error(self.obj.error['code'], self.obj.error['message'])
 
             parsed = urlparse.urlparse(self.obj.address)
             protocol = parsed[0]
@@ -508,8 +544,8 @@ class T2WProxyFactory(http.HTTPFactory):
             line = '127.0.0.1 - - %s "%s" %d %s "%s" "%s"\n' % (
                 self._logDateTime,
                 '%s %s %s' % (self._escape(request.method),
-                            self._escape(request.uri),
-                            self._escape(request.clientproto)),
+                              self._escape(request.uri),
+                              self._escape(request.clientproto)),
                 request.code,
                 request.sentLength or "-",
                 self._escape(request.getHeader("referer") or "-"),

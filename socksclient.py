@@ -31,13 +31,14 @@
 
 # -*- coding: utf-8 -*-
 
-import socket
-import struct
-from zope.interface import implements
 from twisted.internet import defer
 from twisted.internet.interfaces import IStreamClientEndpoint
 from twisted.internet.protocol import Protocol, ClientFactory
 from twisted.internet.endpoints import _WrappingFactory
+
+import socket
+import struct
+from zope.interface import implements
 
 SOCKS_errors = {\
     0x00: "request granted",
