@@ -1,30 +1,38 @@
 # Tor2web configuration file
 [main]
-debugmode = True
+debugmode = False
 logreqs = False
 debuglogpath = logs/debug.log
 accesslogpath = logs/access.log
 listen_port_http = 80
 listen_port_https = 443
+
 # This is the base hostname for the current tor2web node
 basehost = tor2web.org
+
 # This is the SOCKS host and port on which Tor is listening
 sockshost = 127.0.0.1
 socksport = 9050
+
 # SSL configuration
 sslkeyfile = certs/tor2web_key_test.key
 sslcertfile = certs/tor2web-intermediate_cert_test.pem
 ssldhfile = certs/tor2web_dh_test.pem
 cipher_list = DHE-RSA-AES256-SHA:DHE-DSS-AES256-SHA:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA
+
 bannerfile = templates/header.xml
 staticmap = antanistaticmap
-staticpath = static/
 blockcrawl = True
 blocked_ua = lists/blocked_ua.txt
 blocklist_cleartext = lists/blocklist_cleartext.txt
 blocklist_hashed = lists/blocklist_hashed.txt
+
+# Mail configuration for automatic exceptions notification and user abuse notice  
 smtpuser = [USERNAME]
 smtppass = [PASSWORD]
 smtpmailto = [EMAIL]
 smtpdomain = smtp.gmail.com
 smtpport = 587
+
+# Exit nodes list refresh period in seconds
+exit_nodes_list_refresh = 600

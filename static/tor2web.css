@@ -4,6 +4,7 @@
   padding: 0;
   border: 0;
   font: 12px, Verdana, sans-serif;
+  color: #000;
   background-color: #f5f5f5;
   border-bottom: 1px solid #000;
 }
@@ -15,7 +16,7 @@
 #tor2web_notification_form { clear: both; display: none; clear: both; width: 600px; margin-bottom: 10px; }
 
 #tor2web input { width: 100%; }
-#tor2web a:link { color: #377e10; }
-#tor2web a:visited { color:#777000; }
+#tor2web a:link { color: blue; }
+#tor2web a:visited { color:red; }
 
 .tor2web_showhide { clear: both; text-align: center; }

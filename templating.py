@@ -60,7 +60,7 @@ class ErrorTemplate(PageTemplate):
 
     @renderer
     def content(self, request, tag):
-        if self.errormsg == None:
+        if self.errormsg is not None:
           self.errormsg = messages.get(self.error, 'ERROR')
         return tag(tags.h1('%s %s' % (self.error, self.errormsg)))
 

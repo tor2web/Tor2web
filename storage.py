@@ -31,7 +31,6 @@
 
 # -*- coding: utf-8 -*-
 
-
 class Storage(dict):
     """
     A Storage object is like a dictionary except `obj.foo` can be used
