@@ -63,7 +63,7 @@ class HTTPCacheDownloader(HTTPPageGetter):
         else:
             host = self.factory.host
 
-        self.sendHeader('host', self.factory.headers.get("host", host))
+        self.sendHeader('host', self.factory.headers.get('host', host))
         self.sendHeader('user-agent', self.factory.agent)
         self.sendHeader('accept-encoding', 'gzip')
 
@@ -72,7 +72,7 @@ class HTTPCacheDownloader(HTTPPageGetter):
 
         data = getattr(self.factory, 'postdata', None)
         if data is not None:
-            self.sendHeader("content-length", str(len(data)))
+            self.sendHeader('content-length', str(len(data)))
 
         cookieData = []
         for (key, value) in self.factory.headers.items():
@@ -98,7 +98,7 @@ class HTTPCacheDownloader(HTTPPageGetter):
         if key == 'date' or key == 'last-modified':
             self.cachetemp[key] = value
 
-        if key == 'content-encoding' and value == "gzip":
+        if key == 'content-encoding' and value == 'gzip':
             self.content_is_gzip = True
             
         HTTPPageGetter.handleHeader(self, key, value)
@@ -116,6 +116,7 @@ class HTTPCacheDownloader(HTTPPageGetter):
         HTTPPageGetter.handleStatus(self, version, status, message)
         
     def handleStatus_304(self):
+        # content not modified
         pass
 
 class HTTPClientCacheFactory(HTTPClientFactory):

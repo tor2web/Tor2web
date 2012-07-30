@@ -77,14 +77,14 @@ def MailException(etype, value, tb):
     tb -- Traceback string data
     """
 
-    excType = re.sub('(<(type|class \')|\'exceptions.|\'>|__main__.)', '', str(etype)).strip()
+    excType = re.sub("(<(type|class ')|'exceptions.|'>|__main__.)", "", str(etype)).strip()
     message = ""
     message += "TO: %s\n" % (config.smtpmailto)
     message += "SUBJECT: Tor2web exception\n\n"
     message += "%s %s" % (excType, etype.__doc__)
 
     for line in traceback.extract_tb(tb):
-        message += '\tFile: "%s"\n\t\t%s %s: %s\n' %(line[0], line[2], line[1], line[3])
+        message += "\tFile: \"%s\"\n\t\t%s %s: %s\n" %(line[0], line[2], line[1], line[3])
     while 1:
         if not tb.tb_next: break
         tb = tb.tb_next
@@ -94,15 +94,15 @@ def MailException(etype, value, tb):
         stack.append(f)
         f = f.f_back
     stack.reverse()
-    message += '\nLocals by frame, innermost last:'
+    message += "\nLocals by frame, innermost last:"
     for frame in stack:
-        message += '\nFrame %s in %s at line %s' % (frame.f_code.co_name, frame.f_code.co_filename, frame.f_lineno)
+        message += "\nFrame %s in %s at line %s" % (frame.f_code.co_name, frame.f_code.co_filename, frame.f_lineno)
         for key, val in frame.f_locals.items():
-            message += '\n\t%20s = ' % key
+            message += "\n\t%20s = " % key
             try:
                 message += str(val)
             except:
-                message += '<ERROR WHILE PRINTING VALUE>'
+                message += "<ERROR WHILE PRINTING VALUE>"
 
     message = StringIO(message)
     sendmail(config.smtpuser, config.smtppass, config.smtpmailto, config.smtpmailto, message, config.smtpdomain, config.smtpport);
@@ -190,7 +190,7 @@ class T2WProxyClient(proxy.ProxyClient):
         keyLower = key.lower()
         valueLower = value.lower()
 
-        if keyLower == "location":
+        if keyLower == 'location':
             self.location = t2w.fix_link(self.obj, valueLower)
             return
 
@@ -198,7 +198,7 @@ class T2WProxyClient(proxy.ProxyClient):
             self.decoderChunked = http._ChunkedTransferDecoder(self.handleResponsePart, self.handleResponseEnd)
             return
 
-        elif keyLower == "content-encoding" and valueLower == "gzip":
+        elif keyLower == 'content-encoding' and valueLower == 'gzip':
             self.obj.server_response_is_gzip = True
             return
 
@@ -212,7 +212,7 @@ class T2WProxyClient(proxy.ProxyClient):
         elif keyLower == 'cache-control':
             return
 
-        elif keyLower == 'connection' and valueLower == "keep-alive":
+        elif keyLower == 'connection' and valueLower == 'keep-alive':
             self.obj.server_supports_keepalive = True
             return
         
@@ -221,7 +221,7 @@ class T2WProxyClient(proxy.ProxyClient):
     def handleEndHeaders(self):
         proxy.ProxyClient.handleHeader(self, 'cache-control', 'no-cache')
         if self.location:
-            proxy.ProxyClient.handleHeader(self, "location", self.location)
+            proxy.ProxyClient.handleHeader(self, 'location', self.location)
 
     def unzip(self, data, end=False):
         data1 = data2 = ''
@@ -362,11 +362,11 @@ class T2WRequest(proxy.ProxyRequest):
     """
     protocols = {'http': T2WProxyClientFactory}
     ports = {'http': 80}
-    staticmap = '/'+config.staticmap+'/'
+    staticmap = "/" + config.staticmap + "/"
 
-    def __init__(self, *args, **kw ):
-       proxy.ProxyRequest.__init__(self, *args, **kw)
-       self.obj = Tor2webObj()
+    def __init__(self, *args, **kw):
+        proxy.ProxyRequest.__init__(self, *args, **kw)
+        self.obj = Tor2webObj()
 
     def contentGzip(self, content):
         stringio = StringIO()
@@ -403,55 +403,62 @@ class T2WRequest(proxy.ProxyRequest):
             request.uri = self.uri
             request.resourceislocal = False
 
-            # 0: we try to deny some ua/crawlers regardless the request is (valid or not) / (local or not)
-            if request.headers.get('user-agent') in t2w.blocked_ua:
-                # Firstly we deny EVERY request to known user agents reconized with pattern matching
-                return self.error(410)
+            # 0: Request admission control stage
 
-            if request.uri == "/robots.txt" and config.blockcrawl:
-                # Secondly we try to instruct unknown robots that we don't want to be indexed
-                self.write("User-Agent: *\nDisallow: /\n")
+            # we try to deny some ua/crawlers regardless the request is (valid or not) / (local or not)
+            # firstly we deny EVERY request to known user agents reconized with pattern matching
+            if request.headers.get('user-agent') in t2w.blocked_ua:
+                # for this error we provide a simple page to avoid useless traffic and computation.  
+                self.setResponseCode(403)
+                self.write("403 Forbidden")
                 self.finish()
                 return
-            
-            # 1: we need to validate the request to avoid useless processing
-            if not request.host:
-                return self.error(400)
-            
-            if not t2w.verify_hostname(self.obj, request.host, request.uri):
-                return self.error(self.obj.error['code'], self.obj.error['message'])
 
-            # 2: we need to verify if the requested resource is local (/antanistaticmap/*) or remote
+            # secondly we try to instruct unknown robots that we don't want to get indexed
+            if request.uri == "/robots.txt" and config.blockcrawl:
+                self.write("User-Agent: *\n")
+                self.write("Disallow: /\n")
+                self.finish()
+                return
+
+            # we need to verify if the requested resource is local (/antanistaticmap/*) or remote
+            # becouse some checks must be done only for remote requests;
+            # in fact local content is always served (css, js, and png in fact are used in errors)
             request.resourceislocal = request.uri.startswith(self.staticmap)
-
-            # 3: if the requested resource is remote we need to verify if the user is using tor
-            #    on this condition it's better to redirect on the .onion             
             if not request.resourceislocal:
+                # we need to validate the request to avoid useless processing
+                if not request.host:
+                    return self.error(400)
+            
+                if not t2w.verify_hostname(self.obj, request.host, request.uri):
+                    return self.error(self.obj.error['code'], self.obj.error['message'])
+
+                # we need to verify if the user is using tor;
+                # on this condition it's better to redirect on the .onion             
                 if self.getClientIP() in t2w.TorExitNodes:
                     self.redirect("http://" + self.obj.hostname + request.uri)
                     self.finish()
                     return
 
-            # 4: ok, we will serve the requested resource (ragardless local or not).
-            #    by design, if the channel is not secure we need to make a redirect on https,
-            #    but this is stupid if we just know that we won't serve the content due to some reason
-            #
-            #    future pattern matching checks for denied content and conditions must be put in the stage
-            #
-            if request.uri.lower().endswith(('gif','jpg','png')):
-                # Avoid image hotlinking
-                if request.headers.get('referer') == None or not config.basehost in request.headers.get('referer').lower():
-                    return self.error(403)
+                # pattern matching checks to for early request refusal.
+                #
+                # future pattern matching checks for denied content and conditions must be put in the stage
+                #
+                if request.uri.lower().endswith(('gif','jpg','png')):
+                    # Avoid image hotlinking
+                    if request.headers.get('referer') == None or not config.basehost in request.headers.get('referer').lower():
+                        return self.error(403)
 
-            # 5: we serve contents only over https
+            # we serve contents only over https
             if not self.isSecure():
                 self.redirect("https://" + self.getRequestHostname() + request.uri);
                 self.finish()
                 return
 
             self.setHeader('strict-transport-security', 'max-age=31536000') 
-                
-            # 5: we register the client capabilities to optimize the response    
+
+            # 1: Client capability assesment stage
+
             if request.headers.get('accept-encoding') != None:
                 if re.search('gzip', request.headers.get('accept-encoding')):
                     self.obj.client_supports_gzip = True;
@@ -460,9 +467,9 @@ class T2WRequest(proxy.ProxyRequest):
                 if re.search('keep-alive', request.headers.get('connection')):
                     self.obj.client_supports_keepalive = True;                  
             
-            # 6: serve the content
+            # 2: Content delivery stage
             if request.resourceislocal:
-                # the requested resource is local, we serve it directly
+                # the requested resource is local, we deliver it directly
                 staticpath = re.sub('^'+self.staticmap, '', request.uri)
                 try:
                     if staticpath in antanistaticmap:
@@ -472,7 +479,7 @@ class T2WRequest(proxy.ProxyRequest):
                             content = antanistaticmap[staticpath]
                         elif type(antanistaticmap[staticpath]) == PageTemplate:
                             return flattenString(None, antanistaticmap[staticpath]).addCallback(self.contentFinish)
-                    elif staticpath.startswith('notification'):
+                    elif staticpath.startswith("notification"):
                         if 'by' in self.args and 'url' in self.args and 'comment' in self.args:
                             message = ""
                             message += "TO: %s\n" % (config.smtpmailto)
@@ -494,30 +501,30 @@ class T2WRequest(proxy.ProxyRequest):
                 if not t2w.process_request(self.obj, request):
                     return self.error(self.obj.error['code'], self.obj.error['message'])
 
-            parsed = urlparse.urlparse(self.obj.address)
-            protocol = parsed[0]
-            host = parsed[1]
-            if ':' in host:
-                host, port = host.split(':')
-                port = int(port)
-            else:
-                port = self.ports[protocol]
+                parsed = urlparse.urlparse(self.obj.address)
+                protocol = parsed[0]
+                host = parsed[1]
+                if ':' in host:
+                    host, port = host.split(":")
+                    port = int(port)
+                else:
+                    port = self.ports[protocol]
 
-            self.rest = urlparse.urlunparse(('', '') + parsed[2:])
-            if not self.rest:
-                self.rest = "/"
-            
-            class_ = self.protocols[protocol]
+                self.rest = urlparse.urlunparse(('', '') + parsed[2:])
+                if not self.rest:
+                    self.rest = "/"
+                
+                class_ = self.protocols[protocol]
 
-            dest = client._parse(self.obj.address) # scheme, host, port, path
+                dest = client._parse(self.obj.address) # scheme, host, port, path
 
-            endpoint = endpoints.TCP4ClientEndpoint(reactor, dest[1], dest[2])
-            wrapper = SOCKSWrapper(reactor, config.sockshost, config.socksport, endpoint)
-            f = class_(self.method, self.rest, self.clientproto, self.obj.headers, content, self, self.obj)
-            d = wrapper.connect(f)
-            d.addErrback(self.sockserror)
+                endpoint = endpoints.TCP4ClientEndpoint(reactor, dest[1], dest[2])
+                wrapper = SOCKSWrapper(reactor, config.sockshost, config.socksport, endpoint)
+                f = class_(self.method, self.rest, self.clientproto, self.obj.headers, content, self, self.obj)
+                d = wrapper.connect(f)
+                d.addErrback(self.sockserror)
 
-            return NOT_DONE_YET
+                return NOT_DONE_YET
 
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -541,15 +548,15 @@ class T2WProxyFactory(http.HTTPFactory):
         Log a request's result to the logfile, by default in combined log format.
         """
         if config.logreqs and hasattr(self, "logFile"):
-            line = '127.0.0.1 - - %s "%s" %d %s "%s" "%s"\n' % (
+            line = "127.0.0.1 - - %s \"%s\" %d %s \"%s\" \"%s\"\n" % (
                 self._logDateTime,
                 '%s %s %s' % (self._escape(request.method),
                               self._escape(request.uri),
                               self._escape(request.clientproto)),
                 request.code,
                 request.sentLength or "-",
-                self._escape(request.getHeader("referer") or "-"),
-                self._escape(request.getHeader("user-agent") or "-"))
+                self._escape(request.getHeader('referer') or "-"),
+                self._escape(request.getHeader('user-agent') or "-"))
             self.logFile.write(line)
 
 def startTor2webHTTP(t2w, f):

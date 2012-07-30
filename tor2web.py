@@ -116,7 +116,7 @@ class Tor2web(object):
         self.blocked_ua = self.load_filelist(config.blocked_ua)
 
         # Load banner template that will be injected in HTML pges
-        self.banner = open(config.bannerfile, "r").read()
+        self.banner = open(config.bannerfile, 'r').read()
         
         # Load Exit Nodes list with the refresh rate configured  in config file
         self.TorExitNodes = torExitNodeList(config.exit_nodes_list_refresh)
@@ -126,10 +126,10 @@ class Tor2web(object):
         Load the list from the specified file.
         """
         entrylist = []
-        fh = open(filename, "r")
+        fh = open(filename, 'r')
         for l in fh.readlines():
             # permit comments inside list following the first space 
-            entrylist.append(re.split('[ , \n,\t]', l)[0])
+            entrylist.append(re.split("[ , \n,\t]", l)[0])
         fh.close()
 
         return entrylist
@@ -138,7 +138,7 @@ class Tor2web(object):
         """
         Dump the list to the specified file.
         """
-        fh = open(filename, "w")
+        fh = open(filename, 'w')
         for l in listtodump:
            fh.write(l + "\n")
         fh.close()
@@ -161,8 +161,8 @@ class Tor2web(object):
         returns the onion address as a string if True else returns False
         """
         onion, tld = address.split(".")
-        self.Tor2webLog.msg("onion: %s tld: %s" % (onion, tld))
-        if tld == "onion" and len(onion) == 16 and onion.isalnum():
+        self.Tor2webLog.msg('onion: %s tld: %s' % (onion, tld))
+        if tld == 'onion' and len(onion) == 16 and onion.isalnum():
             obj.onion = onion
             return True
         
@@ -175,14 +175,14 @@ class Tor2web(object):
         or in the x.<tor2web_domain>.<tld>/<onion_url>.onion/ format.
         """
         # Detect x.tor2web.org use mode
-        self.Tor2webLog.msg("RESOLVING: %s" % host)
+        self.Tor2webLog.msg("resolving: %s" % host)
         if host.split(".")[0] == "x":
             obj.xdns = True
             obj.hostname = self.petname_lookup(obj, uri.split("/")[1])
-            self.Tor2webLog.msg("DETECTED x.tor2web Hostname: %s" % obj.hostname)
+            self.Tor2webLog.msg("detected x.tor2web Hostname: %s" % obj.hostname)
         else:
             obj.hostname = self.petname_lookup(obj, host.split(".")[0]) + ".onion"
-            self.Tor2webLog.msg("DETECTED <onion_url>.tor2web Hostname: %s" % obj.hostname)
+            self.Tor2webLog.msg("detected <onion_url>.tor2web Hostname: %s" % obj.hostname)
 
         try:
             if self.verify_onion(obj, obj.hostname):
@@ -190,7 +190,7 @@ class Tor2web(object):
         except:
             pass
 
-        obj.error = {'message': 'invalid hostname', 'code': 406}
+        obj.error = {'message': "detected invalid hostname", 'code': 406}
 
         return False
 
@@ -202,7 +202,7 @@ class Tor2web(object):
         URI and return the part after .onion.
         """
         if obj.xdns:
-            obj.uri = '/' + '/'.join(req.uri.split("/")[2:])
+            obj.uri = "//".join(req.uri.split("/")[2:])
         else:
             obj.uri = req.uri
 
@@ -222,11 +222,11 @@ class Tor2web(object):
         uri = self.get_uri(obj, req)
    
         if hashlib.md5(obj.hostname).hexdigest() in self.blocklist:
-            obj.error = {'message': 'Hidden Service Blocked','code': 403}
+            obj.error = {'message': "Hidden Service Blocked",'code': 403}
             return False
 
         if hashlib.md5(obj.hostname + uri).hexdigest() in self.blocklist:
-            obj.error = {'message': 'Specific Page Blocked','code': 403}
+            obj.error = {'message': "Specific Page Blocked",'code': 403}
             return False
 
         # When connecting to HS use only HTTP
@@ -270,7 +270,7 @@ class Tor2web(object):
         if target.query:
             link += "?" + target.query
 
-        return 'https://leaving.' + self.basehost + '/' + link
+        return "https://leaving." + self.basehost + "/" + link
 
     def fix_link(self, obj, data):
         """
@@ -281,20 +281,20 @@ class Tor2web(object):
 
         scheme = parsed.scheme
 
-        if scheme == "http":
-            scheme = "https"
+        if scheme == 'http':
+            scheme = 'https'
             
-        if scheme == "data":
+        if scheme == 'data':
             link = data
             return link;
         
-        if scheme == "":
+        if scheme == '':
             if obj.xdns:
                 link = "/" + obj.hostname + data
             else:
                 link = data
         else:
-            if parsed.netloc == "":
+            if parsed.netloc == '':
                 netloc = obj.hostname
             else:
                 netloc = parsed.netloc
@@ -312,7 +312,7 @@ class Tor2web(object):
                 # link = self.leaving_link(obj, parsed)
                 link = data
             elif obj.xdns:
-                link += '/' + netloc + '/'.join(obj.path.split("/")[:-1]) + '/' + data
+                link += "/" + netloc + "/".join(obj.path.split("/")[:-1]) + "/" + data
             else:
                 link += netloc + "." + self.basehost + parsed.path
 
@@ -352,7 +352,7 @@ class Tor2web(object):
         """
         self.Tor2webLog.msg("processing url attributes")
 
-        items = ["src", "href", "action"]
+        items = ['src', 'href', 'action']
         for item in items:
             data = re.sub(rexp[item], partial(self.fix_links, obj), data)
 
