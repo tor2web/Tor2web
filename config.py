@@ -40,7 +40,7 @@ class Config(Storage):
     conf file.
     """
     def __init__(self, section, cfgfile="tor2web.conf"):
-        super(Config, self).__init__()
+        Storage.__init__(self)
 
         self._cfgfile = cfgfile
         self._cfgparser = ConfigParser.ConfigParser()
@@ -48,7 +48,7 @@ class Config(Storage):
         self._section = section
 
     def __getattr__(self, name):
-        if name.startswith('_'):
+        if name.startswith("_"):
             return self.__dict__.get(name, None)
 
         try:
@@ -65,7 +65,7 @@ class Config(Storage):
 
     def __setattr__(self, name, value):
         # keep an open port with private attributes
-        if name.startswith('_'):
+        if name.startswith("_"):
             self.__dict__[name] = value
             return
 

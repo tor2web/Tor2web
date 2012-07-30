@@ -66,7 +66,7 @@ class Storage(dict):
             raise AttributeError, k
 
     def __repr__(self):
-        return '<Storage ' + dict.__repr__(self) + '>'
+        return "<Storage " + dict.__repr__(self) + ">"
 
     def __getstate__(self):
         return dict(self)
