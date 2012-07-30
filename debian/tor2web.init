@@ -56,6 +56,9 @@ do_start()
     [ -d $PIDDIR ] || mkdir -p $PIDDIR
         [ -n "$DAEMON_USER" ] && chown --recursive $DAEMON_USER $PIDDIR
 
+    echo "Stopping Tor..."
+    /etc/init.d/tor start
+
     # Check to see if the daemon is already running.
     start-stop-daemon --stop --test --quiet --pidfile $PIDFILE \
         && echo "Tor2web already running" && return 1
@@ -80,13 +83,14 @@ do_stop()
     #   2 if daemon could not be stopped
     #   other if a failure occurred
 
-    echo "Stopping Tor..."
-    /etc/init.d/tor stop
     echo "Stopping Tor2web..."
     start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --pidfile $PIDFILE
     RETVAL=$?
     # Many daemons don't delete their pidfiles when they exit.
     rm -f $PIDFILE
+
+    echo "Stopping Tor..."
+    /etc/init.d/tor stop
 
     return "$RETVAL"
 }
