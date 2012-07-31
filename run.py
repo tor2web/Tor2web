@@ -45,6 +45,8 @@ from twisted.web import proxy, http, client, resource
 from twisted.web.template import flattenString
 from twisted.web.server import NOT_DONE_YET
 from twisted.python.filepath import FilePath
+from twisted.python import log
+from twisted.python.logfile import DailyLogFile
 
 import os
 import sys
@@ -67,6 +69,10 @@ config = Config("main")
 t2w = Tor2web(config)
 
 application = service.Application("Tor2web")
+if config.debugmode:
+    application.setComponent(log.ILogObserver, log.FileLogObserver(DailyLogFile.fromFullPath(config.debuglogpath)).emit)
+else:
+    application.setComponent(log.ILogObserver, log.FileLogObserver(open("/dev/null", 'w')).emit)
 
 def MailException(etype, value, tb):
     """Formats traceback and exception data and emails the error
@@ -79,8 +85,8 @@ def MailException(etype, value, tb):
 
     excType = re.sub("(<(type|class ')|'exceptions.|'>|__main__.)", "", str(etype)).strip()
     message = ""
-    message += "TO: %s\n" % (config.smtpmailto)
-    message += "SUBJECT: Tor2web exception\n\n"
+    message += "TO: %s\n" % (config.smtpmailto_exceptions)
+    message += "SUBJECT: Tor2web node %s: exception\n\n" % (config.listen_ip)
     message += "%s %s" % (excType, etype.__doc__)
 
     for line in traceback.extract_tb(tb):
@@ -93,6 +99,7 @@ def MailException(etype, value, tb):
     while f:
         stack.append(f)
         f = f.f_back
+        f = f.f_back
     stack.reverse()
     message += "\nLocals by frame, innermost last:"
     for frame in stack:
@@ -104,8 +111,7 @@ def MailException(etype, value, tb):
             except:
                 message += "<ERROR WHILE PRINTING VALUE>"
 
-    message = StringIO(message)
-    sendmail(config.smtpuser, config.smtppass, config.smtpmailto, config.smtpmailto, message, config.smtpdomain, config.smtpport);
+    sendmail(config.smtpuser, config.smtppass, config.smtpmail, config.smtpmailto_exceptions, message, config.smtpdomain, config.smtpport)
 
 def sendmail(authenticationUsername, authenticationSecret, fromAddress, toAddress, messageFile, smtpHost, smtpPort=25):
     """
@@ -350,7 +356,7 @@ class T2WProxyClientFactory(proxy.ProxyClientFactory):
     protocol = T2WProxyClient
     
     def __init__(self, command, rest, version, headers, data, father, obj):
-        self.obj = obj;
+        self.obj = obj
         proxy.ProxyClientFactory.__init__(self, command, rest, version, headers, data, father)
 
     def buildProtocol(self, addr):
@@ -451,7 +457,7 @@ class T2WRequest(proxy.ProxyRequest):
 
             # we serve contents only over https
             if not self.isSecure():
-                self.redirect("https://" + self.getRequestHostname() + request.uri);
+                self.redirect("https://" + self.getRequestHostname() + request.uri)
                 self.finish()
                 return
 
@@ -461,11 +467,11 @@ class T2WRequest(proxy.ProxyRequest):
 
             if request.headers.get('accept-encoding') != None:
                 if re.search('gzip', request.headers.get('accept-encoding')):
-                    self.obj.client_supports_gzip = True;
+                    self.obj.client_supports_gzip = True
 
             if request.headers.get('connection') != None:
                 if re.search('keep-alive', request.headers.get('connection')):
-                    self.obj.client_supports_keepalive = True;                  
+                    self.obj.client_supports_keepalive = True                  
             
             # 2: Content delivery stage
             if request.resourceislocal:
@@ -483,12 +489,12 @@ class T2WRequest(proxy.ProxyRequest):
                         if 'by' in self.args and 'url' in self.args and 'comment' in self.args:
                             message = ""
                             message += "TO: %s\n" % (config.smtpmailto)
-                            message += "SUBJECT: Tor2web notification for %s\n\n" % (self.args['url'][0])
+                            message += "SUBJECT: Tor2web node %s: notification for %s\n\n" % (config.listen_ip, self.args['url'][0])
                             message += "BY: %s\n" % (self.args['by'][0])
                             message += "URL: %s\n" % (self.args['url'][0])
                             message += "COMMENT: %s\n" % (self.args['comment'][0])
                             message = StringIO(message)
-                            sendmail(config.smtpuser, config.smtppass, config.smtpmailto, config.smtpmailto, message, config.smtpdomain, config.smtpport);
+                            sendmail(config.smtpuser, config.smtppass, config.smtpmail, config.smtpmailto_notifications, message, config.smtpdomain, config.smtpport)
                     else:
                         return self.error(404)
                 except:
@@ -561,10 +567,10 @@ class T2WProxyFactory(http.HTTPFactory):
             self.logFile.write(line)
 
 def startTor2webHTTP(t2w, f):
-    return internet.TCPServer(int(t2w.config.listen_port_http), f)
+    return internet.TCPServer(int(t2w.config.listen_port_http), f, interface=config.listen_ip)
 
 def startTor2webHTTPS(t2w, f):
-    return internet.SSLServer(int(t2w.config.listen_port_https), f, T2WSSLContextFactory(t2w.config.sslkeyfile, t2w.config.sslcertfile, t2w.config.ssldhfile, t2w.config.cipher_list))
+    return internet.SSLServer(int(t2w.config.listen_port_https), f, T2WSSLContextFactory(t2w.config.sslkeyfile, t2w.config.sslcertfile, t2w.config.ssldhfile, t2w.config.cipher_list), interface=config.listen_ip)
 
 sys.excepthook = MailException
 
