@@ -1,4 +1,5 @@
 #! /bin/sh
+
 ### BEGIN INIT INFO
 # startup script for Ubuntu and Debian Linux servers
 #
@@ -12,34 +13,36 @@
 # Required-Start:    $local_fs $remote_fs
 # Required-Stop:     $local_fs $remote_fs
 # Default-Start:     2 3 4 5
-# Default-Stop:      S 0 1 6
+# Default-Stop:      0 1 6
 # Short-Description: tor2web initscript
 # Description:       This file starts up the tor2web server.
 ### END INIT INFO
 
-# Author: Arturo Filasto' <art@globaleaks.org>
+# Authors: Arturo Filasto' <art@globaleaks.org>
+#          Giovanni Pellerano <evilaliv3@globaleaks.org>
 
-PATH=/usr/sbin:/usr/bin:/sbin:/bin
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 NAME=tor2web
-PIDDIR=/var/run/$NAME
-PIDFILE=$PIDDIR/$NAME.pid
+PIDDIR=/home/tor2web/Tor2web-3.0
+PIDFILE=$PIDDIR/twistd.pid
 SCRIPTNAME=/etc/init.d/$NAME
-DAEMON=/usr/bin/twistd
+DAEMON=/usr/local/bin/twistd
 DAEMON_DIR=/home/tor2web/Tor2web-3.0
 DAEMON_ARGS="-y /home/tor2web/Tor2web-3.0/run.py -l /var/log/tor2web.log"
-DAEMON_USER=tor2web
+DAEMON_USER=root
 
 # Exit if the package is not installed
-#[ -x "$DAEMON" ] || exit 0
+[ -x "$DAEMON" ] || exit 0
 
 # Read configuration variable file if it is present
 [ -r /etc/default/$NAME ] && . /etc/default/$NAME
 
 # Load the VERBOSE setting and other rcS variables
-[ -f /etc/default/rcS ] && . /etc/default/rcS
+. /lib/init/vars.sh
 
 # Define LSB log_* functions.
-# Depend on lsb-base (>= 3.0-6) to ensure that this file is present.
+# Depend on lsb-base (>= 3.2-14) to ensure that this file is present
+# and status_of_proc is working.
 . /lib/lsb/init-functions
 
 #
@@ -56,8 +59,9 @@ do_start()
     [ -d $PIDDIR ] || mkdir -p $PIDDIR
         [ -n "$DAEMON_USER" ] && chown --recursive $DAEMON_USER $PIDDIR
 
-    echo "Stopping Tor..."
-    /etc/init.d/tor start
+    echo "Starting Tor..."
+    #/etc/init.d/tor start
+    echo "started."    
 
     # Check to see if the daemon is already running.
     start-stop-daemon --stop --test --quiet --pidfile $PIDFILE \
@@ -88,34 +92,11 @@ do_stop()
     RETVAL=$?
     # Many daemons don't delete their pidfiles when they exit.
     rm -f $PIDFILE
+    echo "stopped."
 
     echo "Stopping Tor..."
-    /etc/init.d/tor stop
-
-    return "$RETVAL"
-}
-
-#
-# Function that restarts the daemon/service
-#
-do_restart()
-{
-    # Return
-    #   0 if daemon was (re-)started
-    #   1 if daemon was not strated or re-started
-
-    do_stop
-    case "$?" in
-        0|1)
-            do_start
-            case "$?" in
-                0) RETVAL=0 ;;
-                1) RETVAL=1 ;; # Old process is still running
-                *) RETVAL=1 ;; # Failed to start
-            esac
-            ;;
-        *) RETVAL=1 ;; # Failed to stop
-    esac
+    #/etc/init.d/tor stop
+    echo "stopped."
 
     return "$RETVAL"
 }
@@ -155,76 +136,59 @@ do_status()
 
 case "$1" in
   start)
-    [ "$VERBOSE" != no ] && log_daemon_msg "Starting $DESC" "$NAME"
-    do_start
-    RETVAL=$?
-    [ "$VERBOSE" != no ] &&
-    case "$RETVAL" in
-        0|1) log_end_msg 0 ;;
-        *)   log_end_msg 1 ;;
-    esac
-    exit "$RETVAL"
-    ;;
+	[ "$VERBOSE" != no ] && log_daemon_msg "Starting $DESC" "$NAME"
+	do_start
+	case "$?" in
+		0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
+		2) [ "$VERBOSE" != no ] && log_end_msg 1 ;;
+	esac
+	;;
   stop)
-    [ "$VERBOSE" != no ] && log_daemon_msg "Stopping $DESC" "$NAME"
-    do_stop
-    RETVAL=$?
-    [ "$VERBOSE" != no ] &&
-    case "$RETVAL" in
-        0|1) log_end_msg 0 ;;
-        *)   log_end_msg 1 ;;
-    esac
-    exit "$RETVAL"
-    ;;
-  #reload|force-reload)
-    #
-    # If do_reload() is not implemented then leave this commented out
-    # and leave 'force-reload' as an alias for 'restart'.
-    #
-    #[ "$VERBOSE" != no ] && log_daemon_msg "Reloading $DESC" "$NAME"
-    #do_reload
-    #RETVAL=$?
-    #[ "$VERBOSE" != no ] && log_end_msg $?
-    #exit "$RETVAL"
-    #;;
-  restart|force-reload)
-    #
-    # If the "reload" option is implemented then remove the
-    # 'force-reload' alias
-    #
-    [ "$VERBOSE" != no ] && log_daemon_msg "Restarting $DESC" "$NAME"
-    do_restart
-    RETVAL=$?
-    [ "$VERBOSE" != no ] && log_end_msg "$RETVAL"
-    exit "$RETVAL"
-    ;;
+	[ "$VERBOSE" != no ] && log_daemon_msg "Stopping $DESC" "$NAME"
+	do_stop
+	case "$?" in
+		0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
+		2) [ "$VERBOSE" != no ] && log_end_msg 1 ;;
+	esac
+	;;
   status)
-    do_status
-    RETVAL=$?
-    [ "$VERBOSE" != no ] &&
-    case "$RETVAL" in
-      0) log_success_msg "$NAME is running" ;;
-      *) log_failure_msg "$NAME is not running" ;;
-    esac
-    exit "$RETVAL"
-    ;;
+       status_of_proc "$DAEMON" "$NAME" && exit 0 || exit $?
+       ;;
+  #reload|force-reload)
+	#
+	# If do_reload() is not implemented then leave this commented out
+	# and leave 'force-reload' as an alias for 'restart'.
+	#
+	#log_daemon_msg "Reloading $DESC" "$NAME"
+	#do_reload
+	#log_end_msg $?
+	#;;
+  restart|force-reload)
+	#
+	# If the "reload" option is implemented then remove the
+	# 'force-reload' alias
+	#
+	log_daemon_msg "Restarting $DESC" "$NAME"
+	do_stop
+	case "$?" in
+	  0|1)
+		do_start
+		case "$?" in
+			0) log_end_msg 0 ;;
+			1) log_end_msg 1 ;; # Old process is still running
+			*) log_end_msg 1 ;; # Failed to start
+		esac
+		;;
+	  *)
+	  	# Failed to stop
+		log_end_msg 1
+		;;
+	esac
+	;;
   *)
-    echo "Usage: $SCRIPTNAME {start|stop|restart|force-reload|status}" >&2
-    exit 3
-    ;;
+	echo "Usage: $SCRIPTNAME {start|stop|status|restart|force-reload}" >&2
+	exit 3
+	;;
 esac
 
 :
-
-# This was based off /etc/init.d/skeleton from the Ubuntu 8.04 Hardy release.
-# (md5sum: da0162012b6a916bdbd4e2580282af78).  If we notice that changes, we
-# should re-examine things.
-
-# The configuration at the very top seems to be documented as part of the
-# Linux Standard Base (LSB) Specification.  See section 20.6 Facility Names
-# in particular.  This is also where I got the spec for the status parm.
-
-# References:
-# http://refspecs.linux-foundation.org/LSB_3.2.0/LSB-Core-generic/LSB-Core-generic.pdf
-# Debian Policy SysV init: http://www.debian.org/doc/debian-policy/ch-opersys.html#s-sysvinit
-# Examine files in /usr/share/doc/sysv-rc/
