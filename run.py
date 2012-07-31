@@ -72,7 +72,7 @@ application = service.Application("Tor2web")
 if config.debugmode:
     application.setComponent(log.ILogObserver, log.FileLogObserver(DailyLogFile.fromFullPath(config.debuglogpath)).emit)
 else:
-    application.setComponent(log.ILogObserver, log.FileLogObserver(open("/dev/null", 'w')).emit)
+    application.setComponent(log.ILogObserver, log.FileLogObserver(log.NullFile, 'w').emit)
 
 def MailException(etype, value, tb):
     """Formats traceback and exception data and emails the error
@@ -111,7 +111,8 @@ def MailException(etype, value, tb):
             except:
                 message += "<ERROR WHILE PRINTING VALUE>"
 
-    sendmail(config.smtpuser, config.smtppass, config.smtpmail, config.smtpmailto_exceptions, message, config.smtpdomain, config.smtpport)
+    log.msg(message)
+    #sendmail(config.smtpuser, config.smtppass, config.smtpmail, config.smtpmailto_exceptions, message, config.smtpdomain, config.smtpport)
 
 def sendmail(authenticationUsername, authenticationSecret, fromAddress, toAddress, messageFile, smtpHost, smtpPort=25):
     """
@@ -572,7 +573,7 @@ def startTor2webHTTP(t2w, f):
 def startTor2webHTTPS(t2w, f):
     return internet.SSLServer(int(t2w.config.listen_port_https), f, T2WSSLContextFactory(t2w.config.sslkeyfile, t2w.config.sslcertfile, t2w.config.ssldhfile, t2w.config.cipher_list), interface=config.listen_ip)
 
-sys.excepthook = MailException
+#sys.excepthook = MailException
 
 antanistaticmap = {}
 localpath = FilePath("static/")
