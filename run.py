@@ -553,7 +553,6 @@ class T2WProxyFactory(http.HTTPFactory):
         """
         Log a request's result to the logfile, by default in combined log format.
         """
-        print request
         if config.logreqs and hasattr(self, "logFile"):
             line = "127.0.0.1 (%s) - - %s \"%s\" %s %s \"%s\" \"%s\"\n" % (
                 self._escape(request.getHeader('host')),
