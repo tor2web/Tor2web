@@ -407,7 +407,6 @@ class T2WRequest(proxy.ProxyRequest):
 
             # we try to deny some ua/crawlers regardless the request is (valid or not) / (local or not)
             # firstly we deny EVERY request to known user agents reconized with pattern matching
-            print t2w.blocked_ua
             if request.headers.get('user-agent') in t2w.blocked_ua:
                 # for this error we provide a simple page to avoid useless traffic and computation.  
                 self.setResponseCode(403)
@@ -549,7 +548,7 @@ class T2WProxyFactory(http.HTTPFactory):
         Log a request's result to the logfile, by default in combined log format.
         """
         if config.logreqs and hasattr(self, "logFile"):
-            line = "127.0.0.1 (%s) - - %s \"%s\" %d %s \"%s\" \"%s\"\n" % (
+            line = "127.0.0.1 (%s) - - %s \"%s\" %s %s \"%s\" \"%s\"\n" % (
                 self._escape(request.getHeader('host')),
                 self._logDateTime,
                 '%s %s %s' % (self._escape(request.method),
