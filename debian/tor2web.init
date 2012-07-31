@@ -63,7 +63,7 @@ do_start()
 
     echo "Starting Tor2web..."
     start-stop-daemon --start --quiet --pidfile ${DAEMON_DIR}/${DAEMON_PIDFILE} \
-        --background --exec $DAEMON -- $DAEMON_ARGS \
+        --background --exec $DAEMON --chdir $DAEMON_DIR -- $DAEMON_ARGS \
         || return 2
     echo "started."
     return 0;
