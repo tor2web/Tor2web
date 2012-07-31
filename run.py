@@ -551,7 +551,7 @@ class T2WProxyFactory(http.HTTPFactory):
         if config.logreqs and hasattr(self, "logFile"):
             line = "127.0.0.1 (%s) - - %s \"%s\" %d %s \"%s\" \"%s\"\n" % (
                 self._logDateTime,
-                request.headers.get('host'),
+                self.getAllHeaders()['host'])
                 '%s %s %s' % (self._escape(request.method),
                               self._escape(request.uri),
                               self._escape(request.clientproto)),
