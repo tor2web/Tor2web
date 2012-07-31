@@ -550,6 +550,13 @@ class T2WProxyFactory(http.HTTPFactory):
         self.sessions = {}
         self.resource = resource
 
+    def _openLogFile(self, path):
+        """
+        Override in subclasses, e.g. to use twisted.python.logfile.
+        """
+        f = DailyLogFile.fromFullPath(path)
+        return f
+
     def log(self, request):
         """
         Log a request's result to the logfile, by default in combined log format.
@@ -561,7 +568,7 @@ class T2WProxyFactory(http.HTTPFactory):
                 '%s %s %s' % (self._escape(request.method),
                               self._escape(request.uri),
                               self._escape(request.clientproto)),
-                self._escape(request.code),
+                request.code,
                 request.sentLength or "-",
                 self._escape(request.getHeader('referer') or "-"),
                 self._escape(request.getHeader('user-agent') or "-"))
@@ -573,7 +580,7 @@ def startTor2webHTTP(t2w, f):
 def startTor2webHTTPS(t2w, f):
     return internet.SSLServer(int(t2w.config.listen_port_https), f, T2WSSLContextFactory(t2w.config.sslkeyfile, t2w.config.sslcertfile, t2w.config.ssldhfile, t2w.config.cipher_list), interface=config.listen_ip)
 
-#sys.excepthook = MailException
+sys.excepthook = MailException
 
 antanistaticmap = {}
 localpath = FilePath("static/")
