@@ -128,8 +128,7 @@ class Tor2web(object):
         entrylist = []
         fh = open(filename, 'r')
         for l in fh.readlines():
-            # permit comments inside list following the first space 
-            entrylist.append(re.split("[ , \n,\t]", l)[0])
+            entrylist.append(re.split("#", l)[0].rstrip("[ , \n,\t]"))
         fh.close()
 
         return entrylist

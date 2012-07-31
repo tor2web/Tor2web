@@ -407,6 +407,7 @@ class T2WRequest(proxy.ProxyRequest):
 
             # we try to deny some ua/crawlers regardless the request is (valid or not) / (local or not)
             # firstly we deny EVERY request to known user agents reconized with pattern matching
+            print t2w.blocked_ua
             if request.headers.get('user-agent') in t2w.blocked_ua:
                 # for this error we provide a simple page to avoid useless traffic and computation.  
                 self.setResponseCode(403)
