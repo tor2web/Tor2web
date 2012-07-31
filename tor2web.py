@@ -53,7 +53,7 @@ rexp = {
 class Tor2webObj():
 
     # This is set if we are contacting tor2web from x.tor2web.org
-    xdns = False;
+    xdns = False
     
     onion = None
     
@@ -91,16 +91,7 @@ class Tor2web(object):
         :config a config object
         """
         self.config = config
-        
-        # Enable debug if configured in config file 
-        self.Tor2webLog = log.LogPublisher()
 
-        if config.debugmode:
-            stdobserver = log.PythonLoggingObserver('Tor2web')
-            fileobserver = log.FileLogObserver(open(config.debuglogpath, 'w'))
-            self.Tor2webLog.addObserver(stdobserver.emit)
-            self.Tor2webLog.addObserver(fileobserver.emit)
-        
         self.basehost = config.basehost
 
         # Load Blocklists files
@@ -160,7 +151,7 @@ class Tor2web(object):
         returns the onion address as a string if True else returns False
         """
         onion, tld = address.split(".")
-        self.Tor2webLog.msg('onion: %s tld: %s' % (onion, tld))
+        log.msg('onion: %s tld: %s' % (onion, tld))
         if tld == 'onion' and len(onion) == 16 and onion.isalnum():
             obj.onion = onion
             return True
@@ -174,14 +165,14 @@ class Tor2web(object):
         or in the x.<tor2web_domain>.<tld>/<onion_url>.onion/ format.
         """
         # Detect x.tor2web.org use mode
-        self.Tor2webLog.msg("resolving: %s" % host)
+        log.msg("resolving: %s" % host)
         if host.split(".")[0] == "x":
             obj.xdns = True
             obj.hostname = self.petname_lookup(obj, uri.split("/")[1])
-            self.Tor2webLog.msg("detected x.tor2web Hostname: %s" % obj.hostname)
+            log.msg("detected x.tor2web Hostname: %s" % obj.hostname)
         else:
             obj.hostname = self.petname_lookup(obj, host.split(".")[0]) + ".onion"
-            self.Tor2webLog.msg("detected <onion_url>.tor2web Hostname: %s" % obj.hostname)
+            log.msg("detected <onion_url>.tor2web Hostname: %s" % obj.hostname)
 
         try:
             if self.verify_onion(obj, obj.hostname):
@@ -205,7 +196,7 @@ class Tor2web(object):
         else:
             obj.uri = req.uri
 
-        self.Tor2webLog.msg("URI: %s" % obj.uri)
+        log.msg("URI: %s" % obj.uri)
 
         return obj.uri
 
@@ -238,15 +229,15 @@ class Tor2web(object):
         Set the proper headers, "resolve" the address
         and return a result object.
         """
-        self.Tor2webLog.msg(req)
+        log.msg(req)
         
         if not self.get_address(obj, req):
             return False
 
         obj.headers = req.headers
         
-        self.Tor2webLog.msg("Headers before fix:")
-        self.Tor2webLog.msg(obj.headers)
+        log.msg("Headers before fix:")
+        log.msg(obj.headers)
 
         obj.headers.update({'X-tor2web':'encrypted'})
 
@@ -256,8 +247,8 @@ class Tor2web(object):
 
         obj.headers['host'] = obj.hostname
 
-        self.Tor2webLog.msg("Headers after fix:")
-        self.Tor2webLog.msg(obj.headers)
+        log.msg("Headers after fix:")
+        log.msg(obj.headers)
 
         return True
 
@@ -349,13 +340,13 @@ class Tor2web(object):
         """
         Process all the possible HTML tag attributes that may contain links.
         """
-        self.Tor2webLog.msg("processing url attributes")
+        log.msg("processing url attributes")
 
         items = ['src', 'href', 'action']
         for item in items:
             data = re.sub(rexp[item], partial(self.fix_links, obj), data)
 
-        self.Tor2webLog.msg("finished processing links...")
+        log.msg("finished processing links...")
 
         return data
 
@@ -363,7 +354,7 @@ class Tor2web(object):
         """
         Process the result from the Hidden Services HTML
         """
-        self.Tor2webLog.msg("processing HTML type content")
+        log.msg("processing HTML type content")
 
         data = self.process_links(obj, data)
 
