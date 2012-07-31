@@ -568,7 +568,7 @@ class T2WProxyFactory(http.HTTPFactory):
                 '%s %s %s' % (self._escape(request.method),
                               self._escape(request.uri),
                               self._escape(request.clientproto)),
-                self._escape(request.code),
+                request.code,
                 request.sentLength or "-",
                 self._escape(request.getHeader('referer') or "-"),
                 self._escape(request.getHeader('user-agent') or "-"))
