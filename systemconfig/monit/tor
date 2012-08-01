@@ -1,0 +1,9 @@
+check process tor with pidfile /var/run/tor/tor.pid
+group tor
+start program = "/etc/init.d/tor start"
+stop program = "/etc/init.d/tor stop"
+if failed port 9050 type tcp
+   with timeout 5 seconds
+   then restart
+if 3 restarts within 5 cycles then timeout
+
