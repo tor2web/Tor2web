@@ -85,8 +85,11 @@ def MailException(etype, value, tb):
 
     excType = re.sub("(<(type|class ')|'exceptions.|'>|__main__.)", "", str(etype)).strip()
     message = ""
-    message += "TO: %s\n" % (config.smtpmailto_exceptions)
-    message += "SUBJECT: Tor2web node %s: exception\n\n" % (config.listen_ip)
+    message += "From: Tor2web Node %s <%s>\n" % (config.listen_ip, config.smtpmail)
+    message += "To: %s\n" % (config.smtpmailto_exceptions)
+    message += "Subject: Tor2web Node %s: exception for %s\n" % (config.listen_ip, self.args['url'][0])
+    message += "Content-Type: text/plain; charset=ISO-8859-1\n"
+    message += "Content-Transfer-Encoding: 8bit\n\n"
     message += "%s %s" % (excType, etype.__doc__)
 
     for line in traceback.extract_tb(tb):
@@ -111,8 +114,7 @@ def MailException(etype, value, tb):
             except:
                 message += "<ERROR WHILE PRINTING VALUE>"
 
-    log.msg(message)
-    #sendmail(config.smtpuser, config.smtppass, config.smtpmail, config.smtpmailto_exceptions, message, config.smtpdomain, config.smtpport)
+    sendmail(config.smtpuser, config.smtppass, config.smtpmail, config.smtpmailto_exceptions, message, config.smtpdomain, config.smtpport)
 
 def sendmail(authenticationUsername, authenticationSecret, fromAddress, toAddress, messageFile, smtpHost, smtpPort=25):
     """
@@ -489,8 +491,11 @@ class T2WRequest(proxy.ProxyRequest):
                     elif staticpath.startswith("notification"):
                         if 'by' in self.args and 'url' in self.args and 'comment' in self.args:
                             message = ""
-                            message += "TO: %s\n" % (config.smtpmailto)
-                            message += "SUBJECT: Tor2web node %s: notification for %s\n\n" % (config.listen_ip, self.args['url'][0])
+                            message += "From: Tor2web Node %s <%s>\n" % (config.listen_ip, config.smtpmail)
+                            message += "To: %s\n" % (config.smtpmailto_notifications)
+                            message += "Subject: Tor2web Node %s: notification for %s\n" % (config.listen_ip, self.args['url'][0])
+                            message += "Content-Type: text/plain; charset=ISO-8859-1\n"
+                            message += "Content-Transfer-Encoding: 8bit\n\n"
                             message += "BY: %s\n" % (self.args['by'][0])
                             message += "URL: %s\n" % (self.args['url'][0])
                             message += "COMMENT: %s\n" % (self.args['comment'][0])
