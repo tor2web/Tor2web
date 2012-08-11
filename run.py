@@ -38,7 +38,7 @@ from templating import ErrorTemplate, PageTemplate
 
 from twisted.mail.smtp import ESMTPSenderFactory
 from twisted.internet import ssl, reactor, endpoints
-from twisted.internet.ssl import ClientContextFactory
+from twisted.internet.ssl import ClientContextFactory, DefaultOpenSSLContextFactory
 from twisted.internet.defer import Deferred
 from twisted.application import service, internet
 from twisted.web import proxy, http, client, resource
