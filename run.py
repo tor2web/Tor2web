@@ -72,7 +72,7 @@ application = service.Application("Tor2web")
 if config.debugmode:
     application.setComponent(log.ILogObserver, log.FileLogObserver(DailyLogFile.fromFullPath(config.debuglogpath)).emit)
 else:
-    application.setComponent(log.ILogObserver, log.FileLogObserver(log.NullFile, 'w').emit)
+    application.setComponent(log.ILogObserver, log.FileLogObserver(log.NullFile).emit)
 
 def MailException(etype, value, tb):
     """Formats traceback and exception data and emails the error
@@ -138,40 +138,39 @@ def sendmail(authenticationUsername, authenticationSecret, fromAddress, toAddres
 
     return resultDeferred
 
-class T2WSSLContextFactory():
+class T2WSSLContextFactory(DefaultOpenSSLContextFactory):
     """
     """
     _context = None
 
-    def __init__(self, privateKeyFileName, certificateFileName, dhFileName, cipherList):
+    def __init__(self, privateKeyFileName, certificateChainFileName, dhFileName, cipherList):
         """
         @param privateKeyFileName: Name of a file containing a private key
-        @param certificateFileName: Name of a file containing a certificate
+        @param certificateChainFileName: Name of a file containing a certificate chain
+        @param dhFileName: Name of a file containing diffie hellman parameters
         @param cipherList: The SSL cipher list selection to use
         """
+        self.privateKeyFileName = privateKeyFileName
+        self.certificateChainFileName = certificateChainFileName
+        self.sslmethod = SSL.SSLv23_METHOD
+        self.dhFileName = dhFileName
+        self.cipherList = cipherList
+
+        # Create a context object right now.  This is to force validation of
+        # the given parameters so that errors are detected earlier rather
+        # than later.
+        self.cacheContext()
+
+    def cacheContext(self):
         if self._context is None:
-            ctx = SSL.Context(SSL.SSLv23_METHOD)
+            ctx = SSL.Context(self.sslmethod)
             # Disallow SSLv2! It's insecure!
             ctx.set_options(SSL.OP_NO_SSLv2)
-            ctx.use_certificate_file(certificateFileName)
-            ctx.use_privatekey_file(privateKeyFileName)
-            ctx.set_cipher_list(cipherList)
-            ctx.load_tmp_dh(dhFileName)
+            ctx.use_certificate_chain_file(self.certificateChainFileName)
+            ctx.use_privatekey_file(self.privateKeyFileName)
+            ctx.set_cipher_list(self.cipherList)
+            ctx.load_tmp_dh(self.dhFileName)
             self._context = ctx
-
-    def __getstate__(self):
-        d = self.__dict__.copy()
-        del d['_context']
-        return d
-
-    def __setstate__(self, state):
-        self.__dict__ = state
-
-    def getContext(self):
-        """
-        Return an SSL context.
-        """
-        return self._context
 
 class T2WProxyClient(proxy.ProxyClient):
     """
