@@ -38,7 +38,7 @@ from templating import ErrorTemplate, PageTemplate
 
 from twisted.mail.smtp import ESMTPSenderFactory
 from twisted.internet import ssl, reactor, endpoints
-from twisted.internet.ssl import ClientContextFactory
+from twisted.internet.ssl import ClientContextFactory, DefaultOpenSSLContextFactory
 from twisted.internet.defer import Deferred
 from twisted.application import service, internet
 from twisted.web import proxy, http, client, resource
@@ -244,7 +244,7 @@ class T2WProxyClient(proxy.ProxyClient):
             if end:
                 data2 = self.decoderGzip.flush()
 
-            return data1 + data2
+            return data1.join(data2)
             
         except:
             self.finish()
@@ -270,7 +270,7 @@ class T2WProxyClient(proxy.ProxyClient):
                 data2 = self.stringio.read()
                 self.stringio.close()
                 
-            return data1 + data2
+            return data1.join(data2)
 
         except:
             self.finish()
