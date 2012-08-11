@@ -52,9 +52,6 @@ rexp = {
 
 class Tor2webObj():
 
-    # This is set if we are contacting tor2web from x.tor2web.org
-    xdns = False
-    
     onion = None
     
     # The path portion of the URI
@@ -167,7 +164,6 @@ class Tor2web(object):
         # Detect x.tor2web.org use mode
         log.msg("resolving: %s" % host)
         if host.split(".")[0] == "x":
-            obj.xdns = True
             obj.hostname = self.petname_lookup(obj, uri.split("/")[1])
             log.msg("detected x.tor2web Hostname: %s" % obj.hostname)
         else:
@@ -191,10 +187,7 @@ class Tor2web(object):
         In that case we need to remove the .onion from the requested
         URI and return the part after .onion.
         """
-        if obj.xdns:
-            obj.uri = "//".join(req.uri.split("/")[2:])
-        else:
-            obj.uri = req.uri
+        obj.uri = req.uri
 
         log.msg("URI: %s" % obj.uri)
 
@@ -279,10 +272,7 @@ class Tor2web(object):
             return link;
         
         if scheme == '':
-            if obj.xdns:
-                link = "/" + obj.hostname + data
-            else:
-                link = data
+            link = data
         else:
             if parsed.netloc == '':
                 netloc = obj.hostname
@@ -301,8 +291,6 @@ class Tor2web(object):
                 # Actually not implemented: need some study.
                 # link = self.leaving_link(obj, parsed)
                 link = data
-            elif obj.xdns:
-                link += "/" + netloc + "/".join(obj.path.split("/")[:-1]) + "/" + data
             else:
                 link += netloc + "." + self.basehost + parsed.path
 
