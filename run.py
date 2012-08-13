@@ -244,7 +244,7 @@ class T2WProxyClient(proxy.ProxyClient):
             if end:
                 data2 = self.decoderGzip.flush()
 
-            return data1.join(data2)
+            return data1 + data2
             
         except:
             self.finish()
@@ -270,7 +270,7 @@ class T2WProxyClient(proxy.ProxyClient):
                 data2 = self.stringio.read()
                 self.stringio.close()
                 
-            return data1.join(data2)
+            return data1 + data2
 
         except:
             self.finish()
