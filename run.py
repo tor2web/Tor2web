@@ -370,7 +370,7 @@ class T2WRequest(proxy.ProxyRequest):
     """
     protocols = {'http': T2WProxyClientFactory}
     ports = {'http': 80}
-    staticmap = config.staticmap + "/"
+    staticmap = "/" + config.staticmap + "/"
 
     def __init__(self, *args, **kw):
         proxy.ProxyRequest.__init__(self, *args, **kw)
@@ -408,15 +408,19 @@ class T2WRequest(proxy.ProxyRequest):
             request = Storage()
             request.headers = self.getAllHeaders().copy()
             request.host = request.headers.get('host')
-            print request.host
-            print request.host
             request.uri = self.uri
             request.resourceislocal = False
 
             # 0: Request admission control stage
+            # firstly we try to instruct spiders that honour robots.txt that we don't want to get indexed
+            if request.uri == "/robots.txt" and config.blockcrawl:
+                self.write("User-Agent: *\n")
+                self.write("Disallow: /\n")
+                self.finish()
+                return
 
-            # we try to deny some ua/crawlers regardless the request is (valid or not) / (local or not)
-            # firstly we deny EVERY request to known user agents reconized with pattern matching
+            # secondly we try to deny some ua/crawlers regardless the request is (valid or not) / (local or not)
+            # we deny EVERY request to known user agents reconized with pattern matching
             if request.headers.get('user-agent') in t2w.blocked_ua:
                 # for this error we provide a simple page to avoid useless traffic and computation.  
                 self.setResponseCode(403)
@@ -424,18 +428,11 @@ class T2WRequest(proxy.ProxyRequest):
                 self.finish()
                 return
 
-            # secondly we try to instruct unknown robots that we don't want to get indexed
-            if request.uri == "/robots.txt" and config.blockcrawl:
-                self.write("User-Agent: *\n")
-                self.write("Disallow: /\n")
-                self.finish()
-                return
-
             # we need to verify if the requested resource is local (/antanistaticmap/*) or remote
             # becouse some checks must be done only for remote requests;
             # in fact local content is always served (css, js, and png in fact are used in errors)
             
-            if request.host == '127.0.0.1':
+            if request.host == config.listen_ip:
                 request.resourceislocal = True
             else:
                 request.resourceislocal = request.uri.startswith(self.staticmap)
@@ -486,11 +483,11 @@ class T2WRequest(proxy.ProxyRequest):
             if request.resourceislocal:
                 # the requested resource is local, we deliver it directly
                 try:
-                    staticpath = re.sub('\/$', 'index.html', request.uri)
-                    staticpath = re.sub('^/('+self.staticmap+')?', '', staticpath)
+                    staticpath = request.uri
+                    staticpath = re.sub('\/$', '/index.html', staticpath)
+                    staticpath = re.sub('^('+self.staticmap+')?', '', staticpath)
+                    staticpath = re.sub('^/', '', staticpath)
                     
-                    print staticpath
-
                     if staticpath in antanistaticmap:
                         if type(antanistaticmap[staticpath]) == str:
                             filename, ext = os.path.splitext(staticpath)
