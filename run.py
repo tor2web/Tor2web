@@ -370,7 +370,7 @@ class T2WRequest(proxy.ProxyRequest):
     """
     protocols = {'http': T2WProxyClientFactory}
     ports = {'http': 80}
-    staticmap = "/" + config.staticmap + "/"
+    staticmap = config.staticmap + "/"
 
     def __init__(self, *args, **kw):
         proxy.ProxyRequest.__init__(self, *args, **kw)
@@ -408,6 +408,8 @@ class T2WRequest(proxy.ProxyRequest):
             request = Storage()
             request.headers = self.getAllHeaders().copy()
             request.host = request.headers.get('host')
+            print request.host
+            print request.host
             request.uri = self.uri
             request.resourceislocal = False
 
@@ -432,7 +434,12 @@ class T2WRequest(proxy.ProxyRequest):
             # we need to verify if the requested resource is local (/antanistaticmap/*) or remote
             # becouse some checks must be done only for remote requests;
             # in fact local content is always served (css, js, and png in fact are used in errors)
-            request.resourceislocal = request.uri.startswith(self.staticmap)
+            
+            if request.host == '127.0.0.1':
+                request.resourceislocal = True
+            else:
+                request.resourceislocal = request.uri.startswith(self.staticmap)
+
             if not request.resourceislocal:
                 # we need to validate the request to avoid useless processing
                 if not request.host:
@@ -478,8 +485,12 @@ class T2WRequest(proxy.ProxyRequest):
             # 2: Content delivery stage
             if request.resourceislocal:
                 # the requested resource is local, we deliver it directly
-                staticpath = re.sub('^'+self.staticmap, '', request.uri)
                 try:
+                    staticpath = re.sub('\/$', 'index.html', request.uri)
+                    staticpath = re.sub('^/('+self.staticmap+')?', '', staticpath)
+                    
+                    print staticpath
+
                     if staticpath in antanistaticmap:
                         if type(antanistaticmap[staticpath]) == str:
                             filename, ext = os.path.splitext(staticpath)
