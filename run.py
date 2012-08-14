@@ -370,7 +370,7 @@ class T2WRequest(proxy.ProxyRequest):
     """
     protocols = {'http': T2WProxyClientFactory}
     ports = {'http': 80}
-    staticmap = config.staticmap + "/"
+    staticmap = "/" + config.staticmap + "/"
 
     def __init__(self, *args, **kw):
         proxy.ProxyRequest.__init__(self, *args, **kw)
@@ -484,8 +484,10 @@ class T2WRequest(proxy.ProxyRequest):
             if request.resourceislocal:
                 # the requested resource is local, we deliver it directly
                 try:
-                    staticpath = re.sub('\/$', 'index.html', request.uri)
-                    staticpath = re.sub('^/('+self.staticmap+')?', '', staticpath)
+                    staticpath = request.uri
+                    staticpath = re.sub('\/$', '/index.html', staticpath)
+                    staticpath = re.sub('^('+self.staticmap+')?', '', staticpath)
+                    staticpath = re.sub('^/', '', staticpath)
                     
                     if staticpath in antanistaticmap:
                         if type(antanistaticmap[staticpath]) == str:
