@@ -412,20 +412,19 @@ class T2WRequest(proxy.ProxyRequest):
             request.resourceislocal = False
 
             # 0: Request admission control stage
+            # firstly we try to instruct spiders that honour robots.txt that we don't want to get indexed
+            if request.uri == "/robots.txt" and config.blockcrawl:
+                self.write("User-Agent: *\n")
+                self.write("Disallow: /\n")
+                self.finish()
+                return
 
-            # we try to deny some ua/crawlers regardless the request is (valid or not) / (local or not)
-            # firstly we deny EVERY request to known user agents reconized with pattern matching
+            # secondly we try to deny some ua/crawlers regardless the request is (valid or not) / (local or not)
+            # we deny EVERY request to known user agents reconized with pattern matching
             if request.headers.get('user-agent') in t2w.blocked_ua:
                 # for this error we provide a simple page to avoid useless traffic and computation.  
                 self.setResponseCode(403)
                 self.write("403 Forbidden")
-                self.finish()
-                return
-
-            # secondly we try to instruct unknown robots that we don't want to get indexed
-            if request.uri == "/robots.txt" and config.blockcrawl:
-                self.write("User-Agent: *\n")
-                self.write("Disallow: /\n")
                 self.finish()
                 return
 
