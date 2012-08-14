@@ -408,8 +408,6 @@ class T2WRequest(proxy.ProxyRequest):
             request = Storage()
             request.headers = self.getAllHeaders().copy()
             request.host = request.headers.get('host')
-            print request.host
-            print request.host
             request.uri = self.uri
             request.resourceislocal = False
 
@@ -435,7 +433,7 @@ class T2WRequest(proxy.ProxyRequest):
             # becouse some checks must be done only for remote requests;
             # in fact local content is always served (css, js, and png in fact are used in errors)
             
-            if request.host == '127.0.0.1':
+            if request.host == config.listen_ip:
                 request.resourceislocal = True
             else:
                 request.resourceislocal = request.uri.startswith(self.staticmap)
@@ -489,8 +487,6 @@ class T2WRequest(proxy.ProxyRequest):
                     staticpath = re.sub('\/$', 'index.html', request.uri)
                     staticpath = re.sub('^/('+self.staticmap+')?', '', staticpath)
                     
-                    print staticpath
-
                     if staticpath in antanistaticmap:
                         if type(antanistaticmap[staticpath]) == str:
                             filename, ext = os.path.splitext(staticpath)
