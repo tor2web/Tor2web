@@ -3,7 +3,8 @@
 	margin: 0 auto;
   padding: 0;
   border: 0;
-  font: 12px, Verdana, sans-serif;
+  font-size: 12px;
+  font-family: 18px Verdana, Arial, Tahoma;
   color: #000;
   background-color: #f5f5f5;
   border-bottom: 1px solid #000;
@@ -20,3 +21,29 @@
 #tor2web a:visited { color:red; }
 
 .tor2web_showhide { clear: both; text-align: center; }
+
+#tor2web-errorpage {
+  font-size: 16px;
+  font-family: 18px Verdana, Arial, Tahoma;
+  color: #000;
+  background-color: #f5f5f5;
+}
+
+#tor2web-errorpage-wrapper {
+  width: 700px;
+  margin: 0 auto 0 auto;
+  text-align: justify;
+}
+
+#tor2web-errorpage-title {
+  font-style: bold;
+  color: #3B578B;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 3px;
+  margin: 25px 0 10px 0;
+}
+
+#tor2web-errorpage-content {
+  background: #fff;
+  padding: 20px;
+}
