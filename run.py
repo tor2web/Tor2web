@@ -275,7 +275,6 @@ class T2WProxyClient(proxy.ProxyClient):
         except:
             self.finish()
 
-
     def handleResponsePart(self, data):
         if self.obj.server_response_is_gzip:
             if self.obj.contentNeedFix:
@@ -350,6 +349,7 @@ class T2WProxyClient(proxy.ProxyClient):
         if not self._finished:
             self._finished = True
             self.father.finish()
+            self.transport.loseConnection()
 
     def connectionLost(self, reason):
         self.handleResponseEnd()
@@ -510,6 +510,7 @@ class T2WRequest(proxy.ProxyRequest):
                             sendmail(config.smtpuser, config.smtppass, config.smtpmail, config.smtpmailto_notifications, message, config.smtpdomain, config.smtpport)
                     else:
                         return self.error(404)
+
                 except:
                     return self.error(404)
 
