@@ -87,11 +87,10 @@ def MailException(etype, value, tb):
     message = ""
     message += "From: Tor2web Node %s <%s>\n" % (config.listen_ip, config.smtpmail)
     message += "To: %s\n" % (config.smtpmailto_exceptions)
-    message += "Subject: Tor2web Node %s: exception for %s\n" % (config.listen_ip, self.args['url'][0])
+    message += "Subject: Tor2web Node %s exception\n" % (config.listen_ip)
     message += "Content-Type: text/plain; charset=ISO-8859-1\n"
     message += "Content-Transfer-Encoding: 8bit\n\n"
     message += "%s %s" % (excType, etype.__doc__)
-
     for line in traceback.extract_tb(tb):
         message += "\tFile: \"%s\"\n\t\t%s %s: %s\n" %(line[0], line[2], line[1], line[3])
     while 1:
@@ -101,7 +100,6 @@ def MailException(etype, value, tb):
     f = tb.tb_frame
     while f:
         stack.append(f)
-        f = f.f_back
         f = f.f_back
     stack.reverse()
     message += "\nLocals by frame, innermost last:"
@@ -114,6 +112,7 @@ def MailException(etype, value, tb):
             except:
                 message += "<ERROR WHILE PRINTING VALUE>"
 
+    message = StringIO(message)
     sendmail(config.smtpuser, config.smtppass, config.smtpmail, config.smtpmailto_exceptions, message, config.smtpdomain, config.smtpport)
 
 def sendmail(authenticationUsername, authenticationSecret, fromAddress, toAddress, messageFile, smtpHost, smtpPort=25):
