@@ -176,7 +176,7 @@ class Tor2web(object):
         except:
             pass
 
-        obj.error = {'message': "detected invalid hostname", 'code': 406}
+        obj.error = {'code': 406, 'template': 'error_invalid_hostname.xml'}
 
         return False
 
@@ -205,11 +205,11 @@ class Tor2web(object):
         uri = self.get_uri(obj, req)
    
         if hashlib.md5(obj.hostname).hexdigest() in self.blocklist:
-            obj.error = {'message': "Hidden Service Blocked",'code': 403}
+            obj.error = {'code': 403, 'template': 'error_hidden_service_blocked.xml'}
             return False
 
         if hashlib.md5(obj.hostname + uri).hexdigest() in self.blocklist:
-            obj.error = {'message': "Specific Page Blocked",'code': 403}
+            obj.error = {'code': 403, 'template': 'error_specific_page_blocked.xml'}
             return False
 
         # When connecting to HS use only HTTP
