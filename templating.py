@@ -34,15 +34,6 @@
 from twisted.web.template import Element, XMLString, renderer, tags
 from twisted.python.filepath import FilePath
 
-messages = {
-    200 : "OK",
-    400 : "Bad Request",
-    403 : "Forbidden",
-    404 : "Not Found",
-    406 : "Not Acceptable",
-    410 : "Gone"
-}
-
 class Template(Element):
     def __init__(self, template):
         self.template = template
@@ -54,14 +45,14 @@ class PageTemplate(Template):
         yield Template("header.xml")
 
 class ErrorTemplate(PageTemplate):
-    def __init__(self, error, errormsg=None):
+    def __init__(self, error, errortemplate=None):
         self.error = error
-        self.errormsg = errormsg
-        PageTemplate.__init__(self, "error.xml")
+        try:
+            PageTemplate.__init__(self, errortemplate)
+        except IOError:
+            PageTemplate.__init__(self, "error_generic.xml")
 
     @renderer
-    def content(self, request, tag):
-        if self.errormsg is None:
-            self.errormsg = messages.get(self.error, 'ERROR')
-        return tag('%s %s' % (self.error, self.errormsg))
+    def errorcode(self, request, tag):
+        return tag('%s' % self.error)
 

@@ -393,13 +393,10 @@ class T2WRequest(proxy.ProxyRequest):
         self.write(content)
         self.finish()
 
-    def error(self, error, errormsg=None):
+    def error(self, error, errortemplate=None):
         self.setResponseCode(error)
-        return flattenString(None, ErrorTemplate(error, errormsg)).addCallback(self.contentFinish)
+        return flattenString(None, ErrorTemplate(error, errortemplate)).addCallback(self.contentFinish)
 
-    def sockserror(self, err=None):
-        self.error(502, "Socks Error: " + str(err.value))
-        
     def process(self):
         try:
             content = ""
@@ -421,11 +418,7 @@ class T2WRequest(proxy.ProxyRequest):
             # secondly we try to deny some ua/crawlers regardless the request is (valid or not) / (local or not)
             # we deny EVERY request to known user agents reconized with pattern matching
             if request.headers.get('user-agent') in t2w.blocked_ua:
-                # for this error we provide a simple page to avoid useless traffic and computation.  
-                self.setResponseCode(403)
-                self.write("403 Forbidden")
-                self.finish()
-                return
+                return self.error(403, "error_blocked_ua.xml")
 
             # we need to verify if the requested resource is local (/antanistaticmap/*) or remote
             # becouse some checks must be done only for remote requests;
@@ -439,10 +432,10 @@ class T2WRequest(proxy.ProxyRequest):
             if not request.resourceislocal:
                 # we need to validate the request to avoid useless processing
                 if not request.host:
-                    return self.error(400)
+                    return self.error(400, "error_invalid_hostname.xml")
             
                 if not t2w.verify_hostname(self.obj, request.host, request.uri):
-                    return self.error(self.obj.error['code'], self.obj.error['message'])
+                    return self.error(self.obj.error['code'], self.obj.error['template'])
 
                 # we need to verify if the user is using tor;
                 # on this condition it's better to redirect on the .onion             
@@ -518,7 +511,7 @@ class T2WRequest(proxy.ProxyRequest):
             else:
                 # the requested resource is remote, we act as proxy
                 if not t2w.process_request(self.obj, request):
-                    return self.error(self.obj.error['code'], self.obj.error['message'])
+                    return self.error(self.obj.error['code'], self.obj.error['template'])
 
                 parsed = urlparse.urlparse(self.obj.address)
                 protocol = parsed[0]
@@ -541,7 +534,7 @@ class T2WRequest(proxy.ProxyRequest):
                 wrapper = SOCKSWrapper(reactor, config.sockshost, config.socksport, endpoint)
                 f = class_(self.method, self.rest, self.clientproto, self.obj.headers, content, self, self.obj)
                 d = wrapper.connect(f)
-                d.addErrback(self.sockserror)
+                d.addErrback(self.error)
 
                 return NOT_DONE_YET
 

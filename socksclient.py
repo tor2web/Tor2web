@@ -41,17 +41,8 @@ import struct
 from zope.interface import implements
 
 SOCKS_errors = {\
-    0x00: "request granted",
-    0x01: "general failure",
-    0x02: "connection not allowed by ruleset",
-    0x03: "network unreachable",
-    0x04: "host unreachable",
-    0x05: "connection refused by destination host",
-    0x06: "TTL expired",
-    0x07: "command not supported / protocol error",
-    0x08: "address type not supported",
-    0x23: "hidden service not found",
-    0x24: "hidden service not reachable"
+    0x23: "error_sock_hs_not_found.xml",
+    0x24: "error_sock_hs_not_reachable.xml"
 }
 
 class SOCKSError(Exception):
@@ -95,7 +86,7 @@ class SOCKSv5ClientProtocol(Protocol):
             if errcode in SOCKS_errors:
                 self.handshakeDone.errback(SOCKSError(hex(errcode), SOCKS_errors[errcode]))
             else:
-                self.handshakeDone.errback(SOCKSError(hex(errcode), "unrecognized Error"))
+                self.handshakeDone.errback(SOCKSError(hex(errcode), "error_sock_generic.xml"))
                 
             return
 
