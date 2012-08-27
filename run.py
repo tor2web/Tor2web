@@ -396,6 +396,9 @@ class T2WRequest(proxy.ProxyRequest):
     def error(self, error, errortemplate=None):
         self.setResponseCode(error)
         return flattenString(None, ErrorTemplate(error, errortemplate)).addCallback(self.contentFinish)
+        
+    def sockserror(self, err):
+        self.error(err.value.code, err.value.template)
 
     def process(self):
         try:
@@ -534,7 +537,7 @@ class T2WRequest(proxy.ProxyRequest):
                 wrapper = SOCKSWrapper(reactor, config.sockshost, config.socksport, endpoint)
                 f = class_(self.method, self.rest, self.clientproto, self.obj.headers, content, self, self.obj)
                 d = wrapper.connect(f)
-                d.addErrback(self.error)
+                d.addErrback(self.sockserror)
 
                 return NOT_DONE_YET
 

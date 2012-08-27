@@ -41,16 +41,14 @@ import struct
 from zope.interface import implements
 
 SOCKS_errors = {\
-    0x23: "error_sock_hs_not_found.xml",
-    0x24: "error_sock_hs_not_reachable.xml"
+    0x23: "error_socks_hs_not_found.xml",
+    0x24: "error_socks_hs_not_reachable.xml"
 }
 
 class SOCKSError(Exception):
-    def __init__(self, code, error):
+    def __init__(self, code, template):
         self.code = code
-        self.error = error
-    def __str__(self):
-        return repr(self.error) + " (" + repr(self.code) + ")"
+        self.template = template
 
 class SOCKSv5ClientProtocol(Protocol):
     postHandshakeEndpoint = None
@@ -86,7 +84,7 @@ class SOCKSv5ClientProtocol(Protocol):
             if errcode in SOCKS_errors:
                 self.handshakeDone.errback(SOCKSError(hex(errcode), SOCKS_errors[errcode]))
             else:
-                self.handshakeDone.errback(SOCKSError(hex(errcode), "error_sock_generic.xml"))
+                self.handshakeDone.errback(SOCKSError(hex(errcode), "error_socks.xml"))
                 
             return
 
