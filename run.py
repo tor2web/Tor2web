@@ -393,7 +393,7 @@ class T2WRequest(proxy.ProxyRequest):
         self.write(content)
         self.finish()
 
-    def error(self, error, errortemplate=None):
+    def error(self, error, errortemplate='error_generic.xml'):
         self.setResponseCode(error)
         return flattenString(None, ErrorTemplate(error, errortemplate)).addCallback(self.contentFinish)
         
