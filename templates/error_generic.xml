@@ -9,7 +9,7 @@
       <h1><a href="https://www.tor2web.org"><img src="/antanistaticmap/tor2web.png" alt="tor2web logo" /></a></h1>
     </div>
     <div id="tor2web-errorpage-content">
-      <h2 id="tor2web-errorpage-title">Tor2web Error: Generic Error</h2>
+      <h2 id="tor2web-errorpage-title">Tor2web Error: Generic Error (<b><t:transparent t:render="errorcode" /></b>)</h2>
       <p>Sorry, we couldn't serve the page you requested.</p>
     </div>
   </div>
