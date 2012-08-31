@@ -44,11 +44,48 @@ DAEMON_ARGS="-y /home/tor2web/Tor2web-3.0/run.py --pidfile ${DAEMON_PIDFILE} --u
 # and status_of_proc is working.
 . /lib/lsb/init-functions
 
+
+# Let's try to figure our some sane defaults:
+if [ -r /proc/sys/fs/file-max ]; then
+        system_max=`cat /proc/sys/fs/file-max`
+        if [ "$system_max" -gt "80000" ] ; then
+                MAX_FILEDESCRIPTORS=32768
+        elif [ "$system_max" -gt "40000" ] ; then
+                MAX_FILEDESCRIPTORS=16384
+        elif [ "$system_max" -gt "10000" ] ; then
+                MAX_FILEDESCRIPTORS=8192
+        else
+                MAX_FILEDESCRIPTORS=1024
+                cat << EOF
+
+Warning: Your system has very few filedescriptors available in total.
+
+Maybe you should try raising that by adding 'fs.file-max=100000' to your
+/etc/sysctl.conf file.  Feel free to pick any number that you deem appropriate.
+Then run 'sysctl -p'.  See /proc/sys/fs/file-max for the current value, and
+file-nr in the same directory for how many of those are used at the moment.
+
+EOF
+        fi
+else
+        MAX_FILEDESCRIPTORS=8192
+fi
+
 #
 # Function that starts the daemon/service
 #
 do_start()
 {
+    if [ -n "$MAX_FILEDESCRIPTORS" ]; then
+        echo -n "Raising maximum number of filedescriptors (ulimit -n) to $MAX_FILEDESCRIPTORS"
+        if ulimit -n "$MAX_FILEDESCRIPTORS" ; then
+            echo "."
+        else
+            echo ": FAILED."
+        fi
+    fi
+
+
     # Return
     #   0 if daemon has been started
     #   1 if daemon was already running
