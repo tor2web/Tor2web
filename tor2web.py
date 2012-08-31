@@ -96,10 +96,14 @@ class Tor2web(object):
         
         itemlist = self.load_filelist(config.blocklist_cleartext)
         for i in itemlist:
+            print i
+            print hashlib.md5(i).hexdigest()
             self.blocklist.append(hashlib.md5(i).hexdigest())
         
         self.blocklist = set(self.blocklist) # eliminate duplicates
         self.dump_filelist(config.blocklist_hashed, self.blocklist)
+
+        self.dump_filelist(config.blocklist_cleartext, [])
 
         self.blocked_ua = self.load_filelist(config.blocked_ua)
 
@@ -205,11 +209,11 @@ class Tor2web(object):
         uri = self.get_uri(obj, req)
    
         if hashlib.md5(obj.hostname).hexdigest() in self.blocklist:
-            obj.error = {'code': 403, 'template': 'error_hidden_service_blocked.xml'}
+            obj.error = {'code': 403, 'template': 'error_hs_completely_blocked.xml'}
             return False
 
         if hashlib.md5(obj.hostname + uri).hexdigest() in self.blocklist:
-            obj.error = {'code': 403, 'template': 'error_specific_page_blocked.xml'}
+            obj.error = {'code': 403, 'template': 'error_hs_specific_page_blocked.xml'}
             return False
 
         # When connecting to HS use only HTTP
