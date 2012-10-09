@@ -36,6 +36,7 @@ from twisted.internet.task import LoopingCall
 from twisted.internet.defer import Deferred
 from twisted.web.client import HTTPPageGetter, HTTPClientFactory, _parse
 
+import re
 import gzip
 import json
 
@@ -67,6 +68,9 @@ class HTTPCacheDownloader(HTTPPageGetter):
         self.sendHeader('user-agent', self.factory.agent)
         self.sendHeader('accept-encoding', 'gzip')
 
+        if self.cache and 'etag' in self.cache:
+            self.sendHeader('etag', self.cache['etag'])
+
         if self.cache and 'if-modified-since' in self.cache:
             self.sendHeader('if-modified-since', self.cache['if-modified-since'])
 
@@ -96,6 +100,9 @@ class HTTPCacheDownloader(HTTPPageGetter):
         key = key.lower()
 
         if key == 'date' or key == 'last-modified':
+            self.cachetemp[key] = value
+
+        if key == 'etag':
             self.cachetemp[key] = value
 
         if key == 'content-encoding' and value == 'gzip':
@@ -130,7 +137,9 @@ class HTTPClientCacheFactory(HTTPClientFactory):
         headers = {}
 
         if url in self.cache:
-            if 'last-modified' in self.cache[url]:
+            if 'etag' in self.cache[url]:
+                headers['etag'] = self.cache[url]['etag']
+            elif 'last-modified' in self.cache[url]:
                 headers['if-modified-since'] = self.cache[url]['last-modified']
             elif 'date' in self.cache[url]:
                 headers['if-modified-since'] = self.cache[url]['date']
@@ -158,24 +167,52 @@ def getPageCached(url, contextFactory=None, *args, **kwargs):
         reactor.connectTCP(host, port, factory)
 
     return factory.deferred
-
-class torExitNodeList(set):
-    def __init__(self, refreshPeriod):
+    
+class fileList(set):
+    def __init__(self, filename):
         set.__init__(self)
+        self.filename = filename
+       
+        self.load()
+       
+    def load(self):
+        """
+        Load the list from the specified file.
+        """
+        self.clear()
+        
+        #simple touch to create non existent files
+        open(self.filename, 'a').close()
+
+        fh = open(self.filename, 'r')
+        for l in fh.readlines():
+            self.add(re.split("#", l)[0].rstrip("[ , \n,\t]"))
+        fh.close()
+
+    def dump(self):
+        """
+        Dump the list to the specified file.
+        """
+        fh = open(self.filename, 'w')
+        for l in self:
+           fh.write(l + "\n")
+        fh.close()
+    
+class updateFileList(fileList):
+    def __init__(self, filename, url, refreshPeriod):
+        fileList.__init__(self, filename)
+        self.url = url
         self.lc = LoopingCall(self.update)
         self.lc.start(refreshPeriod)
 
     def processData(self, data, d):
         if(len(data) != 0):
             try:
-                data = json.loads(data)
+                self.handleData(data)
             except:
                 d.callback(False)
-
-            self.clear()
-            for relay in data['relays']:
-                for ip in relay['a']:
-                    self.add(ip)
+          
+            self.dump()
 
         d.callback(True)
 
@@ -184,7 +221,22 @@ class torExitNodeList(set):
 
     def update(self):
         update_finished = Deferred()
-        pageFetchedDeferred = getPageCached("https://onionoo.torproject.org/summary?type=relay")
+        pageFetchedDeferred = getPageCached(self.url)
         pageFetchedDeferred.addCallback(self.processData, update_finished)
         pageFetchedDeferred.addErrback(self.handleError, update_finished)
         return update_finished
+
+class torExitNodeList(updateFileList):
+    def handleData(self, data):
+        self.clear()
+        data = json.loads(data)
+        for relay in data['relays']:
+            for ip in relay['a']:
+                if(ip != ''):
+                    self.add(ip)
+
+class hashedBlockList(updateFileList):
+    def handleData(self, data):
+        for blockelem in data.split('\n'):
+            if(blockelem != ''):
+                self.add(blockelem)

@@ -31,7 +31,7 @@
 
 # -*- coding: utf-8 -*-
 
-from torExitNodes import torExitNodeList
+from fileList import fileList, updateFileList, hashedBlockList, torExitNodeList
 
 from twisted.python import log
 
@@ -91,50 +91,29 @@ class Tor2web(object):
 
         self.basehost = config.basehost
 
-        # Load Blocklists files
-        self.blocklist = self.load_filelist(config.blocklist_hashed)
+        # Construct blocklist merging local lists and upstram updates
         
-        itemlist = self.load_filelist(config.blocklist_cleartext)
-        for i in itemlist:
-            print i
-            print hashlib.md5(i).hexdigest()
-            self.blocklist.append(hashlib.md5(i).hexdigest())
-        
-        self.blocklist = set(self.blocklist) # eliminate duplicates
-        self.dump_filelist(config.blocklist_hashed, self.blocklist)
+        # schedule upstream updates
+        self.blocklist = hashedBlockList(config.blocklist_hashed,
+                                         "https://raw.github.com/globaleaks/Tor2web-3.0/master/lists/blocklist_hashed.txt",
+                                         60)
 
-        self.dump_filelist(config.blocklist_cleartext, [])
+        # clear local cleartext list (load -> hash -> clear feature; for security reasons)                                        
+        self.blocklist_cleartext = fileList(config.blocklist_cleartext)
+        for i in self.blocklist_cleartext:
+            self.blocklist.add(hashlib.md5(i).hexdigest())
+        self.blocklist_cleartext.clear()
+        self.blocklist_cleartext.dump()
 
-        self.blocked_ua = self.load_filelist(config.blocked_ua)
+        self.blocked_ua = fileList(config.blocked_ua)
 
         # Load banner template that will be injected in HTML pges
         self.banner = open(config.bannerfile, 'r').read()
         
         # Load Exit Nodes list with the refresh rate configured  in config file
-        self.TorExitNodes = torExitNodeList(config.exit_nodes_list_refresh)
-
-    def load_filelist(self, filename):
-        """
-        Load the list from the specified file.
-        """
-        entrylist = []
-        fh = open(filename, 'r')
-        for l in fh.readlines():
-            entrylist.append(re.split("#", l)[0].rstrip("[ , \n,\t]"))
-        fh.close()
-
-        return entrylist
-
-    def dump_filelist(self, filename, listtodump):
-        """
-        Dump the list to the specified file.
-        """
-        fh = open(filename, 'w')
-        for l in listtodump:
-           fh.write(l + "\n")
-        fh.close()
-
-        return True
+        self.TorExitNodes = torExitNodeList(config.exit_node_list,
+                                            "https://onionoo.torproject.org/summary?type=relay",
+                                            config.exit_node_list_refresh)
 
     def petname_lookup(self, obj, address):
         """
