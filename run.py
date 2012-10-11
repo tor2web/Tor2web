@@ -516,14 +516,18 @@ class T2WRequest(proxy.ProxyRequest):
                 if not t2w.process_request(self.obj, request):
                     return self.error(self.obj.error['code'], self.obj.error['template'])
 
-                parsed = urlparse.urlparse(self.obj.address)
-                protocol = parsed[0]
-                host = parsed[1]
-                if ':' in host:
-                    host, port = host.split(":")
-                    port = int(port)
-                else:
-                    port = self.ports[protocol]
+                try:
+                    parsed = urlparse.urlparse(self.obj.address)
+                    protocol = parsed[0]
+                    host = parsed[1]
+                    if ':' in host:
+                        host, port = host.split(":")
+                        port = int(port)
+                    else:
+                        port = self.ports[protocol]
+
+                except:
+                    return self.error(400, "error_invalid_hostname.xml")
 
                 self.rest = urlparse.urlunparse(('', '') + parsed[2:])
                 if not self.rest:

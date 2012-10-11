@@ -145,13 +145,8 @@ class Tor2web(object):
         or in the x.<tor2web_domain>.<tld>/<onion_url>.onion/ format.
         """
         # Detect x.tor2web.org use mode
-        log.msg("resolving: %s" % host)
-        if host.split(".")[0] == "x":
-            obj.hostname = self.petname_lookup(obj, uri.split("/")[1])
-            log.msg("detected x.tor2web Hostname: %s" % obj.hostname)
-        else:
-            obj.hostname = self.petname_lookup(obj, host.split(".")[0]) + ".onion"
-            log.msg("detected <onion_url>.tor2web Hostname: %s" % obj.hostname)
+        obj.hostname = self.petname_lookup(obj, host.split(".")[0]) + ".onion"
+        log.msg("detected <onion_url>.tor2web Hostname: %s" % obj.hostname)
 
         try:
             if self.verify_onion(obj, obj.hostname):
