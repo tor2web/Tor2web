@@ -98,9 +98,7 @@ class Tor2web(object):
         # Construct blocklist merging local lists and upstram updates
         
         # schedule upstream updates
-        self.blocklist = hashedBlockList(config.blocklist_hashed,
-                                         "https://raw.github.com/globaleaks/Tor2web-3.0/master/lists/blocklist_hashed.txt",
-                                         0)
+        self.blocklist = hashedBlockList(config.blocklist_hashed)
 
         # clear local cleartext list (load -> hash -> clear feature; for security reasons)                                        
         self.blocklist_cleartext = fileList(config.blocklist_cleartext)

@@ -199,7 +199,7 @@ class fileList(set):
         fh.close()
     
 class updateFileList(fileList):
-    def __init__(self, filename, url, refreshPeriod):
+    def __init__(self, filename, url='', refreshPeriod=0):
         fileList.__init__(self, filename)
         self.url = url
         if refreshPeriod != 0:
