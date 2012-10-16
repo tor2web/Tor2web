@@ -100,7 +100,7 @@ class Tor2web(object):
         # schedule upstream updates
         self.blocklist = hashedBlockList(config.blocklist_hashed,
                                          "https://raw.github.com/globaleaks/Tor2web-3.0/master/lists/blocklist_hashed.txt",
-                                         60)
+                                         0)
 
         # clear local cleartext list (load -> hash -> clear feature; for security reasons)                                        
         self.blocklist_cleartext = fileList(config.blocklist_cleartext)

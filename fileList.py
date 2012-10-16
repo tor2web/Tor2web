@@ -202,8 +202,9 @@ class updateFileList(fileList):
     def __init__(self, filename, url, refreshPeriod):
         fileList.__init__(self, filename)
         self.url = url
-        self.lc = LoopingCall(self.update)
-        self.lc.start(refreshPeriod)
+        if refreshPeriod != 0:
+            self.lc = LoopingCall(self.update)
+            self.lc.start(refreshPeriod)
 
     def processData(self, data, d):
         if(len(data) != 0):
