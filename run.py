@@ -31,7 +31,7 @@
 
 # -*- coding: utf-8 -*-
 
-from config import Config
+from config import config
 from tor2web import Tor2web, Tor2webObj
 from storage import Storage
 from templating import ErrorTemplate, PageTemplate
@@ -51,6 +51,7 @@ from twisted.python.logfile import DailyLogFile
 import os
 import sys
 import traceback
+import copy
 
 import re
 import urlparse
@@ -63,8 +64,6 @@ from StringIO import StringIO
 
 from socksclient import SOCKSv5ClientFactory, SOCKSWrapper
 from OpenSSL import SSL
-
-config = Config("main")
 
 t2w = Tor2web(config)
 
@@ -432,13 +431,11 @@ class T2WRequest(proxy.ProxyRequest):
             else:
                 request.resourceislocal = request.uri.startswith(self.staticmap)
 
+            if not t2w.verify_hostname(self.obj, request.host, request.uri):
+                return self.error(self.obj.error['code'], self.obj.error['template'])
+
             if not request.resourceislocal:
                 # we need to validate the request to avoid useless processing
-                if not request.host:
-                    return self.error(400, "error_invalid_hostname.xml")
-            
-                if not t2w.verify_hostname(self.obj, request.host, request.uri):
-                    return self.error(self.obj.error['code'], self.obj.error['template'])
 
                 # we need to verify if the user is using tor;
                 # on this condition it's better to redirect on the .onion             
@@ -472,13 +469,16 @@ class T2WRequest(proxy.ProxyRequest):
 
             if request.headers.get('connection') != None:
                 if re.search('keep-alive', request.headers.get('connection')):
-                    self.obj.client_supports_keepalive = True                  
+                    self.obj.client_supports_keepalive = True
+
+            if not t2w.process_request(self.obj, request):
+                    return self.error(self.obj.error['code'], self.obj.error['template'])
             
             # 2: Content delivery stage
             if request.resourceislocal:
                 # the requested resource is local, we deliver it directly
                 try:
-                    staticpath = request.uri
+                    staticpath = self.obj.uri
                     staticpath = re.sub('\/$', '/index.html', staticpath)
                     staticpath = re.sub('^('+self.staticmap+')?', '', staticpath)
                     staticpath = re.sub('^/', '', staticpath)
@@ -489,7 +489,9 @@ class T2WRequest(proxy.ProxyRequest):
                             self.setHeader('content-type', mimetypes.types_map[ext])
                             content = antanistaticmap[staticpath]
                         elif type(antanistaticmap[staticpath]) == PageTemplate:
-                            return flattenString(None, antanistaticmap[staticpath]).addCallback(self.contentFinish)
+                            template = copy.copy(antanistaticmap[staticpath])
+                            template.set_obj(self.obj)
+                            return flattenString(None, template).addCallback(self.contentFinish)
                     elif staticpath.startswith("notification"):
                         if 'by' in self.args and 'url' in self.args and 'comment' in self.args:
                             message = ""
@@ -513,8 +515,6 @@ class T2WRequest(proxy.ProxyRequest):
 
             else:
                 # the requested resource is remote, we act as proxy
-                if not t2w.process_request(self.obj, request):
-                    return self.error(self.obj.error['code'], self.obj.error['template'])
 
                 try:
                     parsed = urlparse.urlparse(self.obj.address)

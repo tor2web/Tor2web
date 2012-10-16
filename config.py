@@ -31,6 +31,8 @@
 
 # -*- coding: utf-8 -*-
 
+from fileList import fileList
+
 from storage import Storage
 import ConfigParser
 
@@ -85,3 +87,4 @@ class Config(Storage):
         finally:
             cfgfile.close()
 
+config = Config("main")

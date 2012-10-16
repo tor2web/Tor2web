@@ -31,6 +31,7 @@
 
 # -*- coding: utf-8 -*-
 
+from templating import ErrorTemplate, PageTemplate, Template
 from fileList import fileList, updateFileList, hashedBlockList, torExitNodeList
 
 from twisted.python import log
@@ -90,6 +91,9 @@ class Tor2web(object):
         self.config = config
 
         self.basehost = config.basehost
+        
+        # Load banner template that will be injected in HTML pges
+        self.banner = open("templates/header.xml", 'r').read()
 
         # Construct blocklist merging local lists and upstram updates
         
@@ -107,9 +111,6 @@ class Tor2web(object):
 
         self.blocked_ua = fileList(config.blocked_ua)
 
-        # Load banner template that will be injected in HTML pges
-        self.banner = open(config.bannerfile, 'r').read()
-        
         # Load Exit Nodes list with the refresh rate configured  in config file
         self.TorExitNodes = torExitNodeList(config.exit_node_list,
                                             "https://onionoo.torproject.org/summary?type=relay",
@@ -141,10 +142,12 @@ class Tor2web(object):
     def verify_hostname(self, obj, host, uri):
         """
         Resolve the supplied request to a hostname.
-        Hostnames are accepted in the <onion_url>.<tor2web_domain>.<tld>/
-        or in the x.<tor2web_domain>.<tld>/<onion_url>.onion/ format.
+        Hostnames are accepted in the <onion_url>.<tor2web_domain>.<tld>/ format
         """
-        # Detect x.tor2web.org use mode
+        if not host:
+            obj.error = {'code': 400, 'template': 'error_invalid_hostname.xml'}
+            return False
+        
         obj.hostname = self.petname_lookup(obj, host.split(".")[0]) + ".onion"
         log.msg("detected <onion_url>.tor2web Hostname: %s" % obj.hostname)
 

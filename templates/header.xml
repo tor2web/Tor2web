@@ -1,4 +1,4 @@
-<div xmlns:t="http://twistedmatrix.com/ns/twisted.web.template/0.1">
+<div>
 <script type="text/javascript" src="/antanistaticmap/tor2web.js"></script>
 <style type="text/css">
 @import url(/antanistaticmap/tor2web.css);
@@ -10,9 +10,11 @@
       <a href="https://www.tor2web.org"><img src="/antanistaticmap/tor2web-small.png" alt="tor2web logo" /></a>
     </div>
     <div id="tor2web_disclaimer">
-      <div><b>Tor2web does not host this content.</b> we are simply a conduit connecting Internet users to content hosted inside <a href="https://www.torproject.org/docs/hidden-services.html.en">the Tor network</a>.</div>
-      <div>If you have concerns with this content, please send us an <a href="javascript:show_hide_notification_form()">abuse notice</a>. Please also send us your <a href="javascript:show_hide_notification_form()">feedback</a>.</div>
-      For more informations please refer to <a href="/antanistaticmap/tos.html">Tor2Web Terms of Services</a>
+    <div><b>tor2web.org does not host this content</b>; we are simply a conduit connecting Internet users to content hosted inside <a href="https://www.torproject.org/docs/hidden-services.html.en">the Tor network.</a></div>
+<div>To obtain anonymity, you are strongly advised to <a href="https://www.torproject.org/download/">download the Tor Browser Bundle</a> and access this content over Tor.</div>
+      <div>Please send us your <a href="javascript:show_hide_notification_form()">feedback</a> and if you have concerns with this content, send us an <a href="javascript:show_hide_notification_form()">abuse notice</a>.</div>
+      <div>For more informations please refer to <a href="/antanistaticmap/tos.html">Tor2Web Terms of Services.</a></div>
+      <div>This page is also reachable on the following domain: <a href="https://tor2web.blutmagie.de/">tor2web.blutmagie.de</a>.</div>
     </div>
     <div id="tor2web_notification_form">
       <fieldset>
