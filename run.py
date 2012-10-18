@@ -111,6 +111,7 @@ def MailException(etype, value, tb):
             except:
                 message += "<ERROR WHILE PRINTING VALUE>"
 
+    print message
     message = StringIO(message)
     sendmail(config.smtpuser, config.smtppass, config.smtpmail, config.smtpmailto_exceptions, message, config.smtpdomain, config.smtpport)
 
@@ -471,14 +472,11 @@ class T2WRequest(proxy.ProxyRequest):
                 if re.search('keep-alive', request.headers.get('connection')):
                     self.obj.client_supports_keepalive = True
 
-            if not t2w.process_request(self.obj, request):
-                    return self.error(self.obj.error['code'], self.obj.error['template'])
-            
             # 2: Content delivery stage
             if request.resourceislocal:
                 # the requested resource is local, we deliver it directly
                 try:
-                    staticpath = self.obj.uri
+                    staticpath = request.uri
                     staticpath = re.sub('\/$', '/index.html', staticpath)
                     staticpath = re.sub('^('+self.staticmap+')?', '', staticpath)
                     staticpath = re.sub('^/', '', staticpath)
@@ -489,9 +487,7 @@ class T2WRequest(proxy.ProxyRequest):
                             self.setHeader('content-type', mimetypes.types_map[ext])
                             content = antanistaticmap[staticpath]
                         elif type(antanistaticmap[staticpath]) == PageTemplate:
-                            template = copy.copy(antanistaticmap[staticpath])
-                            template.set_obj(self.obj)
-                            return flattenString(None, template).addCallback(self.contentFinish)
+                            return flattenString(None, antanistaticmap[staticpath]).addCallback(self.contentFinish)
                     elif staticpath.startswith("notification"):
                         if 'by' in self.args and 'url' in self.args and 'comment' in self.args:
                             message = ""
@@ -515,6 +511,9 @@ class T2WRequest(proxy.ProxyRequest):
 
             else:
                 # the requested resource is remote, we act as proxy
+
+                if not t2w.process_request(self.obj, request):
+                    return self.error(self.obj.error['code'], self.obj.error['template'])
 
                 try:
                     parsed = urlparse.urlparse(self.obj.address)

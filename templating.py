@@ -37,47 +37,15 @@ from fileList import fileList
 from twisted.web.template import Element, XMLString, renderer, tags
 from twisted.python.filepath import FilePath
 
-import random
-
-domains = fileList('lists/domains.txt')
-
-try:
-    domains.remove(config.basehost)
-except:
-    pass
-
-
 class Template(Element):
     def __init__(self, template):
         self.template = template
         self.loader = XMLString(FilePath("templates/"+self.template).getContent())
-        self.rdu = random.choice(domains) if domains else None
-
-    def set_obj(self, obj):
-        self.obj = obj
-
-    @renderer
-    def hostname(self, request, tag):
-        return tag('%s' % config.basehost)
-
-    @renderer
-    def random_domain_name(self, request, tag):
-        return tag('%s' % self.rdn)
-
-    @renderer
-    def random_domain(self, request, tag):
-        if self.rdu:
-            return tag.fillSlots(
-                random_domain_url="https://"+self.rdu+self.obj.uri)
-        else:
-            return tag
 
 class PageTemplate(Template):
     @renderer
     def header(self, request, tag):
-        header = PageTemplate("header.xml")
-        header.set_obj(self.obj)
-        return header
+        yield PageTemplate("header.xml")
 
 class ErrorTemplate(PageTemplate):
     def __init__(self, error, errortemplate=None):

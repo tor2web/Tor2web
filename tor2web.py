@@ -185,6 +185,8 @@ class Tor2web(object):
  
         # Clean up the uri
         uri = self.get_uri(obj, req)
+
+        print obj.hostname
    
         if hashlib.md5(obj.hostname).hexdigest() in self.blocklist:
             obj.error = {'code': 403, 'template': 'error_hs_completely_blocked.xml'}
