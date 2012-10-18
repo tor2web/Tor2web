@@ -51,8 +51,8 @@ class Template(Element):
     def __init__(self, template):
         self.template = template
         self.loader = XMLString(FilePath("templates/"+self.template).getContent())
-        self.rdn = random.sample(domains, 1)[0]
-        self.rdu = self.rdn
+#        self.rdn = random.sample(domains, 1)[0]
+#        self.rdu = self.rdn
 
     def set_obj(self, obj):
         self.obj = obj 
