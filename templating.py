@@ -51,11 +51,10 @@ class Template(Element):
     def __init__(self, template):
         self.template = template
         self.loader = XMLString(FilePath("templates/"+self.template).getContent())
-#        self.rdn = random.sample(domains, 1)[0]
-#        self.rdu = self.rdn
+        self.rdu = random.choice(domains) if domains else None
 
     def set_obj(self, obj):
-        self.obj = obj 
+        self.obj = obj
 
     @renderer
     def hostname(self, request, tag):
@@ -67,8 +66,11 @@ class Template(Element):
 
     @renderer
     def random_domain(self, request, tag):
-        tag.fillSlots(random_domain_url="https://"+self.rdu+self.obj.uri)
-        return tag
+        if self.rdu:
+            return tag.fillSlots(
+                random_domain_url="https://"+self.rdu+self.obj.uri)
+        else:
+            return tag
 
 class PageTemplate(Template):
     @renderer
