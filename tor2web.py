@@ -104,6 +104,9 @@ class Tor2web(object):
         self.blocklist_cleartext = fileList(config.blocklist_cleartext)
         for i in self.blocklist_cleartext:
             self.blocklist.add(hashlib.md5(i).hexdigest())
+
+        self.blocklist.dump()
+
         self.blocklist_cleartext.clear()
         self.blocklist_cleartext.dump()
 

@@ -174,7 +174,7 @@ class fileList(set):
         self.filename = filename
        
         self.load()
-       
+
     def load(self):
         """
         Load the list from the specified file.
