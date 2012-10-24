@@ -74,7 +74,20 @@ fi
 #
 # Function that starts the daemon/service
 #
-do_start()
+
+do_tor_start()
+{
+    echo "Checking Tor Status..."
+    /etc/init.d/tor status
+    RETVAL=$?
+    if [ $RETVAL -ne 0 ]; then
+        echo "Starting Tor..."
+        /etc/init.d/tor start
+        echo "started."    
+    fi
+}
+
+do_t2w_start()
 {
     if [ -n "$MAX_FILEDESCRIPTORS" ]; then
         echo -n "Raising maximum number of filedescriptors (ulimit -n) to $MAX_FILEDESCRIPTORS"
@@ -84,15 +97,6 @@ do_start()
             echo ": FAILED."
         fi
     fi
-
-
-    # Return
-    #   0 if daemon has been started
-    #   1 if daemon was already running
-    #   2 if daemon could not be started
-    echo "Starting Tor..."
-    /etc/init.d/tor start
-    echo "started."    
 
     # Check to see if the daemon is already running.
     echo "Starting Tor2web..."
@@ -111,10 +115,23 @@ do_start()
     echo "started."
 }
 
+do_start()
+{
+    do_tor_start
+    do_t2w_start
+}
+
 #
 # Function that stops the daemon/service
 #
-do_stop()
+do_tor_stop()
+{
+    echo "Stopping Tor..."
+    /etc/init.d/tor stop
+    echo "stopped."
+}
+
+do_t2w_stop()
 {
     # Return
     #   0 if daemon has been stopped
@@ -135,23 +152,22 @@ do_stop()
     # Many daemons don't delete their pidfiles when they exit.
     rm -f ${DAEMON_DIR}/${DAEMON_PIDFILE}
 
-    echo "Stopping Tor..."
-    /etc/init.d/tor stop
-    echo "stopped."
-
     return "$RETVAL"
 }
 
+do_stop()
+{
+    do_t2w_stop
+    do_tor_stop
+}
+
 #
-# Function that sends a SIGHUP to the daemon/service
+# Function that restart tor2web
 #
-do_reload() {
-    #
-    # If the daemon can reload its configuration without
-    # restarting (for example, when it is sent a SIGHUP),
-    # then implement that here.
-    #
-    start-stop-daemon --stop --signal 1 --quiet --pidfile ${DAEMON_DIR}/${DAEMON_PIDFILE}
+do_restart() {
+    do_t2w_stop
+    do_tor_start
+    do_t2w_start
     return 0
 }
 
@@ -210,21 +226,7 @@ case "$1" in
 	# 'force-reload' alias
 	#
 	log_daemon_msg "Restarting $DESC" "$NAME"
-	do_stop
-	case "$?" in
-	  0|1)
-		do_start
-		case "$?" in
-			0) log_end_msg 0 ;;
-			1) log_end_msg 1 ;; # Old process is still running
-			*) log_end_msg 1 ;; # Failed to start
-		esac
-		;;
-	  *)
-	  	# Failed to stop
-		log_end_msg 1
-		;;
-	esac
+	do_restart
 	;;
   *)
 	echo "Usage: $SCRIPTNAME {start|stop|status|restart|force-reload}" >&2
