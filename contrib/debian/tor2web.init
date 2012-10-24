@@ -95,15 +95,20 @@ do_start()
     echo "started."    
 
     # Check to see if the daemon is already running.
-    start-stop-daemon --stop --test --quiet --pidfile ${DAEMON_DIR}/${DAEMON_PIDFILE} \
-        && echo "Tor2web already running" && return 1
-
     echo "Starting Tor2web..."
     start-stop-daemon --start --quiet --pidfile ${DAEMON_DIR}/${DAEMON_PIDFILE} \
-        --background --exec $DAEMON --chdir $DAEMON_DIR -- $DAEMON_ARGS \
-        || return 2
+        --exec $DAEMON --chdir $DAEMON_DIR -- $DAEMON_ARGS
+    RETVAL=$?
+    if [ $RETVAL -eq 1 ]; then
+        echo "already running"
+        return 1
+    fi
+
+    if [ $RETVAL -eq 255 ]; then
+        echo "couldn't start"
+        return 2
+    fi
     echo "started."
-    return 0;
 }
 
 #
@@ -119,10 +124,16 @@ do_stop()
 
     echo "Stopping Tor2web..."
     start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --pidfile ${DAEMON_DIR}/${DAEMON_PIDFILE}
+
     RETVAL=$?
+    if [ $RETVAL -eq 1 ]; then
+        echo "not running"
+    else
+        echo "stopped."
+    fi
+
     # Many daemons don't delete their pidfiles when they exit.
     rm -f ${DAEMON_DIR}/${DAEMON_PIDFILE}
-    echo "stopped."
 
     echo "Stopping Tor..."
     /etc/init.d/tor stop
