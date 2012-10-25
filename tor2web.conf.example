@@ -19,7 +19,7 @@ socksport = 9050
 sslkeyfile = certs/tor2web_key_test.key
 sslcertfile = certs/tor2web-intermediate_cert_test.pem
 ssldhfile = certs/tor2web_dh_test.pem
-cipher_list = DHE-RSA-AES256-SHA:DHE-DSS-AES256-SHA:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA
+cipher_list = DHE-RSA-AES256-SHA:DHE-DSS-AES256-SHA:RC4-SHA:RC4-MD5
 
 bannerfile = templates/header.xml
 staticmap = antanistaticmap

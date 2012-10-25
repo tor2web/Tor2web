@@ -432,11 +432,11 @@ class T2WRequest(proxy.ProxyRequest):
             else:
                 request.resourceislocal = request.uri.startswith(self.staticmap)
 
-            if not t2w.verify_hostname(self.obj, request.host, request.uri):
-                return self.error(self.obj.error['code'], self.obj.error['template'])
-
             if not request.resourceislocal:
                 # we need to validate the request to avoid useless processing
+                
+                if not t2w.verify_hostname(self.obj, request.host, request.uri):
+                    return self.error(self.obj.error['code'], self.obj.error['template'])
 
                 # we need to verify if the user is using tor;
                 # on this condition it's better to redirect on the .onion             
@@ -463,7 +463,6 @@ class T2WRequest(proxy.ProxyRequest):
             self.setHeader('strict-transport-security', 'max-age=31536000') 
 
             # 1: Client capability assesment stage
-
             if request.headers.get('accept-encoding') != None:
                 if re.search('gzip', request.headers.get('accept-encoding')):
                     self.obj.client_supports_gzip = True
