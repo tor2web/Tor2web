@@ -409,6 +409,12 @@ class T2WRequest(proxy.ProxyRequest):
             request.host = request.headers.get('host')
             request.uri = self.uri
             request.resourceislocal = False
+            
+            # we serve contents only over https
+            if not self.isSecure():
+                self.redirect("https://" + self.getRequestHostname() + request.uri)
+                self.finish()
+                return
 
             # 0: Request admission control stage
             # firstly we try to instruct spiders that honour robots.txt that we don't want to get indexed
@@ -453,12 +459,6 @@ class T2WRequest(proxy.ProxyRequest):
                     # Avoid image hotlinking
                     if request.headers.get('referer') == None or not config.basehost in request.headers.get('referer').lower():
                         return self.error(403)
-
-            # we serve contents only over https
-            if not self.isSecure():
-                self.redirect("https://" + self.getRequestHostname() + request.uri)
-                self.finish()
-                return
 
             self.setHeader('strict-transport-security', 'max-age=31536000') 
 
