@@ -111,7 +111,6 @@ def MailException(etype, value, tb):
             except:
                 message += "<ERROR WHILE PRINTING VALUE>"
 
-    print message
     message = StringIO(message)
     sendmail(config.smtpuser, config.smtppass, config.smtpmail, config.smtpmailto_exceptions, message, config.smtpdomain, config.smtpport)
 
@@ -398,7 +397,8 @@ class T2WRequest(proxy.ProxyRequest):
         return flattenString(None, ErrorTemplate(error, errortemplate)).addCallback(self.contentFinish)
         
     def sockserror(self, err):
-        self.error(err.value.code, err.value.template)
+        self.setResponseCode(501)
+        return flattenString(None, ErrorTemplate(error, errortemplate)).addCallback(self.contentFinish)
 
     def process(self):
         try:
@@ -530,14 +530,15 @@ class T2WRequest(proxy.ProxyRequest):
                 self.rest = urlparse.urlunparse(('', '') + parsed[2:])
                 if not self.rest:
                     self.rest = "/"
+
+                socksendpoint = endpoints.TCP4ClientEndpoint(reactor, config.sockshost, config.socksport)
                 
-                class_ = self.protocols[protocol]
-
                 dest = client._parse(self.obj.address) # scheme, host, port, path
+                finalendpoint = endpoints.TCP4ClientEndpoint(reactor, dest[1], dest[2])
 
-                endpoint = endpoints.TCP4ClientEndpoint(reactor, dest[1], dest[2])
-                wrapper = SOCKSWrapper(reactor, config.sockshost, config.socksport, endpoint)
-                f = class_(self.method, self.rest, self.clientproto, self.obj.headers, content, self, self.obj)
+                wrapper = SOCKSWrapper(reactor, socksendpoint, finalendpoint)
+                f = self.protocols[protocol](self.method, self.rest, self.clientproto, self.obj.headers, content, self, self.obj)
+
                 d = wrapper.connect(f)
                 d.addErrback(self.sockserror)
 
