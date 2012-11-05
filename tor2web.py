@@ -53,6 +53,7 @@ rexp = {
 
 class Tor2webObj():
 
+    # The destination hidden service identifier
     onion = None
     
     # The path portion of the URI
@@ -69,11 +70,9 @@ class Tor2webObj():
     
     error = {}
     
-    client_supports_keepalive = False
     client_supports_chunked = False
     client_supports_gzip = False
 
-    server_response_is_keepalive = False
     server_response_is_chunked = False
     server_response_is_gzip = False
     
@@ -117,16 +116,6 @@ class Tor2web(object):
                                             "https://onionoo.torproject.org/summary?type=relay",
                                             config.exit_node_list_refresh)
 
-    def petname_lookup(self, obj, address):
-        """
-        Do a lookup in the local database
-        for an entry in the petname db.
-
-        :address the address to lookup
-        """
-
-        return address
-
     def verify_onion(self, obj, address):
         """
         Check to see if the address is a .onion.
@@ -149,7 +138,7 @@ class Tor2web(object):
             obj.error = {'code': 400, 'template': 'error_invalid_hostname.xml'}
             return False
         
-        obj.hostname = self.petname_lookup(obj, host.split(".")[0]) + ".onion"
+        obj.hostname = host.split(".")[0] + ".onion"
         log.msg("detected <onion_url>.tor2web Hostname: %s" % obj.hostname)
 
         try:
@@ -162,49 +151,33 @@ class Tor2web(object):
 
         return False
 
-    def get_uri(self, obj, req):
-        """
-        Obtain the URI part of the request.
-        This is non-trivial when the x.tor2web format is being used.
-        In that case we need to remove the .onion from the requested
-        URI and return the part after .onion.
-        """
-        obj.uri = req.uri
-
-        log.msg("URI: %s" % obj.uri)
-
-        return obj.uri
-
     def get_address(self, obj, req):
         """
-        Returns the address of the request to be
-        made of the Tor Network to contact the Tor
-        Hidden Service.
-        returns a string being http://<some>.onion/<URI>
+        Returns the address of the request to be made on the Tor Network
+        to contact the Tor Hidden Service.
+        
+        the return address format is: http://<some>.onion/<URI>
         """
  
-        # Clean up the uri
-        uri = self.get_uri(obj, req)
-
-        print obj.hostname
+        obj.uri = req.uri
+        log.msg("URI: %s" % obj.uri)
    
         if hashlib.md5(obj.hostname).hexdigest() in self.blocklist:
             obj.error = {'code': 403, 'template': 'error_hs_completely_blocked.xml'}
             return False
 
-        if hashlib.md5(obj.hostname + uri).hexdigest() in self.blocklist:
+        if hashlib.md5(obj.hostname + obj.uri).hexdigest() in self.blocklist:
             obj.error = {'code': 403, 'template': 'error_hs_specific_page_blocked.xml'}
             return False
 
         # When connecting to HS use only HTTP
-        obj.address = "http://" + obj.hostname + uri
+        obj.address = "http://" + obj.hostname + obj.uri
 
         return True
 
     def process_request(self, obj, req):
         """
-        Set the proper headers, "resolve" the address
-        and return a result object.
+        Set the proper headers, "resolve" the address  and return a result object.
         """
         log.msg(req)
         
@@ -217,12 +190,9 @@ class Tor2web(object):
         log.msg(obj.headers)
 
         obj.headers.update({'X-tor2web':'encrypted'})
-
         obj.headers.update({'connection':'close'})
-
         obj.headers.update({'accept-encoding':'gzip, chunked'})
-
-        obj.headers['host'] = obj.hostname
+        obj.headers.update({'host': obj.hostname})
 
         log.msg("Headers after fix:")
         log.msg(obj.headers)
@@ -285,17 +255,12 @@ class Tor2web(object):
 
     def fix_links(self, obj, data):
         """
-        Fix links in the result from HS to properly resolve to be pointing to
-        blabla.tor2web.org or x.tor2web.org.
+        Fix links in the result from HS
 
-        Examples:
-        when visiting x.tor2web.org
-        /something -> /<onion_url>.onion/something
-        <other_onion_url>.onion/something/ -> /<other_onion_url>.onion/something
-
-        when visiting <onion_url>.tor2web.org
-        /something -> /something
-        <other_onion_url>/something -> <other_onion_url>.tor2web.org/something
+        example:        
+            when visiting <onion_url>.tor2web.org
+            /something -> /something
+            <onion_url>/something -> <onion_url>.tor2web.org/something
         """
         link = self.fix_link(obj, data.group(1))
 

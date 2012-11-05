@@ -37,7 +37,7 @@ from storage import Storage
 from templating import ErrorTemplate, PageTemplate
 
 from twisted.mail.smtp import ESMTPSenderFactory
-from twisted.internet import ssl, reactor, endpoints
+from twisted.internet import ssl, reactor
 from twisted.internet.ssl import ClientContextFactory, DefaultOpenSSLContextFactory
 from twisted.internet.defer import Deferred
 from twisted.application import service, internet
@@ -117,7 +117,6 @@ def MailException(etype, value, tb):
 def sendmail(authenticationUsername, authenticationSecret, fromAddress, toAddress, messageFile, smtpHost, smtpPort=25):
     """
     """
-
     contextFactory = ClientContextFactory()
     contextFactory.method = SSL.SSLv3_METHOD
 
@@ -160,6 +159,8 @@ class T2WSSLContextFactory(DefaultOpenSSLContextFactory):
         self.cacheContext()
 
     def cacheContext(self):
+        """
+        """
         if self._context is None:
             ctx = SSL.Context(self.sslmethod)
             # Disallow SSLv2! It's insecure!
@@ -171,9 +172,9 @@ class T2WSSLContextFactory(DefaultOpenSSLContextFactory):
             self._context = ctx
 
 class T2WProxyClient(proxy.ProxyClient):
-    """
-    """
     def __init__(self, command, rest, version, headers, data, father, obj):
+        """
+        """
         self.father = father
         self.command = command
         self.rest = rest
@@ -182,7 +183,6 @@ class T2WProxyClient(proxy.ProxyClient):
 
         self.obj = obj
         self.bf = []
-        contenttype = 'unknown'
         self.html = False
         self.location = False
         self.decoderChunked = None        
@@ -192,7 +192,6 @@ class T2WProxyClient(proxy.ProxyClient):
         self.startedWriting = False
 
     def handleHeader(self, key, value):
-
         keyLower = key.lower()
         valueLower = value.lower()
 
@@ -218,9 +217,7 @@ class T2WProxyClient(proxy.ProxyClient):
         elif keyLower == 'cache-control':
             return
 
-        elif keyLower == 'connection' and valueLower == 'keep-alive':
-            self.obj.server_supports_keepalive = True
-            return
+
         
         proxy.ProxyClient.handleHeader(self, key, value)
 
@@ -353,6 +350,8 @@ class T2WProxyClient(proxy.ProxyClient):
         self.handleResponseEnd()
  
 class T2WProxyClientFactory(proxy.ProxyClientFactory):
+    """
+    """
     protocol = T2WProxyClient
     
     def __init__(self, command, rest, version, headers, data, father, obj):
@@ -398,7 +397,7 @@ class T2WRequest(proxy.ProxyRequest):
         
     def sockserror(self, err):
         self.setResponseCode(501)
-        return flattenString(None, ErrorTemplate(error, errortemplate)).addCallback(self.contentFinish)
+        return flattenString(None, ErrorTemplate(err.value.code, errortemplate)).addCallback(self.contentFinish)
 
     def process(self):
         try:
@@ -467,10 +466,6 @@ class T2WRequest(proxy.ProxyRequest):
                 if re.search('gzip', request.headers.get('accept-encoding')):
                     self.obj.client_supports_gzip = True
 
-            if request.headers.get('connection') != None:
-                if re.search('keep-alive', request.headers.get('connection')):
-                    self.obj.client_supports_keepalive = True
-
             # 2: Content delivery stage
             if request.resourceislocal:
                 # the requested resource is local, we deliver it directly
@@ -530,16 +525,14 @@ class T2WRequest(proxy.ProxyRequest):
                 self.rest = urlparse.urlunparse(('', '') + parsed[2:])
                 if not self.rest:
                     self.rest = "/"
-
-                socksendpoint = endpoints.TCP4ClientEndpoint(reactor, config.sockshost, config.socksport)
                 
                 dest = client._parse(self.obj.address) # scheme, host, port, path
-                finalendpoint = endpoints.TCP4ClientEndpoint(reactor, dest[1], dest[2])
+                
+                wrapper = SOCKSWrapper(reactor, config.sockshost, config.socksport)
 
-                wrapper = SOCKSWrapper(reactor, socksendpoint, finalendpoint)
                 f = self.protocols[protocol](self.method, self.rest, self.clientproto, self.obj.headers, content, self, self.obj)
 
-                d = wrapper.connect(f)
+                d = wrapper.connect(f, dest[1], dest[2])
                 d.addErrback(self.sockserror)
 
                 return NOT_DONE_YET
@@ -554,19 +547,11 @@ class T2WProxy(http.HTTPChannel):
 class T2WProxyFactory(http.HTTPFactory):
     protocol = T2WProxy
 
-    def __init__(self):
-        """Initialize.
-        """
-        http.HTTPFactory.__init__(self, logPath=config.accesslogpath)
-        self.sessions = {}
-        self.resource = resource
-
     def _openLogFile(self, path):
         """
         Override in subclasses, e.g. to use twisted.python.logfile.
         """
-        f = DailyLogFile.fromFullPath(path)
-        return f
+        return DailyLogFile.fromFullPath(path)
 
     def log(self, request):
         """
@@ -601,7 +586,7 @@ for file in files:
 
 antanistaticmap['tos.html'] = PageTemplate('tos.xml')
 
-factory = T2WProxyFactory()
+factory = T2WProxyFactory(config.accesslogpath)
 
 service_https = startTor2webHTTPS(t2w, factory)
 service_https.setServiceParent(application)
