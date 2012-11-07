@@ -31,24 +31,26 @@
 
 # -*- coding: utf-8 -*-
 
+import socket
+import struct
+
+from zope.interface import implements
 from twisted.internet import defer
 from twisted.internet.interfaces import IStreamClientEndpoint
 from twisted.internet.protocol import Protocol, ClientFactory
 from twisted.internet.endpoints import _WrappingFactory
-
-import socket
-import struct
-from zope.interface import implements
 
 SOCKS_errors = {\
     0x23: "error_socks_hs_not_found.xml",
     0x24: "error_socks_hs_not_reachable.xml"
 }
 
+
 class SOCKSError(Exception):
     def __init__(self, code, template):
         self.code = code
         self.template = template
+
 
 class SOCKSv5ClientProtocol(Protocol):
     factory = None
@@ -68,7 +70,10 @@ class SOCKSv5ClientProtocol(Protocol):
             return
             
         # Anonymous access allowed - let's issue connect
-        self.transport.write(struct.pack("!BBBBB", 5, 1, 0, 3, len(self.factory.postHandshakeHost)) + self.factory.postHandshakeHost + struct.pack("!H", self.factory.postHandshakePort))
+        self.transport.write(struct.pack("!BBBBB", 5, 1, 0, 3,
+                                         len(self.factory.postHandshakeHost)) + 
+                                         self.factory.postHandshakeHost +
+                                         struct.pack("!H", self.factory.postHandshakePort))
 
     def socks_state_2(self, data):
         if data[:2] != "\x05\x00":
@@ -98,10 +103,12 @@ class SOCKSv5ClientProtocol(Protocol):
         
         self.state = self.state + 1
 
+
 class SOCKSv5ClientFactory(ClientFactory):
     protocol = SOCKSv5ClientProtocol
     
-    def __init__(self, postHandshakeFactory, postHandshakeHost, postHandshakePort, handshakeDone):
+    def __init__(self, postHandshakeFactory,
+                 postHandshakeHost, postHandshakePort, handshakeDone):
         self.postHandshakeFactory = postHandshakeFactory
         self.postHandshakeHost = postHandshakeHost
         self.postHandshakePort = postHandshakePort
@@ -114,6 +121,7 @@ class SOCKSv5ClientFactory(ClientFactory):
         
     def clientConnectionFailed(self, connector, reason):
         self.handshakeDone.errback("connection to sock server failed")
+
 
 class SOCKSWrapper(object):
     implements(IStreamClientEndpoint)
@@ -128,7 +136,6 @@ class SOCKSWrapper(object):
         """
         Return a deferred firing when the SOCKS connection is established.
         """
-
         try:
             # Connect with an intermediate SOCKS factory/protocol,
             # which then hands control to the provided protocolFactory

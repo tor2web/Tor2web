@@ -31,18 +31,16 @@
 
 # -*- coding: utf-8 -*-
 
-from templating import ErrorTemplate, PageTemplate, Template
-from fileList import fileList, updateFileList, hashedBlockList, torExitNodeList
-
-from twisted.python import log
-
 import sys
 import hashlib
 import re
-
 from urlparse import urlparse
-
 from functools import partial
+
+from twisted.python import log
+
+from templating import ErrorTemplate, PageTemplate, Template
+from fileList import fileList, updateFileList, hashedBlockList, torExitNodeList
 
 rexp = {
     'href': re.compile(r'<[a-z]*\s*.*?\s*href\s*=\s*[\\\'"]?([a-z0-9/#:\-\.]*)[\\\'"]?\s*.*?>', re.I),
@@ -91,15 +89,16 @@ class Tor2web(object):
 
         self.basehost = config.basehost
         
-        # Load banner template that will be injected in HTML pges
+        # load banner template that will be injected in HTML pges
         self.banner = open("templates/header.xml", 'r').read()
 
-        # Construct blocklist merging local lists and upstram updates
+        # construct blocklist merging local lists and upstram updates
         
         # schedule upstream updates
         self.blocklist = hashedBlockList(config.blocklist_hashed)
 
-        # clear local cleartext list (load -> hash -> clear feature; for security reasons)                                        
+        # clear local cleartext list
+        # (load -> hash -> clear feature; for security reasons)                                        
         self.blocklist_cleartext = fileList(config.blocklist_cleartext)
         for i in self.blocklist_cleartext:
             self.blocklist.add(hashlib.md5(i).hexdigest())
@@ -131,8 +130,8 @@ class Tor2web(object):
 
     def verify_hostname(self, obj, host, uri):
         """
-        Resolve the supplied request to a hostname.
-        Hostnames are accepted in the <onion_url>.<tor2web_domain>.<tld>/ format
+        Resolve the supplied request to a HS.
+        HSs are accepted in the <onion_url>.<tor2web_domain>.<tld>/ format
         """
         if not host:
             obj.error = {'code': 400, 'template': 'error_invalid_hostname.xml'}
@@ -158,7 +157,6 @@ class Tor2web(object):
         
         the return address format is: http://<some>.onion/<URI>
         """
- 
         obj.uri = req.uri
         log.msg("URI: %s" % obj.uri)
    
@@ -177,7 +175,9 @@ class Tor2web(object):
 
     def process_request(self, obj, req):
         """
-        Set the proper headers, "resolve" the address  and return a result object.
+        This function:
+            - "resolves" the address;
+            - alters and sets the proper headers.
         """
         log.msg(req)
         
@@ -277,7 +277,7 @@ class Tor2web(object):
         """
         Process all the possible HTML tag attributes that may contain links.
         """
-        log.msg("processing url attributes")
+        log.msg("processing URL attributes")
 
         items = ['src', 'href', 'action']
         for item in items:

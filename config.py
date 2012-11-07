@@ -31,8 +31,6 @@
 
 # -*- coding: utf-8 -*-
 
-from fileList import fileList
-
 from storage import Storage
 import ConfigParser
 

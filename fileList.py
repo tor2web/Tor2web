@@ -31,16 +31,15 @@
 
 # -*- coding: utf-8 -*-
 
+import re
+import gzip
+import json
+from StringIO import StringIO
+
 from twisted.internet import reactor, ssl
 from twisted.internet.task import LoopingCall
 from twisted.internet.defer import Deferred
 from twisted.web.client import HTTPPageGetter, HTTPClientFactory, _parse
-
-import re
-import gzip
-import json
-
-from StringIO import StringIO
 
 class HTTPCacheDownloader(HTTPPageGetter):
   
@@ -131,7 +130,8 @@ class HTTPClientCacheFactory(HTTPClientFactory):
     cache = {}
 
     def __init__(self, url, method='GET', postdata=None, headers=None,
-                 agent="Tor2Web (https://github.com/globaleaks/tor2web-3.0)", timeout=0, cookies=None,
+                 agent="Tor2Web (https://github.com/globaleaks/tor2web-3.0)",
+                 timeout=0, cookies=None,
                  followRedirect=1):
 
         headers = {}

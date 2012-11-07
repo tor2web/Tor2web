@@ -31,16 +31,17 @@
 
 # -*- coding: utf-8 -*-
 
-from config import config
-from fileList import fileList
-
 from twisted.web.template import Element, XMLString, renderer, tags
 from twisted.python.filepath import FilePath
+
+from config import config
+from fileList import fileList
 
 class Template(Element):
     def __init__(self, template):
         self.template = template
-        self.loader = XMLString(FilePath("templates/"+self.template).getContent())
+        template_content = FilePath("templates/"+self.template).getContent()
+        self.loader = XMLString(template_content)
 
 class PageTemplate(Template):
     @renderer

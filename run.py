@@ -31,10 +31,19 @@
 
 # -*- coding: utf-8 -*-
 
-from config import config
-from tor2web import Tor2web, Tor2webObj
-from storage import Storage
-from templating import ErrorTemplate, PageTemplate
+import os
+import sys
+import traceback
+import copy
+import re
+import urlparse
+import mimetypes
+import gzip
+import json
+import zlib
+from StringIO import StringIO
+from socksclient import SOCKSv5ClientFactory, SOCKSWrapper
+from OpenSSL import SSL
 
 from twisted.mail.smtp import ESMTPSenderFactory
 from twisted.internet import ssl, reactor
@@ -48,22 +57,10 @@ from twisted.python.filepath import FilePath
 from twisted.python import log
 from twisted.python.logfile import DailyLogFile
 
-import os
-import sys
-import traceback
-import copy
-
-import re
-import urlparse
-import mimetypes
-import gzip
-import json
-import zlib
-
-from StringIO import StringIO
-
-from socksclient import SOCKSv5ClientFactory, SOCKSWrapper
-from OpenSSL import SSL
+from config import config
+from tor2web import Tor2web, Tor2webObj
+from storage import Storage
+from templating import ErrorTemplate, PageTemplate
 
 t2w = Tor2web(config)
 
@@ -73,15 +70,15 @@ if config.debugmode:
 else:
     application.setComponent(log.ILogObserver, log.FileLogObserver(log.NullFile).emit)
 
+
 def MailException(etype, value, tb):
-    """Formats traceback and exception data and emails the error
-
-    Arguments:
-    etype -- Exception class type
-    value -- Exception string value
-    tb -- Traceback string data
     """
+    Formats traceback and exception data and emails the error
 
+    @param etype: Exception class type
+    @param value: Exception string value
+    @param tb: Traceback string data
+    """
     excType = re.sub("(<(type|class ')|'exceptions.|'>|__main__.)", "", str(etype)).strip()
     message = ""
     message += "From: Tor2web Node %s <%s>\n" % (config.listen_ip, config.smtpmail)
@@ -114,8 +111,18 @@ def MailException(etype, value, tb):
     message = StringIO(message)
     sendmail(config.smtpuser, config.smtppass, config.smtpmail, config.smtpmailto_exceptions, message, config.smtpdomain, config.smtpport)
 
+
 def sendmail(authenticationUsername, authenticationSecret, fromAddress, toAddress, messageFile, smtpHost, smtpPort=25):
     """
+    Sends an email using SSLv3 over SMTP
+
+    @param authenticationUsername: account username
+    @param authenticationSecret: account password
+    @param fromAddress: the from address field of the email
+    @param toAddress: the to address field of the email
+    @param messageFile: the message content
+    @param smtpHost: the smtp host
+    @param smtpPort: the smtp port
     """
     contextFactory = ClientContextFactory()
     contextFactory.method = SSL.SSLv3_METHOD
@@ -134,6 +141,7 @@ def sendmail(authenticationUsername, authenticationSecret, fromAddress, toAddres
     reactor.connectTCP(smtpHost, smtpPort, senderFactory)
 
     return resultDeferred
+
 
 class T2WSSLContextFactory(DefaultOpenSSLContextFactory):
     """
@@ -159,8 +167,6 @@ class T2WSSLContextFactory(DefaultOpenSSLContextFactory):
         self.cacheContext()
 
     def cacheContext(self):
-        """
-        """
         if self._context is None:
             ctx = SSL.Context(self.sslmethod)
             # Disallow SSLv2! It's insecure!
@@ -171,10 +177,9 @@ class T2WSSLContextFactory(DefaultOpenSSLContextFactory):
             ctx.load_tmp_dh(self.dhFileName)
             self._context = ctx
 
+
 class T2WProxyClient(proxy.ProxyClient):
     def __init__(self, command, rest, version, headers, data, father, obj):
-        """
-        """
         self.father = father
         self.command = command
         self.rest = rest
@@ -296,7 +301,6 @@ class T2WProxyClient(proxy.ProxyClient):
         self.forwardData(data, end)
     
     def handleResponseEnd(self):
-
         # if self.decoderGzip != None:
         #   the response part is gzipped and two conditions may have set this:
         #   - the content response has to be modified
@@ -350,8 +354,6 @@ class T2WProxyClient(proxy.ProxyClient):
         self.handleResponseEnd()
  
 class T2WProxyClientFactory(proxy.ProxyClientFactory):
-    """
-    """
     protocol = T2WProxyClient
     
     def __init__(self, command, rest, version, headers, data, father, obj):
