@@ -4,7 +4,8 @@ debugmode = False
 logreqs = False
 debuglogpath = logs/debug.log
 accesslogpath = logs/access.log
-listen_ip = 0.0.0.0
+listen_ipv4 = 0.0.0.0
+listen_ipv6 = ::
 listen_port_http = 80
 listen_port_https = 443
 
