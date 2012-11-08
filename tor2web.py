@@ -125,8 +125,18 @@ class Tor2web(object):
         if tld == 'onion' and len(onion) == 16 and onion.isalnum():
             obj.onion = onion
             return True
-        
+            
         return False
+
+
+    def verify_resource_is_local(self, obj, host, uri, staticpath):
+        for ip in [self.config.listen_ipv4, "["+self.config.listen_ipv6+"]"]:
+            if ip != None and host == ip:
+                obj.resourceislocal = True
+                return obj.resourceislocal
+        
+        obj.resourceislocal = uri.startswith(staticpath)
+        return obj.resourceislocal
 
     def verify_hostname(self, obj, host, uri):
         """

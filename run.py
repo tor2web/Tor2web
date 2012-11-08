@@ -81,9 +81,9 @@ def MailException(etype, value, tb):
     """
     excType = re.sub("(<(type|class ')|'exceptions.|'>|__main__.)", "", str(etype)).strip()
     message = ""
-    message += "From: Tor2web Node %s <%s>\n" % (config.listen_ip, config.smtpmail)
+    message += "From: Tor2web Node (IPV4: %s, IPv6: %s) <%s>\n" % (config.listen_ipv4, config.listen_ipv6, config.smtpmail)
     message += "To: %s\n" % (config.smtpmailto_exceptions)
-    message += "Subject: Tor2web Node %s exception\n" % (config.listen_ip)
+    message += "Subject: Tor2web Node Exception (IPV4: %s, IPv6: %s)\n" % (config.listen_ipv4, config.listen_ipv6)
     message += "Content-Type: text/plain; charset=ISO-8859-1\n"
     message += "Content-Transfer-Encoding: 8bit\n\n"
     message += "%s %s" % (excType, etype.__doc__)
@@ -375,6 +375,19 @@ class T2WRequest(proxy.ProxyRequest):
         proxy.ProxyRequest.__init__(self, *args, **kw)
         self.obj = Tor2webObj()
 
+    def getRequestHostname(self):
+        """
+            Function overload to fix ipv6 bug:
+                http://twistedmatrix.com/trac/ticket/6014
+        """
+        host = self.getHeader('host')
+        if host:
+            if host[0]=='[':
+                return host.split(']',1)[0] + "]"
+            return host.split(':', 1)[0]
+        return self.getHost().host
+
+
     def contentGzip(self, content):
         stringio = StringIO()
         ram_gzip_file = gzip.GzipFile(fileobj=stringio, mode='w')
@@ -407,13 +420,13 @@ class T2WRequest(proxy.ProxyRequest):
           
             request = Storage()
             request.headers = self.getAllHeaders().copy()
-            request.host = request.headers.get('host')
+            request.host = self.getRequestHostname()
             request.uri = self.uri
             request.resourceislocal = False
             
             # we serve contents only over https
             if not self.isSecure():
-                self.redirect("https://" + self.getRequestHostname() + request.uri)
+                self.redirect("https://" + request.host + request.uri)
                 self.finish()
                 return
 
@@ -431,15 +444,12 @@ class T2WRequest(proxy.ProxyRequest):
                 return self.error(403, "error_blocked_ua.xml")
 
             # we need to verify if the requested resource is local (/antanistaticmap/*) or remote
-            # becouse some checks must be done only for remote requests;
+            # because some checks must be done only for remote requests;
             # in fact local content is always served (css, js, and png in fact are used in errors)
             
-            if request.host == config.listen_ip:
-                request.resourceislocal = True
-            else:
-                request.resourceislocal = request.uri.startswith(self.staticmap)
-
-            if not request.resourceislocal:
+            t2w.verify_resource_is_local(self.obj, request.host, request.uri, self.staticmap)
+            
+            if not self.obj.resourceislocal:
                 # we need to validate the request to avoid useless processing
                 
                 if not t2w.verify_hostname(self.obj, request.host, request.uri):
@@ -469,7 +479,7 @@ class T2WRequest(proxy.ProxyRequest):
                     self.obj.client_supports_gzip = True
 
             # 2: Content delivery stage
-            if request.resourceislocal:
+            if self.obj.resourceislocal:
                 # the requested resource is local, we deliver it directly
                 try:
                     staticpath = request.uri
@@ -487,9 +497,9 @@ class T2WRequest(proxy.ProxyRequest):
                     elif staticpath.startswith("notification"):
                         if 'by' in self.args and 'url' in self.args and 'comment' in self.args:
                             message = ""
-                            message += "From: Tor2web Node %s <%s>\n" % (config.listen_ip, config.smtpmail)
+                            message += "From: Tor2web Node (IPv4 %s, IPv6 %s) <%s>\n" % (config.listen_ipv4, config.listen_ipv6, config.smtpmail)
                             message += "To: %s\n" % (config.smtpmailto_notifications)
-                            message += "Subject: Tor2web Node %s: notification for %s\n" % (config.listen_ip, self.args['url'][0])
+                            message += "Subject: Tor2web Node (IPv4 %s, IPv6 %s): notification for %s\n" % (config.listen_ipv4, config.listen_ipv6, self.args['url'][0])
                             message += "Content-Type: text/plain; charset=ISO-8859-1\n"
                             message += "Content-Transfer-Encoding: 8bit\n\n"
                             message += "BY: %s\n" % (self.args['by'][0])
@@ -572,11 +582,11 @@ class T2WProxyFactory(http.HTTPFactory):
                 self._escape(request.getHeader('user-agent') or "-"))
             self.logFile.write(line)
 
-def startTor2webHTTP(t2w, f):
-    return internet.TCPServer(int(t2w.config.listen_port_http), f, interface=config.listen_ip)
+def startTor2webHTTP(t2w, f, ip):
+    return internet.TCPServer(int(t2w.config.listen_port_http), f, interface=ip)
 
-def startTor2webHTTPS(t2w, f):
-    return internet.SSLServer(int(t2w.config.listen_port_https), f, T2WSSLContextFactory(t2w.config.sslkeyfile, t2w.config.sslcertfile, t2w.config.ssldhfile, t2w.config.cipher_list), interface=config.listen_ip)
+def startTor2webHTTPS(t2w, f, ip):
+    return internet.SSLServer(int(t2w.config.listen_port_https), f, T2WSSLContextFactory(t2w.config.sslkeyfile, t2w.config.sslcertfile, t2w.config.ssldhfile, t2w.config.cipher_list), interface=ip)
 
 sys.excepthook = MailException
 
@@ -590,8 +600,19 @@ antanistaticmap['tos.html'] = PageTemplate('tos.xml')
 
 factory = T2WProxyFactory(config.accesslogpath)
 
-service_https = startTor2webHTTPS(t2w, factory)
-service_https.setServiceParent(application)
+if config.listen_ipv6 == "::" or config.listen_ipv4 == config.listen_ipv6:
+    # fix for incorrect configurations
+    ipv4 = None
+else:
+    ipv4 = config.listen_ipv4
+ipv6 = config.listen_ipv6
 
-service_http = startTor2webHTTP(t2w, factory)
-service_http.setServiceParent(application)
+for ip in [ipv4, ipv6]:
+    if ip == None:
+        continue
+
+    service_https = startTor2webHTTPS(t2w, factory, ip)
+    service_https.setServiceParent(application)
+
+    service_http = startTor2webHTTP(t2w, factory, ip)
+    service_http.setServiceParent(application)
