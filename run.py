@@ -55,6 +55,7 @@ from twisted.web.server import NOT_DONE_YET
 from twisted.python.filepath import FilePath
 from twisted.python import log
 from twisted.python.logfile import DailyLogFile
+from twisted.python.failure import Failure
 
 from config import config
 from tor2web import Tor2web, Tor2webObj
@@ -402,16 +403,16 @@ class T2WRequest(proxy.ProxyRequest):
         self.write(content)
         self.finish()
 
-    def handleError(self, error, errortemplate='error_generic.xml'):
-        if type(error.value) is int:
-            self.setResponseCode(error)
-            return flattenString(None, ErrorTemplate(error, errortemplate)).addCallback(self.contentFinish)
-        elif type(error.value) is SOCKSError:
+    def sendError(self, error=500, errortemplate='error_generic.xml'):
+        self.setResponseCode(error)
+        return flattenString(None, ErrorTemplate(error, errortemplate)).addCallback(self.contentFinish)
+
+    def handleError(self, error):
+        if isinstance(error, Failure) and type(error.value) is SOCKSError:
             self.setResponseCode(500)
             return flattenString(None, ErrorTemplate(error.value.code, error.value.template)).addCallback(self.contentFinish)
         else:
-            self.setResponseCode(500)
-            return flattenString(None, ErrorTemplate(500, errortemplate)).addCallback(self.contentFinish)
+            self.sendError()
 
     def process(self):
         try:
@@ -439,7 +440,7 @@ class T2WRequest(proxy.ProxyRequest):
             # secondly we try to deny some ua/crawlers regardless the request is (valid or not) / (local or not)
             # we deny EVERY request to known user agents reconized with pattern matching
             if request.headers.get('user-agent') in t2w.blocked_ua:
-                return self.handleError(403, "error_blocked_ua.xml")
+                return self.sendError(403, "error_blocked_ua.xml")
 
             # we need to verify if the requested resource is local (/antanistaticmap/*) or remote
             # because some checks must be done only for remote requests;
@@ -451,7 +452,7 @@ class T2WRequest(proxy.ProxyRequest):
                 # we need to validate the request to avoid useless processing
                 
                 if not t2w.verify_hostname(self.obj, request.host, request.uri):
-                    return self.handleError(self.obj.error['code'], self.obj.error['template'])
+                    return self.sendError(self.obj.error['code'], self.obj.error['template'])
 
                 # we need to verify if the user is using tor;
                 # on this condition it's better to redirect on the .onion             
@@ -467,7 +468,7 @@ class T2WRequest(proxy.ProxyRequest):
                 if request.uri.lower().endswith(('gif','jpg','png')):
                     # Avoid image hotlinking
                     if request.headers.get('referer') == None or not config.basehost in request.headers.get('referer').lower():
-                        return self.handleError(403)
+                        return self.sendError(403)
 
             self.setHeader('strict-transport-security', 'max-age=31536000') 
 
@@ -506,10 +507,10 @@ class T2WRequest(proxy.ProxyRequest):
                             message = StringIO(message)
                             sendmail(config.smtpuser, config.smtppass, config.smtpmail, config.smtpmailto_notifications, message, config.smtpdomain, config.smtpport)
                     else:
-                        return self.handleError(404)
+                        return self.sendError(404)
 
                 except:
-                    return self.handleError(404)
+                    return self.sendError(404)
 
                 return self.contentFinish(content)
 
@@ -517,7 +518,7 @@ class T2WRequest(proxy.ProxyRequest):
                 # the requested resource is remote, we act as proxy
 
                 if not t2w.process_request(self.obj, request):
-                    return self.handleError(self.obj.error['code'], self.obj.error['template'])
+                    return self.sendError(self.obj.error['code'], self.obj.error['template'])
 
                 try:
                     parsed = urlparse.urlparse(self.obj.address)
@@ -530,7 +531,7 @@ class T2WRequest(proxy.ProxyRequest):
                         port = self.ports[protocol]
 
                 except:
-                    return self.handleError(400, "error_invalid_hostname.xml")
+                    return self.sendError(400, "error_invalid_hostname.xml")
                 
                 d = Deferred()
                 
