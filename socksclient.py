@@ -35,64 +35,57 @@ import socket
 import struct
 
 from zope.interface import implements
-from twisted.internet import defer
+from twisted.internet import defer, interfaces
 from twisted.internet.interfaces import IStreamClientEndpoint
+from twisted.internet.endpoints import TCP4ClientEndpoint, SSL4ClientEndpoint, _WrappingProtocol, _WrappingFactory
 from twisted.protocols import policies
 
-SOCKS_errors = {\
-    0x23: "error_socks_hs_not_found.xml",
-    0x24: "error_socks_hs_not_reachable.xml"
-}
-
 class SOCKSError(Exception):
-    def __init__(self, value, data):
+    def __init__(self, value):
         Exception.__init__(self)
         self.code = value
-        self.template = data
 
-class SOCKSv5ClientProtocol(policies.ProtocolWrapper):
+class SOCKSv5ClientProtocol(_WrappingProtocol):
     state = 0
 
-    def __init__(self, factory, wrappedProtocol):
-        policies.ProtocolWrapper.__init__(self, factory, wrappedProtocol)
+    def __init__(self, connectedDeferred, wrappedProtocol, host, port):
+        _WrappingProtocol.__init__(self, connectedDeferred, wrappedProtocol)
+        self._host = host
+        self._port = port
         self.ready = False
         self.buf = []
 
     def socks_state_0(self, data):
         # error state
-        self.factory.clientConnectionFailed(self, SOCKSError(0x00, "error_socks.xml"))
+        self._connectedDeferred.errback(SOCKSError(0x00))
         return
 
     def socks_state_1(self, data):
         if data != "\x05\x00":
-            self.factory.clientConnectionFailed(self, SOCKSError(0x00, "error_socks.xml"))
+            self._connectedDeferred.errback(SOCKSError(0x00))
             return
-            
+
         # Anonymous access allowed - let's issue connect
         self.transport.write(struct.pack("!BBBBB", 5, 1, 0, 3,
-                                         len(self.factory.host)) + 
-                                         self.factory.host +
-                                         struct.pack("!H", self.factory.port))
+                                         len(self._host)) + 
+                                         self._host +
+                                         struct.pack("!H", self._port))
 
     def socks_state_2(self, data):
         if data[:2] != "\x05\x00":
             # Anonymous access denied
 
             errcode = ord(data[1])
-            
-            if errcode in SOCKS_errors:
-                self.factory.clientConnectionFailed(self, SOCKSError(hex(errcode), SOCKS_errors[errcode]))
-            else:
-                self.factory.clientConnectionFailed(self, SOCKSError(hex(errcode), "error_socks.xml"))
+            self._connectedDeferred.errback(SOCKSError(errcode))
                 
             return
 
         self.ready = True
-        policies.ProtocolWrapper.connectionMade(self)
+
+        self._wrappedProtocol.transport = self.transport
+        self._wrappedProtocol.connectionMade()
         
-        if self.buf != []:
-            self.transport.write(''.join(self.buf))
-            self.buf = []
+        self._connectedDeferred.callback(self._wrappedProtocol)
 
     def connectionMade(self):
         # We implement only Anonymous access
@@ -100,32 +93,80 @@ class SOCKSv5ClientProtocol(policies.ProtocolWrapper):
         
         self.state = self.state + 1
 
-    def connectionLost(self, reason):
-        if self.ready:
-            policies.ProtocolWrapper.connectionLost(self, reason)
-
-    def write(self, data):
-        if self.ready:
-            self.transport.write(data)
-        else:
-            self.buf.append(data)
-
     def dataReceived(self, data):
+        print self.state
+        print data
         if self.state != 3:
-            getattr(self, 'socks_state_%s' % (self.state), self.socks_state_0)(data)
+            getattr(self, 'socks_state_%s' % (self.state),
+                    self.socks_state_0)(data)
             self.state = self.state + 1
         else:
-            policies.ProtocolWrapper.dataReceived(self, data)
+            self._wrappedProtocol.dataReceived(data)
 
-class SOCKSv5ClientFactory(policies.WrappingFactory):
+class SOCKSv5ClientFactory(_WrappingFactory):
     protocol = SOCKSv5ClientProtocol
     
-    def __init__(self, deferred, wrappedFactory, host, port):
-        policies.WrappingFactory.__init__(self, wrappedFactory)
-        self.deferred = deferred
-        self.host, self.port = host, port
-        
-    def clientConnectionFailed(self, connector, reason):
-        if self.deferred is not None:
-            d, self.deferred = self.deferred, None
-            d.errback(reason)
+    def __init__(self, wrappedFactory, host, port):
+        _WrappingFactory.__init__(self, wrappedFactory)
+        self._host, self._port = host, port
+
+    def buildProtocol(self, addr):
+        """
+        Proxy C{buildProtocol} to our C{self._wrappedFactory} or errback
+        the C{self._onConnection} L{Deferred}.
+
+        @return: An instance of L{_WrappingProtocol} or C{None}
+        """''
+        try:
+            proto = self._wrappedFactory.buildProtocol(addr)
+        except:
+            self._onConnection.errback()
+        else:
+            return self.protocol(self._onConnection, proto,
+                                 self._host, self._port)
+
+class SOCKS5ClientEndpoint(object):
+    """
+    TCP client endpoint with an IPv4 configuration.
+    """
+    implements(interfaces.IStreamClientEndpoint)
+
+    def __init__(self, reactor, sockhost, sockport,
+                 host, port, timeout=30, bindAddress=None):
+        """
+        @param reactor: An L{IReactorTCP} provider
+
+        @param host: A hostname, used when connecting
+        @type host: str
+
+        @param port: The port number, used when connecting
+        @type port: int
+
+        @param timeout: The number of seconds to wait before assuming the
+            connection has failed.
+        @type timeout: int
+
+        @param bindAddress: A (host, port) tuple of local address to bind to,
+            or None.
+        @type bindAddress: tuple
+        """
+        self._reactor = reactor
+        self._sockhost = sockhost
+        self._sockport = sockport
+        self._host = host
+        self._port = port
+        self._timeout = timeout
+        self._bindAddress = bindAddress
+
+    def connect(self, protocolFactory):
+        """
+        Implement L{IStreamClientEndpoint.connect} to connect via TCP.
+        """
+        try:
+            wf = SOCKSv5ClientFactory(protocolFactory, self._host, self._port)
+            self._reactor.connectTCP(
+                self._sockhost, self._sockport, wf,
+                timeout=self._timeout, bindAddress=self._bindAddress)
+            return wf._onConnection
+        except:
+            return defer.fail()

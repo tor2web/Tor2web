@@ -57,11 +57,13 @@ class Config(Storage):
                 return int(value)
             elif value.lower() in ('true', 'false'):
                 return value.lower() == 'true'
+            elif value == '' or value == None:
+                return None
             else:
                 return value
         except ConfigParser.NoOptionError:
-            # if option doesn't exists return an empty string
-            return ''
+            # if option doesn't exists returns None
+            return None
 
     def __setattr__(self, name, value):
         # keep an open port with private attributes

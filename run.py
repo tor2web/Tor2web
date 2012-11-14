@@ -46,6 +46,7 @@ from OpenSSL import SSL
 
 from twisted.mail.smtp import ESMTPSenderFactory
 from twisted.internet import ssl, reactor
+from twisted.internet.error import ConnectionRefusedError
 from twisted.internet.ssl import ClientContextFactory, DefaultOpenSSLContextFactory
 from twisted.internet.defer import Deferred
 from twisted.application import service, internet
@@ -61,7 +62,13 @@ from config import config
 from tor2web import Tor2web, Tor2webObj
 from storage import Storage
 from templating import ErrorTemplate, PageTemplate
-from socksclient import SOCKSv5ClientFactory, SOCKSError
+from socksclient import SOCKS5ClientEndpoint, SOCKSError
+
+SOCKS_errors = {\
+    0x00: "error_generic.xml",
+    0x23: "error_socks_hs_not_found.xml",
+    0x24: "error_socks_hs_not_reachable.xml"
+}
 
 t2w = Tor2web(config)
 
@@ -198,6 +205,7 @@ class T2WProxyClient(proxy.ProxyClient):
         self.startedWriting = False
 
     def handleHeader(self, key, value):
+        print key
         keyLower = key.lower()
         valueLower = value.lower()
 
@@ -318,6 +326,8 @@ class T2WProxyClient(proxy.ProxyClient):
         if data and self.obj.contentNeedFix:
             if self.html:
                 data = t2w.process_html(self.obj, data)
+
+        print data
         
         self.handleCleartextForwardPart(data, True)
 
@@ -344,12 +354,14 @@ class T2WProxyClient(proxy.ProxyClient):
             self.finish()
 
     def finish(self):
+        print "finish"
         if not self._finished:
             self._finished = True
             self.father.finish()
             self.transport.loseConnection()
 
     def connectionLost(self, reason):
+        print "lost"
         self.handleResponseEnd()
  
 class T2WProxyClientFactory(proxy.ProxyClientFactory):
@@ -407,12 +419,17 @@ class T2WRequest(proxy.ProxyRequest):
         self.setResponseCode(error)
         return flattenString(None, ErrorTemplate(error, errortemplate)).addCallback(self.contentFinish)
 
-    def handleError(self, error):
-        if isinstance(error, Failure) and type(error.value) is SOCKSError:
-            self.setResponseCode(500)
-            return flattenString(None, ErrorTemplate(error.value.code, error.value.template)).addCallback(self.contentFinish)
-        else:
+    def handleError(self, failure):
+        failure.trap(ConnectionRefusedError, SOCKSError)
+        if type(failure.value) is ConnectionRefusedError:
             self.sendError()
+        else:
+            self.setResponseCode(500)
+            if failure.value.code in SOCKS_errors:
+                template = SOCKS_errors[failure.value.code]
+            else:
+                template = SOCKS_errors[0x00]
+            return flattenString(None, ErrorTemplate(hex(failure.value.code), template)).addCallback(self.contentFinish)
 
     def process(self):
         try:
@@ -533,15 +550,15 @@ class T2WRequest(proxy.ProxyRequest):
                 except:
                     return self.sendError(400, "error_invalid_hostname.xml")
                 
-                d = Deferred()
-                
                 dest = client._parse(self.obj.address) # scheme, host, port, path
+                
+                endpoint = SOCKS5ClientEndpoint(reactor,
+                                                config.sockshost, config.socksport,
+                                                dest[1], dest[2])
                 
                 pf = T2WProxyClientFactory(self.method, dest[3], "HTTP/1.1", self.obj.headers, content, self, self.obj)
 
-                f = SOCKSv5ClientFactory(d, pf, dest[1], 80)
-
-                reactor.connectTCP(config.sockshost, config.socksport, f)
+                d = endpoint.connect(pf)
                 
                 d.addErrback(self.handleError)
 
