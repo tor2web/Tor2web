@@ -200,9 +200,9 @@ class Tor2web(object):
         log.msg(obj.headers)
 
         obj.headers.update({'X-tor2web':'encrypted'})
-        obj.headers.update({'connection':'close'})
-        obj.headers.update({'accept-encoding':'gzip, chunked'})
-        obj.headers.update({'host': obj.hostname})
+        obj.headers.update({'Connection':'close'})
+        obj.headers.update({'Accept-Encoding':'gzip, chunked'})
+        obj.headers.update({'Host': obj.hostname})
 
         log.msg("Headers after fix:")
         log.msg(obj.headers)

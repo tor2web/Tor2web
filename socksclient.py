@@ -37,120 +37,95 @@ import struct
 from zope.interface import implements
 from twisted.internet import defer
 from twisted.internet.interfaces import IStreamClientEndpoint
-from twisted.internet.protocol import Protocol, ClientFactory
-from twisted.internet.endpoints import _WrappingFactory
+from twisted.protocols import policies
 
 SOCKS_errors = {\
     0x23: "error_socks_hs_not_found.xml",
     0x24: "error_socks_hs_not_reachable.xml"
 }
 
-
 class SOCKSError(Exception):
-    def __init__(self, code, template):
-        self.code = code
-        self.template = template
+    def __init__(self, value, data):
+        Exception.__init__(self)
+        self.code = value
+        self.template = data
 
-
-class SOCKSv5ClientProtocol(Protocol):
-    factory = None
-    buf = ''
+class SOCKSv5ClientProtocol(policies.ProtocolWrapper):
     state = 0
+
+    def __init__(self, factory, wrappedProtocol):
+        policies.ProtocolWrapper.__init__(self, factory, wrappedProtocol)
+        self.ready = False
+        self.buf = []
 
     def socks_state_0(self, data):
         # error state
-        self.transport.loseConnection()
-        self.handshakeDone.errback(SOCKSError(0x00, "error_socks.xml"))
+        self.factory.clientConnectionFailed(self, SOCKSError(0x00, "error_socks.xml"))
         return
 
     def socks_state_1(self, data):
         if data != "\x05\x00":
-            self.transport.loseConnection()
-            self.handshakeDone.errback(SOCKSError(0x00, "error_socks.xml"))
+            self.factory.clientConnectionFailed(self, SOCKSError(0x00, "error_socks.xml"))
             return
             
         # Anonymous access allowed - let's issue connect
         self.transport.write(struct.pack("!BBBBB", 5, 1, 0, 3,
-                                         len(self.factory.postHandshakeHost)) + 
-                                         self.factory.postHandshakeHost +
-                                         struct.pack("!H", self.factory.postHandshakePort))
+                                         len(self.factory.host)) + 
+                                         self.factory.host +
+                                         struct.pack("!H", self.factory.port))
 
     def socks_state_2(self, data):
         if data[:2] != "\x05\x00":
-            self.transport.loseConnection()
+            # Anonymous access denied
 
             errcode = ord(data[1])
             
             if errcode in SOCKS_errors:
-                self.handshakeDone.errback(SOCKSError(hex(errcode), SOCKS_errors[errcode]))
+                self.factory.clientConnectionFailed(self, SOCKSError(hex(errcode), SOCKS_errors[errcode]))
             else:
-                self.handshakeDone.errback(SOCKSError(hex(errcode), "error_socks.xml"))
+                self.factory.clientConnectionFailed(self, SOCKSError(hex(errcode), "error_socks.xml"))
                 
             return
 
-        self.transport.protocol = self.factory.postHandshakeFactory.buildProtocol(self.transport.getHost())
-        self.transport.protocol.transport = self.transport
-        self.transport.protocol.connectionMade()
+        self.ready = True
+        policies.ProtocolWrapper.connectionMade(self)
+        
+        if self.buf != []:
+            self.transport.write(''.join(self.buf))
+            self.buf = []
 
     def connectionMade(self):
         # We implement only Anonymous access
         self.transport.write(struct.pack("!BB", 5, len("\x00")) + "\x00")
         
         self.state = self.state + 1
-        
+
+    def connectionLost(self, reason):
+        if self.ready:
+            policies.ProtocolWrapper.connectionLost(self, reason)
+
+    def write(self, data):
+        if self.ready:
+            self.transport.write(data)
+        else:
+            self.buf.append(data)
+
     def dataReceived(self, data):
-        getattr(self, 'socks_state_%s' % (self.state), self.socks_state_0)(data)
-        
-        self.state = self.state + 1
+        if self.state != 3:
+            getattr(self, 'socks_state_%s' % (self.state), self.socks_state_0)(data)
+            self.state = self.state + 1
+        else:
+            policies.ProtocolWrapper.dataReceived(self, data)
 
-
-class SOCKSv5ClientFactory(ClientFactory):
+class SOCKSv5ClientFactory(policies.WrappingFactory):
     protocol = SOCKSv5ClientProtocol
     
-    def __init__(self, postHandshakeFactory,
-                 postHandshakeHost, postHandshakePort, handshakeDone):
-        self.postHandshakeFactory = postHandshakeFactory
-        self.postHandshakeHost = postHandshakeHost
-        self.postHandshakePort = postHandshakePort
-        self.handshakeDone = handshakeDone
-
-    def buildProtocol(self, addr):
-        r = ClientFactory.buildProtocol(self, addr)
-        r.factory = self
-        return r
+    def __init__(self, deferred, wrappedFactory, host, port):
+        policies.WrappingFactory.__init__(self, wrappedFactory)
+        self.deferred = deferred
+        self.host, self.port = host, port
         
     def clientConnectionFailed(self, connector, reason):
-        self.handshakeDone.errback("connection to sock server failed")
-
-
-class SOCKSWrapper(object):
-    implements(IStreamClientEndpoint)
-    factory = SOCKSv5ClientFactory
-
-    def __init__(self, reactor, sockhost, sockport):
-        self._reactor = reactor
-        self._sockhost = sockhost
-        self._sockport = sockport
-
-    def connect(self, protocolFactory, host, port):
-        """
-        Return a deferred firing when the SOCKS connection is established.
-        """
-        try:
-            # Connect with an intermediate SOCKS factory/protocol,
-            # which then hands control to the provided protocolFactory
-            # once a SOCKS connection has been established.
-
-            # deferred
-            d = defer.Deferred()
-            
-            # factory
-            f = self.factory(protocolFactory, host, port, d)
-
-            # connector
-            c = self._reactor.connectTCP(self._sockhost, self._sockport, f)
-
-            return d
-
-        except:
-            return defer.fail()
+        if self.deferred is not None:
+            d, self.deferred = self.deferred, None
+            d.errback(reason)
