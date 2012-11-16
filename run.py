@@ -89,7 +89,7 @@ def MailException(etype, value, tb):
     """
     excType = re.sub("(<(type|class ')|'exceptions.|'>|__main__.)", "", str(etype)).strip()
     message = ""
-    message += "From: Tor2web Node (IPV4: %s, IPv6: %s) <%s>\n" % (config.listen_ipv4, config.listen_ipv6, config.smtpmail)
+    message += "From: Tor2web Node %s.%s <%s>\n" % (config.nodename, config.basehost, config.smtpmail)
     message += "To: %s\n" % (config.smtpmailto_exceptions)
     message += "Subject: Tor2web Node Exception (IPV4: %s, IPv6: %s)\n" % (config.listen_ipv4, config.listen_ipv6)
     message += "Content-Type: text/plain; charset=ISO-8859-1\n"
@@ -205,7 +205,6 @@ class T2WProxyClient(proxy.ProxyClient):
         self.startedWriting = False
 
     def handleHeader(self, key, value):
-        print key
         keyLower = key.lower()
         valueLower = value.lower()
 
@@ -326,8 +325,6 @@ class T2WProxyClient(proxy.ProxyClient):
         if data and self.obj.contentNeedFix:
             if self.html:
                 data = t2w.process_html(self.obj, data)
-
-        print data
         
         self.handleCleartextForwardPart(data, True)
 
@@ -354,14 +351,12 @@ class T2WProxyClient(proxy.ProxyClient):
             self.finish()
 
     def finish(self):
-        print "finish"
         if not self._finished:
             self._finished = True
             self.father.finish()
             self.transport.loseConnection()
 
     def connectionLost(self, reason):
-        print "lost"
         self.handleResponseEnd()
  
 class T2WProxyClientFactory(proxy.ProxyClientFactory):
@@ -513,7 +508,7 @@ class T2WRequest(proxy.ProxyRequest):
                     elif staticpath.startswith("notification"):
                         if 'by' in self.args and 'url' in self.args and 'comment' in self.args:
                             message = ""
-                            message += "From: Tor2web Node (IPv4 %s, IPv6 %s) <%s>\n" % (config.listen_ipv4, config.listen_ipv6, config.smtpmail)
+                            message += "From: Tor2web Node %s.%s <%s>\n" % (config.nodename, config.basehost, config.smtpmail)
                             message += "To: %s\n" % (config.smtpmailto_notifications)
                             message += "Subject: Tor2web Node (IPv4 %s, IPv6 %s): notification for %s\n" % (config.listen_ipv4, config.listen_ipv6, self.args['url'][0])
                             message += "Content-Type: text/plain; charset=ISO-8859-1\n"

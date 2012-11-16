@@ -94,8 +94,6 @@ class SOCKSv5ClientProtocol(_WrappingProtocol):
         self.state = self.state + 1
 
     def dataReceived(self, data):
-        print self.state
-        print data
         if self.state != 3:
             getattr(self, 'socks_state_%s' % (self.state),
                     self.socks_state_0)(data)

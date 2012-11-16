@@ -1,5 +1,6 @@
 # Tor2web configuration file
 [main]
+nodename = changemewithanuniqueidentifier
 debugmode = False
 logreqs = False
 debuglogpath = logs/debug.log
