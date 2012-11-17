@@ -43,6 +43,23 @@ class Template(Element):
         template_content = FilePath("templates/"+self.template).getContent()
         self.loader = XMLString(template_content)
 
+    def lookupRenderMethod(self, name):
+        method = renderer.get(self, name, None)
+        if method is None:
+            def renderUsingDict(request, tag):
+                if name in request.var:
+                    return tag('%s' % name)
+                return tag('undefined variable %s for template %s' % (name , self.template))
+            return renderUsingDict
+        return method
+
+    def render(self, request):
+        loader = self.loader
+        if loader is None:
+            raise MissingTemplateLoader(self)
+        return loader.load()
+
+
 class PageTemplate(Template):
     @renderer
     def header(self, request, tag):

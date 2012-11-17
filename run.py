@@ -378,6 +378,8 @@ class T2WRequest(proxy.ProxyRequest):
     def __init__(self, *args, **kw):
         proxy.ProxyRequest.__init__(self, *args, **kw)
         self.obj = Tor2webObj()
+        self.var = Storage()
+        self.var['a'] = "antani"
 
     def getRequestHostname(self):
         """
@@ -412,7 +414,7 @@ class T2WRequest(proxy.ProxyRequest):
 
     def sendError(self, error=500, errortemplate='error_generic.xml'):
         self.setResponseCode(error)
-        return flattenString(None, ErrorTemplate(error, errortemplate)).addCallback(self.contentFinish)
+        return flattenString(self, ErrorTemplate(error, errortemplate)).addCallback(self.contentFinish)
 
     def handleError(self, failure):
         failure.trap(ConnectionRefusedError, SOCKSError)
@@ -424,7 +426,7 @@ class T2WRequest(proxy.ProxyRequest):
                 template = SOCKS_errors[failure.value.code]
             else:
                 template = SOCKS_errors[0x00]
-            return flattenString(None, ErrorTemplate(hex(failure.value.code), template)).addCallback(self.contentFinish)
+            return flattenString(self, ErrorTemplate(hex(failure.value.code), template)).addCallback(self.contentFinish)
 
     def process(self):
         try:
@@ -504,7 +506,7 @@ class T2WRequest(proxy.ProxyRequest):
                             self.setHeader('content-type', mimetypes.types_map[ext])
                             content = antanistaticmap[staticpath]
                         elif type(antanistaticmap[staticpath]) == PageTemplate:
-                            return flattenString(None, antanistaticmap[staticpath]).addCallback(self.contentFinish)
+                            return flattenString(self, antanistaticmap[staticpath]).addCallback(self.contentFinish)
                     elif staticpath.startswith("notification"):
                         if 'by' in self.args and 'url' in self.args and 'comment' in self.args:
                             message = ""
