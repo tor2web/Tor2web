@@ -7,9 +7,9 @@ function getHTTPObject() {
 		try {http = new XMLHttpRequest();}
 		catch (e) {http = false;}
 	} else if(typeof ActiveXObject != 'undefined') {
-		try {http = new ActiveXObject("Msxml2.XMLHTTP");}
+		try {http = new ActiveXObject("Msxml2.tplHTTP");}
 		catch (e) {
-			try {http = new ActiveXObject("Microsoft.XMLHTTP");}
+			try {http = new ActiveXObject("Microsoft.tplHTTP");}
 			catch (E) {http = false;}
     }
   }
@@ -19,7 +19,7 @@ function getHTTPObject() {
 
 function handler() {
 	if(http.readyState == 4 && http.status == 200) {
-    show_hide_notification_form()
+        show_hide_notification_form()
 	}
 }
 

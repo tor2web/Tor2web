@@ -51,7 +51,7 @@ from twisted.internet.ssl import ClientContextFactory, DefaultOpenSSLContextFact
 from twisted.internet.defer import Deferred
 from twisted.application import service, internet
 from twisted.web import proxy, http, client, resource
-from twisted.web.template import flattenString
+from twisted.web.template import flattenString, XMLString
 from twisted.web.server import NOT_DONE_YET
 from twisted.python.filepath import FilePath
 from twisted.python import log
@@ -61,13 +61,13 @@ from twisted.python.failure import Failure
 from config import config
 from tor2web import Tor2web, Tor2webObj
 from storage import Storage
-from templating import ErrorTemplate, PageTemplate
+from templating import PageTemplate
 from socksclient import SOCKS5ClientEndpoint, SOCKSError
 
 SOCKS_errors = {\
-    0x00: "error_generic.xml",
-    0x23: "error_socks_hs_not_found.xml",
-    0x24: "error_socks_hs_not_reachable.xml"
+    0x00: "error_generic.tpl",
+    0x23: "error_socks_hs_not_found.tpl",
+    0x24: "error_socks_hs_not_reachable.tpl"
 }
 
 t2w = Tor2web(config)
@@ -379,7 +379,8 @@ class T2WRequest(proxy.ProxyRequest):
         proxy.ProxyRequest.__init__(self, *args, **kw)
         self.obj = Tor2webObj()
         self.var = Storage()
-        self.var['a'] = "antani"
+        self.var['basehost'] = config.basehost
+        self.var['errorcode'] = None
 
     def getRequestHostname(self):
         """
@@ -412,9 +413,10 @@ class T2WRequest(proxy.ProxyRequest):
         self.write(content)
         self.finish()
 
-    def sendError(self, error=500, errortemplate='error_generic.xml'):
+    def sendError(self, error=500, errortemplate='error_generic.tpl'):
         self.setResponseCode(error)
-        return flattenString(self, ErrorTemplate(error, errortemplate)).addCallback(self.contentFinish)
+        self.var['errorcode'] = error
+        return flattenString(self, templates[errortemplate]).addCallback(self.contentFinish)
 
     def handleError(self, failure):
         failure.trap(ConnectionRefusedError, SOCKSError)
@@ -423,15 +425,16 @@ class T2WRequest(proxy.ProxyRequest):
         else:
             self.setResponseCode(500)
             if failure.value.code in SOCKS_errors:
-                template = SOCKS_errors[failure.value.code]
+                self.var['errorcode'] = failure.value.code
             else:
-                template = SOCKS_errors[0x00]
-            return flattenString(self, ErrorTemplate(hex(failure.value.code), template)).addCallback(self.contentFinish)
+                self.var['errorcode'] = 0x00
+            ettortemplate = SOCKS_errors[self.var['errorcode']]
+            return flattenStringflattenString(self, templates[errortemplate]).addCallback(self.contentFinish)
 
     def process(self):
         try:
             content = ""
-          
+
             request = Storage()
             request.headers = self.getAllHeaders().copy()
             request.host = self.getRequestHostname()
@@ -454,7 +457,7 @@ class T2WRequest(proxy.ProxyRequest):
             # secondly we try to deny some ua/crawlers regardless the request is (valid or not) / (local or not)
             # we deny EVERY request to known user agents reconized with pattern matching
             if request.headers.get('user-agent') in t2w.blocked_ua:
-                return self.sendError(403, "error_blocked_ua.xml")
+                return self.sendError(403, "error_blocked_ua.tpl")
 
             # we need to verify if the requested resource is local (/antanistaticmap/*) or remote
             # because some checks must be done only for remote requests;
@@ -507,7 +510,7 @@ class T2WRequest(proxy.ProxyRequest):
                             content = antanistaticmap[staticpath]
                         elif type(antanistaticmap[staticpath]) == PageTemplate:
                             return flattenString(self, antanistaticmap[staticpath]).addCallback(self.contentFinish)
-                    elif staticpath.startswith("notification"):
+                    elif staticpath == "notification":
                         if 'by' in self.args and 'url' in self.args and 'comment' in self.args:
                             message = ""
                             message += "From: Tor2web Node %s.%s <%s>\n" % (config.nodename, config.basehost, config.smtpmail)
@@ -545,7 +548,7 @@ class T2WRequest(proxy.ProxyRequest):
                         port = self.ports[protocol]
 
                 except:
-                    return self.sendError(400, "error_invalid_hostname.xml")
+                    return self.sendError(400, "error_invalid_hostname.tpl")
                 
                 dest = client._parse(self.obj.address) # scheme, host, port, path
                 
@@ -603,12 +606,16 @@ def startTor2webHTTPS(t2w, f, ip):
 sys.excepthook = MailException
 
 antanistaticmap = {}
-localpath = FilePath("static/")
-files = localpath.globChildren("*")
+files = FilePath("static/").globChildren("*")
 for file in files:
-    antanistaticmap[file.basename()] = file.open().read()
+    antanistaticmap[file.basename()] = file.getContent()
 
-antanistaticmap['tos.html'] = PageTemplate('tos.xml')
+templates = {}
+files = FilePath("templates/").globChildren("*.tpl")
+for file in files:
+    templates[file.basename()] = PageTemplate(XMLString(file.getContent()))
+
+antanistaticmap['tos.html'] = templates['tos.tpl']
 
 factory = T2WProxyFactory(config.accesslogpath)
 

@@ -1,13 +1,21 @@
-#tor2web {
-  width: 100%;
-	margin: 0 auto;
-  padding: 0;
+#tor2web, #tor2web-header {
   border: 0;
+  padding: 0;
   font-size: 12px;
-  font-family: 18px Verdana, Arial, Tahoma;
+  font-family: Verdana, Arial, Tahoma;
   color: #000;
   background-color: #f5f5f5;
+}
+
+#tor2web {
+  margin: 0 40px;
+  font-size: 16px;
+}
+
+#tor2web-header {
+  margin: 0 auto;
   border-bottom: 1px solid #000;
+  font-size: 12px;
 }
 
 #tor2web-visible { display: block; padding: 0 30px; }
@@ -22,20 +30,13 @@
 
 .tor2web_showhide { clear: both; text-align: center; }
 
-#tor2web-errorpage {
-  font-size: 16px;
-  font-family: 18px Verdana, Arial, Tahoma;
-  color: #000;
-  background-color: #f5f5f5;
-}
-
-#tor2web-errorpage-wrapper {
+#tor2web-wrapper {
   width: 700px;
   margin: 0 auto 0 auto;
   text-align: justify;
 }
 
-#tor2web-errorpage-title {
+#tor2web-title {
   font-style: bold;
   color: #3B578B;
   border-bottom: 1px solid #ccc;
@@ -43,7 +44,7 @@
   margin: 25px 0 10px 0;
 }
 
-#tor2web-errorpage-content {
+#tor2web-content {
   background: #fff;
   padding: 20px;
 }

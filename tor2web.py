@@ -38,9 +38,12 @@ from urlparse import urlparse
 from functools import partial
 
 from twisted.python import log
+from twisted.python.filepath import FilePath
+from twisted.internet import defer
 from twisted.internet.abstract import isIPAddress, isIPv6Address
+from twisted.web.template import flattenString
 
-from templating import ErrorTemplate, PageTemplate, Template
+from templating import PageTemplate
 from fileList import fileList, updateFileList, hashedBlockList, torExitNodeList
 
 rexp = {
@@ -48,7 +51,7 @@ rexp = {
     'src': re.compile(r'<[a-z]*\s*.*?\s*src\s*=\s*[\\\'"]?([a-z0-9/#:\-\.]*)[\\\'"]?\s*.*?>', re.I),
     'action': re.compile(r'<[a-z]*\s*.*?\s*action\s*=\s*[\\\'"]?([a-z0-9/#:\-\.]*)[\\\'"]?\s*.*?>', re.I),
     'body': re.compile(r'(<body.*?\s*>)', re.I)
-    }
+}
 
 class Tor2webObj():
 
@@ -89,10 +92,10 @@ class Tor2web(object):
         self.config = config
 
         self.basehost = config.basehost
-        
-        # load banner template that will be injected in HTML pges
-        self.banner = open("templates/header.xml", 'r').read()
 
+        # load banner template to inject it in HTML pages
+        self.banner = FilePath("templates/banner.txt").getContent()
+        
         # construct blocklist merging local lists and upstram updates
         
         # schedule upstream updates
@@ -147,7 +150,7 @@ class Tor2web(object):
         HSs are accepted in the <onion_url>.<tor2web_domain>.<tld>/ format
         """
         if not host:
-            obj.error = {'code': 400, 'template': 'error_invalid_hostname.xml'}
+            obj.error = {'code': 400, 'template': 'error_invalid_hostname.tpl'}
             return False
         
         obj.hostname = host.split(".")[0] + ".onion"
@@ -159,7 +162,7 @@ class Tor2web(object):
         except:
             pass
 
-        obj.error = {'code': 406, 'template': 'error_invalid_hostname.xml'}
+        obj.error = {'code': 406, 'template': 'error_invalid_hostname.tpl'}
 
         return False
 
@@ -174,11 +177,11 @@ class Tor2web(object):
         log.msg("URI: %s" % obj.uri)
    
         if hashlib.md5(obj.hostname).hexdigest() in self.blocklist:
-            obj.error = {'code': 403, 'template': 'error_hs_completely_blocked.xml'}
+            obj.error = {'code': 403, 'template': 'error_hs_completely_blocked.tpl'}
             return False
 
         if hashlib.md5(obj.hostname + obj.uri).hexdigest() in self.blocklist:
-            obj.error = {'code': 403, 'template': 'error_hs_specific_page_blocked.xml'}
+            obj.error = {'code': 403, 'template': 'error_hs_specific_page_blocked.tpl'}
             return False
 
         # When connecting to HS use only HTTP
@@ -283,9 +286,8 @@ class Tor2web(object):
         """
         Inject tor2web banner inside the returned page
         """
-
         return str(data.group(1)) + str(self.banner)
-
+        
     def process_links(self, obj, data):
         """
         Process all the possible HTML tag attributes that may contain links.

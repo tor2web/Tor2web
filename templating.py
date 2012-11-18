@@ -31,25 +31,22 @@
 
 # -*- coding: utf-8 -*-
 
-from twisted.web.template import Element, XMLString, renderer, tags
+from twisted.web.template import Element, XMLString, renderer, tags, flattenString
 from twisted.python.filepath import FilePath
 
 from config import config
 from fileList import fileList
 
-class Template(Element):
-    def __init__(self, template):
-        self.template = template
-        template_content = FilePath("templates/"+self.template).getContent()
-        self.loader = XMLString(template_content)
-
+class PageTemplate(Element):
     def lookupRenderMethod(self, name):
         method = renderer.get(self, name, None)
         if method is None:
             def renderUsingDict(request, tag):
-                if name in request.var:
-                    return tag('%s' % name)
-                return tag('undefined variable %s for template %s' % (name , self.template))
+                if(name.startswith("t2wvar-")):
+                    prefix, var = name.split("-")
+                    if var in request.var:
+                        return tag('%s' % request.var[var])
+                return tag('undefined-var')
             return renderUsingDict
         return method
 
@@ -58,22 +55,3 @@ class Template(Element):
         if loader is None:
             raise MissingTemplateLoader(self)
         return loader.load()
-
-
-class PageTemplate(Template):
-    @renderer
-    def header(self, request, tag):
-        yield PageTemplate("header.xml")
-
-class ErrorTemplate(PageTemplate):
-    def __init__(self, error, errortemplate=None):
-        self.error = error
-        try:
-            PageTemplate.__init__(self, errortemplate)
-        except IOError:
-            PageTemplate.__init__(self, "error_generic.xml")
-
-    @renderer
-    def errorcode(self, request, tag):
-        return tag('%s' % self.error)
-
