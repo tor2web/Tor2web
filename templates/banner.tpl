@@ -1,3 +1,4 @@
+<div xmlns:t="http://twistedmatrix.com/ns/twisted.web.template/0.1">
 <script type="text/javascript" src="/antanistaticmap/tor2web.js"></script>
 <style type="text/css">
 @import url(/antanistaticmap/tor2web.css);
@@ -36,4 +37,5 @@
       <a href="javascript:show_hide_tor2web_header(false)">show Tor2web header</a>
     </div>
   </div>
+</div>
 </div>

@@ -92,10 +92,7 @@ class Tor2web(object):
         self.config = config
 
         self.basehost = config.basehost
-
-        # load banner template to inject it in HTML pages
-        self.banner = FilePath("templates/banner.txt").getContent()
-        
+      
         # construct blocklist merging local lists and upstram updates
         
         # schedule upstream updates
@@ -282,11 +279,11 @@ class Tor2web(object):
 
         return data.group(0).replace(data.group(1), link)
 
-    def add_banner(self, obj, data):
+    def add_banner(self, obj, banner, data):
         """
         Inject tor2web banner inside the returned page
         """
-        return str(data.group(1)) + str(self.banner)
+        return str(data.group(1)) + str(banner)
         
     def process_links(self, obj, data):
         """
@@ -302,7 +299,7 @@ class Tor2web(object):
 
         return data
 
-    def process_html(self, obj, data):
+    def process_html(self, obj, banner, data):
         """
         Process the result from the Hidden Services HTML
         """
@@ -310,6 +307,6 @@ class Tor2web(object):
 
         data = self.process_links(obj, data)
 
-        data = re.sub(rexp['body'], partial(self.add_banner, obj), data)
+        data = re.sub(rexp['body'], partial(self.add_banner, obj, banner), data)
 
         return data

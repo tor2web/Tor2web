@@ -324,7 +324,15 @@ class T2WProxyClient(proxy.ProxyClient):
 
         if data and self.obj.contentNeedFix:
             if self.html:
-                data = t2w.process_html(self.obj, data)
+                print "antani"
+                d = flattenString(self, templates['banner.tpl'])
+                d.addCallback(self.handleHTMLData, data)
+                return
+
+        self.handleCleartextForwardPart(data, True)
+
+    def handleHTMLData(self, header, data):
+        data = t2w.process_html(self.obj, header, data)
         
         self.handleCleartextForwardPart(data, True)
 
@@ -429,7 +437,7 @@ class T2WRequest(proxy.ProxyRequest):
             else:
                 self.var['errorcode'] = 0x00
             ettortemplate = SOCKS_errors[self.var['errorcode']]
-            return flattenStringflattenString(self, templates[errortemplate]).addCallback(self.contentFinish)
+            return flattenString(self, templates[errortemplate]).addCallback(self.contentFinish)
 
     def process(self):
         try:
@@ -551,7 +559,7 @@ class T2WRequest(proxy.ProxyRequest):
                     return self.sendError(400, "error_invalid_hostname.tpl")
                 
                 dest = client._parse(self.obj.address) # scheme, host, port, path
-                
+
                 endpoint = SOCKS5ClientEndpoint(reactor,
                                                 config.sockshost, config.socksport,
                                                 dest[1], dest[2])
