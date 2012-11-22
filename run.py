@@ -427,8 +427,7 @@ class T2WRequest(proxy.ProxyRequest):
                 self.var['errorcode'] = failure.value.code
             else:
                 self.var['errorcode'] = 0x00
-            ettortemplate = SOCKS_errors[self.var['errorcode']]
-            return flattenString(self, templates[errortemplate]).addCallback(self.contentFinish)
+            return flattenString(self, templates[SOCKS_errors[0x00]]).addCallback(self.contentFinish)
 
     def process(self):
         try:

@@ -82,9 +82,7 @@ class SOCKSv5ClientProtocol(_WrappingProtocol):
 
         self.ready = True
 
-        self._wrappedProtocol.transport = self.transport
-        self._wrappedProtocol.connectionMade()
-        
+        self._wrappedProtocol.makeConnection(self.transport)
         self._connectedDeferred.callback(self._wrappedProtocol)
 
     def connectionMade(self):
