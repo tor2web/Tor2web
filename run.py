@@ -70,15 +70,6 @@ SOCKS_errors = {\
     0x24: "error_socks_hs_not_reachable.tpl"
 }
 
-t2w = Tor2web(config)
-
-application = service.Application("Tor2web")
-if config.debugmode:
-    application.setComponent(log.ILogObserver, log.FileLogObserver(DailyLogFile.fromFullPath(config.debuglogpath)).emit)
-else:
-    application.setComponent(log.ILogObserver, log.FileLogObserver(log.NullFile).emit)
-
-
 def MailException(etype, value, tb):
     """
     Formats traceback and exception data and emails the error
@@ -612,6 +603,16 @@ def startTor2webHTTPS(t2w, f, ip):
     return internet.SSLServer(int(t2w.config.listen_port_https), f, T2WSSLContextFactory(t2w.config.sslkeyfile, t2w.config.sslcertfile, t2w.config.ssldhfile, t2w.config.cipher_list), interface=ip)
 
 sys.excepthook = MailException
+
+t2w = Tor2web(config)
+
+application = service.Application("Tor2web")
+if config.debugmode:
+    if config.debugtostdout is not True:
+        application.setComponent(log.ILogObserver, log.FileLogObserver(DailyLogFile.fromFullPath(config.debuglogpath)).emit)
+else:
+    application.setComponent(log.ILogObserver, log.FileLogObserver(log.NullFile).emit)
+
 
 antanistaticmap = {}
 files = FilePath("static/").globChildren("*")
