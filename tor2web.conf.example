@@ -17,6 +17,7 @@ basehost = tor2web.org
 # This is the SOCKS host and port on which Tor is listening
 sockshost = 127.0.0.1
 socksport = 9050
+sockoptimisticdata = True
 
 # SSL configuration
 sslkeyfile = certs/tor2web_key_test.key

@@ -315,7 +315,6 @@ class T2WProxyClient(proxy.ProxyClient):
 
         if data and self.obj.contentNeedFix:
             if self.html:
-                print "antani"
                 d = flattenString(self, templates['banner.tpl'])
                 d.addCallback(self.handleHTMLData, data)
                 return
@@ -552,7 +551,7 @@ class T2WRequest(proxy.ProxyRequest):
 
                 endpoint = SOCKS5ClientEndpoint(reactor,
                                                 config.sockshost, config.socksport,
-                                                dest[1], dest[2])
+                                                dest[1], dest[2], config.socksoptimisticdata)
                 
                 pf = T2WProxyClientFactory(self.method, dest[3], "HTTP/1.1", self.obj.headers, content, self, self.obj)
 

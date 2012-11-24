@@ -48,53 +48,63 @@ class SOCKSError(Exception):
 class SOCKSv5ClientProtocol(_WrappingProtocol):
     state = 0
 
-    def __init__(self, connectedDeferred, wrappedProtocol, host, port):
+    def __init__(self, connectedDeferred, wrappedProtocol, host, port, optimistic = False):
         _WrappingProtocol.__init__(self, connectedDeferred, wrappedProtocol)
         self._host = host
         self._port = port
-        self.ready = False
-        self.buf = []
+        self._optimistic = optimistic
+        self._buf = ''
 
-    def socks_state_0(self, data):
+    def socks_state_0(self):
         # error state
         self._connectedDeferred.errback(SOCKSError(0x00))
         return
 
-    def socks_state_1(self, data):
-        if data != "\x05\x00":
-            self._connectedDeferred.errback(SOCKSError(0x00))
+    def socks_state_1(self):
+        if len(self._buf) < 2:
             return
 
-        # Anonymous access allowed - let's issue connect
-        self.transport.write(struct.pack("!BBBBB", 5, 1, 0, 3,
-                                         len(self._host)) + 
-                                         self._host +
-                                         struct.pack("!H", self._port))
+        if self._buf[:2] != "\x05\x00":
+            self._connectedDeferred.errback(SOCKSError(0x00))
+            return
+        
+        self._buf = self._buf[2:]
 
-    def socks_state_2(self, data):
-        if data[:2] != "\x05\x00":
+    def socks_state_2(self):
+        if len(self._buf) < 2:
+            return
+
+        if self._buf[:2] != "\x05\x00":
             # Anonymous access denied
 
-            errcode = ord(data[1])
+            errcode = ord(self._buf[1])
             self._connectedDeferred.errback(SOCKSError(errcode))
                 
             return
+    
+        self._buf = self._buf[2:]
+        self._wrappedProtocol.dataReceived(self._buf)
 
-        self.ready = True
-
-        self._wrappedProtocol.makeConnection(self.transport)
-        self._connectedDeferred.callback(self._wrappedProtocol)
+        if not self._optimistic:
+            self._wrappedProtocol.makeConnection(self.transport)
+            self._connectedDeferred.callback(self._wrappedProtocol)
 
     def connectionMade(self):
         # We implement only Anonymous access
-        self.transport.write(struct.pack("!BB", 5, len("\x00")) + "\x00")
+        data = struct.pack("!BB", 5, len("\x00")) + "\x00" + struct.pack("!BBBBB", 5, 1, 0, 3, len(self._host)) + self._host + struct.pack("!H", self._port)
+        self.transport.write(data)
+        
+        if self._optimistic:
+            self._wrappedProtocol.makeConnection(self.transport)
+            self._connectedDeferred.callback(self._wrappedProtocol)
         
         self.state = self.state + 1
 
     def dataReceived(self, data):
         if self.state != 3:
+            self._buf = self._buf.join(data)
             getattr(self, 'socks_state_%s' % (self.state),
-                    self.socks_state_0)(data)
+                    self.socks_state_0)()
             self.state = self.state + 1
         else:
             self._wrappedProtocol.dataReceived(data)
@@ -102,9 +112,11 @@ class SOCKSv5ClientProtocol(_WrappingProtocol):
 class SOCKSv5ClientFactory(_WrappingFactory):
     protocol = SOCKSv5ClientProtocol
     
-    def __init__(self, wrappedFactory, host, port):
+    def __init__(self, wrappedFactory, host, port, optimistic):
         _WrappingFactory.__init__(self, wrappedFactory)
-        self._host, self._port = host, port
+        self._host = host
+        self._port = port
+        self._optimistic = optimistic
 
     def buildProtocol(self, addr):
         """
@@ -119,7 +131,7 @@ class SOCKSv5ClientFactory(_WrappingFactory):
             self._onConnection.errback()
         else:
             return self.protocol(self._onConnection, proto,
-                                 self._host, self._port)
+                                 self._host, self._port, self._optimistic)
 
 class SOCKS5ClientEndpoint(object):
     """
@@ -128,7 +140,7 @@ class SOCKS5ClientEndpoint(object):
     implements(interfaces.IStreamClientEndpoint)
 
     def __init__(self, reactor, sockhost, sockport,
-                 host, port, timeout=30, bindAddress=None):
+                 host, port, optimistic, timeout=30, bindAddress=None):
         """
         @param reactor: An L{IReactorTCP} provider
 
@@ -151,6 +163,7 @@ class SOCKS5ClientEndpoint(object):
         self._sockport = sockport
         self._host = host
         self._port = port
+        self._optimistic = optimistic
         self._timeout = timeout
         self._bindAddress = bindAddress
 
@@ -159,7 +172,7 @@ class SOCKS5ClientEndpoint(object):
         Implement L{IStreamClientEndpoint.connect} to connect via TCP.
         """
         try:
-            wf = SOCKSv5ClientFactory(protocolFactory, self._host, self._port)
+            wf = SOCKSv5ClientFactory(protocolFactory, self._host, self._port, self._optimistic)
             self._reactor.connectTCP(
                 self._sockhost, self._sockport, wf,
                 timeout=self._timeout, bindAddress=self._bindAddress)
