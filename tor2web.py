@@ -202,10 +202,11 @@ class Tor2web(object):
         log.msg("Headers before fix:")
         log.msg(obj.headers)
 
-        obj.headers.update({'X-tor2web':'encrypted'})
-        obj.headers.update({'Connection':'close'})
-        obj.headers.update({'Accept-Encoding':'gzip, chunked'})
-        obj.headers.update({'Host': obj.hostname})
+        obj.headers.setRawHeaders('Host', obj.hostname)
+        obj.headers.setRawHeaders('X-tor2web', 'encrypted')
+        obj.headers.setRawHeaders('Connection', 'close')
+        obj.headers.setRawHeaders('Accept-Encoding', 'gzip, chunked')
+        obj.headers.setRawHeaders('Host', obj.hostname)
 
         log.msg("Headers after fix:")
         log.msg(obj.headers)

@@ -1,6 +1,6 @@
 <html xmlns:t="http://twistedmatrix.com/ns/twisted.web.template/0.1">
   <head>
-  <title>Tor2web Error: Generic Error (<t:transparent t:render="errorcode" />)</title>
+  <title>Tor2web Error: Generic Error (<t:transparent t:render="t2wvar-errorcode" />)</title>
   <meta http-equiv="content-type" content="text/html;charset=utf-8" />
   <meta http-equiv="content-language" content="en" />
   </head>

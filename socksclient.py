@@ -39,6 +39,7 @@ from twisted.internet import defer, interfaces
 from twisted.internet.interfaces import IStreamClientEndpoint
 from twisted.internet.endpoints import TCP4ClientEndpoint, SSL4ClientEndpoint, _WrappingProtocol, _WrappingFactory
 from twisted.protocols import policies
+from twisted.python.failure import Failure
 
 class SOCKSError(Exception):
     def __init__(self, value):
@@ -54,10 +55,17 @@ class SOCKSv5ClientProtocol(_WrappingProtocol):
         self._port = port
         self._optimistic = optimistic
         self._buf = ''
+        
+    def error(self, error):
+        if not self._optimistic:
+            self._connectedDeferred.errback(error)
+        else:
+            self._wrappedProtocol.connectionLost(error)
+        self.transport.loseConnection()
 
     def socks_state_0(self):
         # error state
-        self._connectedDeferred.errback(SOCKSError(0x00))
+        self.error(SOCKSError(0x00))
         return
 
     def socks_state_1(self):
@@ -65,21 +73,23 @@ class SOCKSv5ClientProtocol(_WrappingProtocol):
             return
 
         if self._buf[:2] != "\x05\x00":
-            self._connectedDeferred.errback(SOCKSError(0x00))
+            # Anonymous access denied
+            self.error(Failure(SOCKSError(0x00)))
             return
-        
+
+        if not self._optimistic:
+            self.transport.write(struct.pack("!BBBBB", 5, 1, 0, 3, len(self._host)) + self._host + struct.pack("!H", self._port))
+
         self._buf = self._buf[2:]
+        
+        self.state = self.state + 1
 
     def socks_state_2(self):
         if len(self._buf) < 2:
             return
 
         if self._buf[:2] != "\x05\x00":
-            # Anonymous access denied
-
-            errcode = ord(self._buf[1])
-            self._connectedDeferred.errback(SOCKSError(errcode))
-                
+            self.error(Failure(SOCKSError(ord(self._buf[1]))))
             return
     
         self._buf = self._buf[2:]
@@ -88,13 +98,15 @@ class SOCKSv5ClientProtocol(_WrappingProtocol):
         if not self._optimistic:
             self._wrappedProtocol.makeConnection(self.transport)
             self._connectedDeferred.callback(self._wrappedProtocol)
+        
+        self.state = self.state + 1
 
     def connectionMade(self):
         # We implement only Anonymous access
-        data = struct.pack("!BB", 5, len("\x00")) + "\x00" + struct.pack("!BBBBB", 5, 1, 0, 3, len(self._host)) + self._host + struct.pack("!H", self._port)
-        self.transport.write(data)
+        self.transport.write(struct.pack("!BB", 5, len("\x00")) + "\x00")
         
         if self._optimistic:
+            self.transport.write(struct.pack("!BBBBB", 5, 1, 0, 3, len(self._host)) + self._host + struct.pack("!H", self._port))
             self._wrappedProtocol.makeConnection(self.transport)
             self._connectedDeferred.callback(self._wrappedProtocol)
         
@@ -105,7 +117,6 @@ class SOCKSv5ClientProtocol(_WrappingProtocol):
             self._buf = self._buf.join(data)
             getattr(self, 'socks_state_%s' % (self.state),
                     self.socks_state_0)()
-            self.state = self.state + 1
         else:
             self._wrappedProtocol.dataReceived(data)
 

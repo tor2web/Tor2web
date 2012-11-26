@@ -50,7 +50,7 @@ from twisted.internet.error import ConnectionRefusedError
 from twisted.internet.ssl import ClientContextFactory, DefaultOpenSSLContextFactory
 from twisted.internet.defer import Deferred
 from twisted.application import service, internet
-from twisted.web import proxy, http, client, resource
+from twisted.web import proxy, http, client, resource, http_headers
 from twisted.web.template import flattenString, XMLString
 from twisted.web.server import NOT_DONE_YET
 from twisted.python.filepath import FilePath
@@ -63,9 +63,10 @@ from tor2web import Tor2web, Tor2webObj
 from storage import Storage
 from templating import PageTemplate
 from socksclient import SOCKS5ClientEndpoint, SOCKSError
+from twisted.web.http_headers import _DictHeaders
 
 SOCKS_errors = {\
-    0x00: "error_generic.tpl",
+    0x00: "error_sock_generic.tpl",
     0x23: "error_socks_hs_not_found.tpl",
     0x24: "error_socks_hs_not_reachable.tpl"
 }
@@ -352,10 +353,13 @@ class T2WProxyClient(proxy.ProxyClient):
         if not self._finished:
             self._finished = True
             self.father.finish()
-            self.transport.loseConnection()
 
     def connectionLost(self, reason):
-        self.handleResponseEnd()
+        if type(reason.value) is SOCKSError:
+            self._finished = True
+            self.father.handleError(reason)
+        else:
+            self.handleResponseEnd()
  
 class T2WProxyClientFactory(proxy.ProxyClientFactory):
     protocol = T2WProxyClient
@@ -367,18 +371,79 @@ class T2WProxyClientFactory(proxy.ProxyClientFactory):
     def buildProtocol(self, addr):
         return self.protocol(self.command, self.rest, self.version, self.headers, self.data, self.father, self.obj)
 
+class Headers(http_headers.Headers):
+    def __init__(self, rawHeaders=None):
+        self._rawHeaders = dict()
+        if rawHeaders is not None:
+            for name, values in rawHeaders.iteritems():
+                if type(values) is list:
+                  self.setRawHeaders(name, values[:])
+                else:
+                  self._rawHeaders[name.lower()] = values
+
+    def setRawHeaders(self, name, values):
+        if name.lower() not in self._rawHeaders:
+          self._rawHeaders[name.lower()] = dict()
+        self._rawHeaders[name.lower()]['name'] = name
+        self._rawHeaders[name.lower()]['values'] = values
+
+    def getAllRawHeaders(self):
+        for k, v in self._rawHeaders.iteritems():
+            yield v['name'], v['values']
+
+    def getRawHeaders(self, name, default=None):
+        if name.lower() in self._rawHeaders:
+            return self._rawHeaders[name.lower()]['values']
+        return default
+
 class T2WRequest(proxy.ProxyRequest):
     """
     Used by Tor2webProxy to implement a simple web proxy.
     """
     staticmap = "/" + config.staticmap + "/"
 
-    def __init__(self, *args, **kw):
-        proxy.ProxyRequest.__init__(self, *args, **kw)
+    def __init__(self, channel, queued, reactor=reactor):
+        self.reactor = reactor
         self.obj = Tor2webObj()
         self.var = Storage()
         self.var['basehost'] = config.basehost
         self.var['errorcode'] = None
+
+        self.notifications = []
+        self.channel = channel
+        self.queued = queued
+        self.requestHeaders = Headers()
+        self.received_cookies = {}
+        self.responseHeaders = Headers()
+        self.cookies = [] # outgoing cookies
+
+        if queued:
+            self.transport = StringTransport()
+        else:
+            self.transport = self.channel.transport
+
+    def __setattr__(self, name, value):
+        """
+        Support assignment of C{dict} instances to C{received_headers} for
+        backwards-compatibility.
+        """
+        if name == 'received_headers':
+            # A property would be nice, but Request is classic.
+            self.requestHeaders = headers = Headers()
+            for k, v in value.iteritems():
+                headers.setRawHeaders(k, [v])
+        elif name == 'requestHeaders':
+            self.__dict__[name] = value
+            self.__dict__['received_headers'] = _DictHeaders(value)
+        elif name == 'headers':
+            self.responseHeaders = headers = Headers()
+            for k, v in value.iteritems():
+                headers.setRawHeaders(k, [v])
+        elif name == 'responseHeaders':
+            self.__dict__[name] = value
+            self.__dict__['headers'] = _DictHeaders(value)
+        else:
+            self.__dict__[name] = value
 
     def getRequestHostname(self):
         """
@@ -433,7 +498,7 @@ class T2WRequest(proxy.ProxyRequest):
             content = ""
 
             request = Storage()
-            request.headers = self.getAllHeaders().copy()
+            request.headers = self.requestHeaders
             request.host = self.getRequestHostname()
             request.uri = self.uri
             
@@ -453,8 +518,9 @@ class T2WRequest(proxy.ProxyRequest):
 
             # secondly we try to deny some ua/crawlers regardless the request is (valid or not) / (local or not)
             # we deny EVERY request to known user agents reconized with pattern matching
-            if request.headers.get('user-agent') in t2w.blocked_ua:
-                return self.sendError(403, "error_blocked_ua.tpl")
+            if request.headers.getRawHeaders('user-agent') != None:
+                if request.headers.getRawHeaders('user-agent')[0] in t2w.blocked_ua:
+                    return self.sendError(403, "error_blocked_ua.tpl")
 
             # we need to verify if the requested resource is local (/antanistaticmap/*) or remote
             # because some checks must be done only for remote requests;
@@ -481,14 +547,14 @@ class T2WRequest(proxy.ProxyRequest):
                 #
                 if request.uri.lower().endswith(('gif','jpg','png')):
                     # Avoid image hotlinking
-                    if request.headers.get('referer') == None or not config.basehost in request.headers.get('referer').lower():
+                    if request.headers.getRawHeaders('referer') == None or not config.basehost in request.headers.getRawHeaders('referer')[0].lower():
                         return self.sendError(403)
 
             self.setHeader('strict-transport-security', 'max-age=31536000') 
 
             # 1: Client capability assesment stage
-            if request.headers.get('accept-encoding') != None:
-                if re.search('gzip', request.headers.get('accept-encoding')):
+            if request.headers.getRawHeaders('accept-encoding') != None:
+                if re.search('gzip', request.headers.getRawHeaders('accept-encoding')[0]):
                     self.obj.client_supports_gzip = True
 
             # 2: Content delivery stage
@@ -552,8 +618,11 @@ class T2WRequest(proxy.ProxyRequest):
                 endpoint = SOCKS5ClientEndpoint(reactor,
                                                 config.sockshost, config.socksport,
                                                 dest[1], dest[2], config.socksoptimisticdata)
-                
-                pf = T2WProxyClientFactory(self.method, dest[3], "HTTP/1.1", self.obj.headers, content, self, self.obj)
+
+                headers = {}
+                for k, v in self.obj.headers.getAllRawHeaders():
+                    headers[k.lower()] = v[-1]
+                pf = T2WProxyClientFactory(self.method, dest[3], "HTTP/1.1", headers, content, self, self.obj)
 
                 d = endpoint.connect(pf)
                 
