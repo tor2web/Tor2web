@@ -93,12 +93,13 @@ class SOCKSv5ClientProtocol(_WrappingProtocol):
             return
     
         self._buf = self._buf[2:]
-        self._wrappedProtocol.dataReceived(self._buf)
 
         if not self._optimistic:
             self._wrappedProtocol.makeConnection(self.transport)
             self._connectedDeferred.callback(self._wrappedProtocol)
-        
+
+        self._wrappedProtocol.dataReceived(self._buf)
+
         self.state = self.state + 1
 
     def connectionMade(self):
