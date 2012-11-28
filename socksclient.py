@@ -60,8 +60,9 @@ class SOCKSv5ClientProtocol(_WrappingProtocol):
         if not self._optimistic:
             self._connectedDeferred.errback(error)
         else:
-            self._wrappedProtocol.connectionLost(error)
-        self.transport.loseConnection()
+            errorcode = 600 + error.value.code
+            self._wrappedProtocol.dataReceived("HTTP/1.1 "+str(errorcode)+" ANTANI\r\n\r\n")
+            self.transport.loseConnection()
 
     def socks_state_0(self):
         # error state
@@ -147,29 +148,12 @@ class SOCKSv5ClientFactory(_WrappingFactory):
 
 class SOCKS5ClientEndpoint(object):
     """
-    TCP client endpoint with an IPv4 configuration.
+    SOCKS5 TCP client endpoint with an IPv4 configuration.
     """
     implements(interfaces.IStreamClientEndpoint)
 
     def __init__(self, reactor, sockhost, sockport,
                  host, port, optimistic, timeout=30, bindAddress=None):
-        """
-        @param reactor: An L{IReactorTCP} provider
-
-        @param host: A hostname, used when connecting
-        @type host: str
-
-        @param port: The port number, used when connecting
-        @type port: int
-
-        @param timeout: The number of seconds to wait before assuming the
-            connection has failed.
-        @type timeout: int
-
-        @param bindAddress: A (host, port) tuple of local address to bind to,
-            or None.
-        @type bindAddress: tuple
-        """
         self._reactor = reactor
         self._sockhost = sockhost
         self._sockport = sockport
@@ -180,9 +164,6 @@ class SOCKS5ClientEndpoint(object):
         self._bindAddress = bindAddress
 
     def connect(self, protocolFactory):
-        """
-        Implement L{IStreamClientEndpoint.connect} to connect via TCP.
-        """
         try:
             wf = SOCKSv5ClientFactory(protocolFactory, self._host, self._port, self._optimistic)
             self._reactor.connectTCP(

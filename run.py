@@ -70,8 +70,8 @@ from twisted.web.http_headers import _DictHeaders
 
 SOCKS_errors = {\
     0x00: "error_sock_generic.tpl",
-    0x23: "error_socks_hs_not_found.tpl",
-    0x24: "error_socks_hs_not_reachable.tpl"
+    0x23: "error_sock_hs_not_found.tpl",
+    0x24: "error_sock_hs_not_reachable.tpl"
 }
 
 def MailException(etype, value, tb):
@@ -251,7 +251,10 @@ class HTTP11ClientProtocol(_newclient.HTTP11ClientProtocol):
 
         return self._finishedRequest
 
-class _HTTP11ClientFactory(client._HTTP11ClientFactory):
+class _HTTP11ClientFactory(protocol.ClientFactory):
+    def __init__(self, quiescentCallback):
+        self._quiescentCallback = quiescentCallback
+
     def buildProtocol(self, addr):
         return HTTP11ClientProtocol(self._quiescentCallback)
 
@@ -438,16 +441,15 @@ class T2WRequest(proxy.ProxyRequest):
         return flattenString(self, templates[errortemplate]).addCallback(self.contentFinish)
 
     def handleError(self, failure):
-        failure.trap(ConnectionRefusedError, SOCKSError)
-        if type(failure.value) is ConnectionRefusedError:
-            self.sendError()
-        else:
+        if type(failure.value) is SOCKSError:
             self.setResponseCode(500)
+            self.var['errorcode'] = failure.value.code
             if failure.value.code in SOCKS_errors:
-                self.var['errorcode'] = failure.value.code
+                return flattenString(self, templates[SOCKS_errors[failure.value.code]]).addCallback(self.contentFinish)
             else:
-                self.var['errorcode'] = 0x00
-            return flattenString(self, templates[SOCKS_errors[0x00]]).addCallback(self.contentFinish)
+                return flattenString(self, templates[SOCKS_errors[0x00]]).addCallback(self.contentFinish)
+        else:
+            self.sendError()
 
     def unzip(self, data, end=False):
         data1 = data2 = ''
@@ -627,6 +629,14 @@ class T2WRequest(proxy.ProxyRequest):
             MailException(exc_type, exc_value, exc_traceback)
 
     def cbResponse(self, response):
+        if int(response.code) >= 600 and int(response.code) <= 699:
+            self.setResponseCode(500)
+            self.var['errorcode'] = int(response.code) - 600
+            if self.var['errorcode'] in SOCKS_errors:
+                return flattenString(self, templates[SOCKS_errors[self.var['errorcode']]]).addCallback(self.contentFinish)
+            else:
+                return flattenString(self, templates[SOCKS_errors[0x00]]).addCallback(self.contentFinish)
+
         self.setResponseCode(response.code)
 
         self.processResponseHeaders(response.headers)
