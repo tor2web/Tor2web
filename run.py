@@ -182,14 +182,25 @@ class T2WSSLContextFactory(DefaultOpenSSLContextFactory):
 
 class BodyReceiver(protocol.Protocol):
     def __init__(self, finished):
-        self.finished = finished
-        self.data = ""
+        self._finished = finished
+        self._data = ""
 
     def dataReceived(self, bytes):
-        self.data += bytes
+        self._data += bytes
 
     def connectionLost(self, reason):
-        self.finished.callback(self.data)
+        self._finished.callback(self._data)
+
+class BodyStreamer(protocol.Protocol):
+    def __init__(self, streamfunction, finished):
+        self._finished = finished
+        self._streamfunction = streamfunction
+
+    def dataReceived(self, bytes):
+        self._streamfunction(bytes)
+
+    def connectionLost(self, reason):
+        self._finished.callback('')
 
 class HTTPClientParser(_newclient.HTTPClientParser):
     def connectionMade(self):
@@ -334,13 +345,10 @@ class T2WRequest(proxy.ProxyRequest):
         self.responseHeaders = Headers()
         self.cookies = [] # outgoing cookies
 
-        self.response_code = 200
         self.html = False
-        self.receivedContentLen = None
         self.decoderChunked = None        
         self.decoderGzip = None
         self.encoderGzip = None        
-        self.startedWriting = False
 
         if queued:
             self.transport = StringTransport()
@@ -381,13 +389,45 @@ class T2WRequest(proxy.ProxyRequest):
                 return host.split(']',1)[0] + "]"
             return host.split(':', 1)[0]
         return self.getHost().host
-    
+
+    def forwardData(self, data, end=False):
+        if not self.startedWriting:
+            if self.obj.client_supports_gzip:
+                self.setHeader('content-encoding', 'gzip')
+
+            if data != '' and end:
+                self.setHeader('content-length', len(data))
+
+        if data != '':
+            self.write(data)
+
+    def handleGzippedForwardPart(self, data, end=False):
+        if not self.obj.client_supports_gzip:
+            data = self.unzip(data, end)
+
+        self.forwardData(data, end)
+
+    def handleCleartextForwardPart(self, data, end=False):
+        if self.obj.client_supports_gzip:
+           data = self.zip(data, end)
+
+        self.forwardData(data, end)
+
+    def handleForwardPart(self, data):
+        if self.obj.server_response_is_gzip:
+            self.handleGzippedForwardPart(data)
+        else:
+            self.handleCleartextForwardPart(data)
+
+    def handleForwardEnd(self, data):
+        self.handleCleartextForwardPart(data, True)
+        self.finish()
+
     def contentFinish(self, content):
         if self.obj.client_supports_gzip:
             self.setHeader('content-encoding', 'gzip')
             content = self.zip(content, True)
 
-        self.setResponseCode(self.response_code)
         self.setHeader('content-length', len(content))
         self.write(content)
         self.finish()
@@ -587,29 +627,35 @@ class T2WRequest(proxy.ProxyRequest):
             MailException(exc_type, exc_value, exc_traceback)
 
     def cbResponse(self, response):
-        self.response_code = response.code
+        self.setResponseCode(response.code)
 
         self.processResponseHeaders(response.headers)
 
         if(response.length is not 0):
-            finished = defer.Deferred()
-            response.deliverBody(BodyReceiver(finished))
-            finished.addCallback(self.processResponseBody)
-            return finished
+            if self.obj.contentNeedFix:
+                finished = defer.Deferred()
+                response.deliverBody(BodyReceiver(finished))
+                finished.addCallback(self.processResponseBody)
+                return finished
 
-        self.contentFinish('')
-
-        return defer.succeed
+            else:
+                finished = defer.Deferred()
+                response.deliverBody(BodyStreamer(self.handleForwardPart, finished))
+                finished.addCallback(self.handleForwardEnd)
+                return finished
+        else:
+            self.contentFinish('')
+            return defer.succeed
 
     def handleHeader(self, key, value):
         keyLower = key.lower()
         valueLower = value.lower()
-
+        
         if keyLower == 'location':
             value = t2w.fix_link(self.obj, value)
 
         elif keyLower == 'connection':
-            value = 'close'
+            return
 
         elif keyLower == 'transfer-encoding' and valueLower == 'chunked':
             return
@@ -634,16 +680,16 @@ class T2WRequest(proxy.ProxyRequest):
     def handleEndHeaders(self):
         self.setHeader('cache-control', 'no-cache')
 
-    def handleHTMLData(self, header, data):
-        data = t2w.process_html(self.obj, header, data)
-        
-        self.contentFinish(data)
-
     def processResponseHeaders(self, headers):
         for name, values in headers.getAllRawHeaders():
             self.handleHeader(name, values[0])
         
         self.handleEndHeaders()
+
+    def handleHTMLData(self, header, data):
+        data = t2w.process_html(self.obj, header, data)
+        
+        self.contentFinish(data)
 
     def processResponseBody(self, data):
         if self.obj.server_response_is_gzip:
@@ -654,6 +700,7 @@ class T2WRequest(proxy.ProxyRequest):
                 d = flattenString(self, templates['banner.tpl'])
                 d.addCallback(self.handleHTMLData, data)
                 return
+
         self.contentFinish(data)
 
 class T2WProxy(http.HTTPChannel):
