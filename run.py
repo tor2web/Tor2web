@@ -202,6 +202,22 @@ class BodyStreamer(protocol.Protocol):
     def connectionLost(self, reason):
         self._finished.callback('')
 
+class Headers(http_headers.Headers):
+    def setRawHeaders(self, name, values):
+        if name.lower() not in self._rawHeaders:
+            self._rawHeaders[name.lower()] = dict()
+        self._rawHeaders[name.lower()]['name'] = name
+        self._rawHeaders[name.lower()]['values'] = values
+
+    def getRawHeaders(self, name, default=None):
+        if name.lower() in self._rawHeaders:
+            return self._rawHeaders[name.lower()]['values']
+        return default
+
+    def getAllRawHeaders(self):
+        for k, v in self._rawHeaders.iteritems():
+            yield v['name'], v['values']
+
 class HTTPClientParser(_newclient.HTTPClientParser):
     def connectionMade(self):
         self.headers = Headers()
@@ -310,22 +326,6 @@ class Agent(client.Agent):
                         persistent=self._pool.persistent))
         d.addCallback(cbConnected)
         return d
- 
-class Headers(http_headers.Headers):
-    def setRawHeaders(self, name, values):
-        if name.lower() not in self._rawHeaders:
-          self._rawHeaders[name.lower()] = dict()
-        self._rawHeaders[name.lower()]['name'] = name
-        self._rawHeaders[name.lower()]['values'] = values
-
-    def getRawHeaders(self, name, default=None):
-        if name.lower() in self._rawHeaders:
-            return self._rawHeaders[name.lower()]['values']
-        return default
-
-    def getAllRawHeaders(self):
-        for k, v in self._rawHeaders.iteritems():
-            yield v['name'], v['values']
 
 class T2WRequest(proxy.ProxyRequest):
     """

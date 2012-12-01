@@ -86,20 +86,18 @@ class SOCKSv5ClientProtocol(_WrappingProtocol):
         self.state = self.state + 1
 
     def socks_state_2(self):
-        if len(self._buf) < 2:
+        if len(self._buf) < 10:
             return
 
         if self._buf[:2] != "\x05\x00":
             self.error(Failure(SOCKSError(ord(self._buf[1]))))
             return
     
-        self._buf = self._buf[2:]
+        self._buf = self._buf[10:]
 
         if not self._optimistic:
             self._wrappedProtocol.makeConnection(self.transport)
             self._connectedDeferred.callback(self._wrappedProtocol)
-
-        self._wrappedProtocol.dataReceived(self._buf)
 
         self.state = self.state + 1
 
@@ -117,8 +115,7 @@ class SOCKSv5ClientProtocol(_WrappingProtocol):
     def dataReceived(self, data):
         if self.state != 3:
             self._buf = self._buf.join(data)
-            getattr(self, 'socks_state_%s' % (self.state),
-                    self.socks_state_0)()
+            getattr(self, 'socks_state_%s' % (self.state), self.socks_state_0)()
         else:
             self._wrappedProtocol.dataReceived(data)
 
@@ -132,12 +129,6 @@ class SOCKSv5ClientFactory(_WrappingFactory):
         self._optimistic = optimistic
 
     def buildProtocol(self, addr):
-        """
-        Proxy C{buildProtocol} to our C{self._wrappedFactory} or errback
-        the C{self._onConnection} L{Deferred}.
-
-        @return: An instance of L{_WrappingProtocol} or C{None}
-        """''
         try:
             proto = self._wrappedFactory.buildProtocol(addr)
         except:
