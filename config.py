@@ -32,7 +32,10 @@
 # -*- coding: utf-8 -*-
 
 from storage import Storage
+import re
 import ConfigParser
+
+listpattern = re.compile(r'\s*("[^"]*"|.*?)\s*,')
 
 class Config(Storage):
     """
@@ -47,33 +50,48 @@ class Config(Storage):
         self._cfgparser.read([self._cfgfile])
         self._section = section
 
-    def __getattr__(self, name):
-        if name.startswith("_"):
-            return self.__dict__.get(name, None)
-
-        try:
+        for name in self._cfgparser.options(section):
             value = self._cfgparser.get(self._section, name)
-            if value.isdigit():
-                return int(value)
-            elif value.lower() in ('true', 'false'):
-                return value.lower() == 'true'
-            elif value == '' or value == None:
-                return None
-            else:
-                return value
+            self.__dict__[name] = self.parse(name)
+
+    def splitlist(self, line):
+        return [x[1:-1] if x[:1] == x[-1:] == '"' else x
+            for x in listpattern.findall(line.rstrip(',') + ',')]
+
+    def parse(self, name):
+        try:
+
+           value = self._cfgparser.get(self._section, name)
+           if value.isdigit():
+                value = int(value)
+           elif value.lower() in ('true', 'false'):
+                value = value.lower() == 'true'
+           elif value == '' or value == None:
+                value = None
+           elif value[0] == "[" and value[-1] == "]":
+                value = self.splitlist(value[1:-1])
+
+           return value
+
         except ConfigParser.NoOptionError:
             # if option doesn't exists returns None
             return None
 
+    def __getattr__(self, name):
+        return self.__dict__.get(name, None)
+
     def __setattr__(self, name, value):
+        self.__dict__[name] = value
+
         # keep an open port with private attributes
         if name.startswith("_"):
-            self.__dict__[name] = value
             return
 
         try:
+
             # XXX: Automagically discover variable type
             self._cfgparser.set(self._section, name, value)
+
         except ConfigParser.NoOptionError:
             raise NameError(name)
 
