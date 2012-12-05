@@ -503,6 +503,10 @@ class T2WRequest(proxy.ProxyRequest):
             request.headers = self.requestHeaders
             request.host = self.getRequestHostname()
             request.uri = self.uri
+
+            if config.mirror is not None:
+                from random import choice
+                self.var['mirror'] = choice(config.mirror)
             
             # we serve contents only over https
             if not self.isSecure():
@@ -616,6 +620,9 @@ class T2WRequest(proxy.ProxyRequest):
                     return self.sendError(400, "error_invalid_hostname.tpl")
                 
                 dest = client._parse(self.obj.address) # scheme, host, port, path
+
+                self.var['onion'] = self.obj.onion
+                self.var['path'] = dest[3]
 
                 agent = Agent(reactor, sockhost="127.0.0.1", sockport=9050, pool=pool)
                 d = agent.request(self.method, 'shttp://'+dest[1]+dest[3], self.obj.headers, None)

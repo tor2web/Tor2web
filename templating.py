@@ -55,3 +55,10 @@ class PageTemplate(Element):
         if loader is None:
             raise MissingTemplateLoader(self)
         return loader.load()
+
+    @renderer
+    def mirror(self, request, tag):
+        if 'mirror' in request.var:
+            url = "https://" + request.var['onion'] + "." + request.var['mirror'] + request.var['path']
+            return ["This page is accessible also on the following random mirror: "], tags.a(href=url, title=url)(request.var['mirror'])
+        return ""
