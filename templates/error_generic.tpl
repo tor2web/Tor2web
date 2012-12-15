@@ -3,6 +3,7 @@
   <title>Tor2web Error: Generic Error (<t:transparent t:render="t2wvar-errorcode" />)</title>
   <meta http-equiv="content-type" content="text/html;charset=utf-8" />
   <meta http-equiv="content-language" content="en" />
+  <meta name="robots" content="noindex" />
   </head>
   <body id="tor2web">
   <script type="text/javascript" src="/antanistaticmap/tor2web.js"></script>

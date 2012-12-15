@@ -442,7 +442,7 @@ class T2WRequest(proxy.ProxyRequest):
 
     def handleError(self, failure):
         if type(failure.value) is SOCKSError:
-            self.setResponseCode(500)
+            self.setResponseCode(404)
             self.var['errorcode'] = failure.value.code
             if failure.value.code in SOCKS_errors:
                 return flattenString(self, templates[SOCKS_errors[failure.value.code]]).addCallback(self.contentFinish)

@@ -44,4 +44,4 @@ smtpport = 587
 # Exit nodes list refresh period in seconds
 exit_node_list_refresh = 600
 exit_node_list = lists/exitnodelist.txt
-mirror = [tor2web.blutmagie.de]
+mirror = [tor2web.fi, tor2web.blutmagie.de]
