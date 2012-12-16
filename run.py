@@ -277,6 +277,9 @@ class _HTTP11ClientFactory(protocol.ClientFactory):
 class HTTPConnectionPool(client.HTTPConnectionPool):
     _factory = _HTTP11ClientFactory
 
+    def __init__(self, reactor, persistent=True, maxPersistentPerHost=2, cachedConnectionTimeout=240, retryAutomatically=True):
+        client.HTTPConnectionPool.__init__(self, reactor, persistent)
+
 class Agent(client.Agent):
     def __init__(self, reactor,
                  contextFactory=client.WebClientContextFactory(),
@@ -759,7 +762,10 @@ sys.excepthook = MailException
 
 t2w = Tor2web(config)
 
-pool = HTTPConnectionPool(reactor, True)
+pool = HTTPConnectionPool(reactor, True,
+                          config.sockmaxpersistentperhost,
+                          config.sockcachedconnectiontimeout,
+                          config.sockretryautomatically)
 
 application = service.Application("Tor2web")
 if config.debugmode:

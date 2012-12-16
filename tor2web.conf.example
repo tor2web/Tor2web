@@ -18,6 +18,9 @@ basehost = tor2web.org
 sockshost = 127.0.0.1
 socksport = 9050
 sockoptimisticdata = True
+sockmaxpersistentperhost = 5
+sockcachedconnectiontimeout = 240
+sockretryautomatically = True
 
 # SSL configuration
 sslkeyfile = certs/tor2web_key_test.key
