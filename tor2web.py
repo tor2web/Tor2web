@@ -38,13 +38,9 @@ from urlparse import urlparse
 from functools import partial
 
 from twisted.python import log
-from twisted.python.filepath import FilePath
-from twisted.internet import defer
 from twisted.internet.abstract import isIPAddress, isIPv6Address
-from twisted.web.template import flattenString
 
-from templating import PageTemplate
-from fileList import fileList, updateFileList, hashedBlockList, torExitNodeList
+from utils.fileList import fileList, updateFileList, hashedBlockList, torExitNodeList
 
 rexp = {
     'href': re.compile(r'<[a-z]*\s*.*?\s*href\s*=\s*[\\\'"]?([a-z0-9/#:\-\.]*)[\\\'"]?\s*.*?>', re.I),
@@ -72,10 +68,8 @@ class Tor2webObj():
     
     error = {}
     
-    client_supports_chunked = False
     client_supports_gzip = False
 
-    server_response_is_chunked = False
     server_response_is_gzip = False
     
     contentNeedFix = False

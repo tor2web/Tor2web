@@ -31,9 +31,9 @@
 
 # -*- coding: utf-8 -*-
 
-from storage import Storage
 import re
 import ConfigParser
+from storage import Storage
 
 listpattern = re.compile(r'\s*("[^"]*"|.*?)\s*,')
 

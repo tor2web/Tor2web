@@ -32,153 +32,45 @@
 # -*- coding: utf-8 -*-
 
 import os
-import sys
-import traceback
-import copy
 import re
+import sys
+import copy
 import urlparse
 import mimetypes
 import gzip
 import json
 import zlib
 from StringIO import StringIO
-from OpenSSL import SSL
 
-from twisted.mail.smtp import ESMTPSenderFactory
-from twisted.internet import ssl, reactor
+from twisted.internet import ssl, reactor, protocol
 from twisted.internet.error import ConnectionRefusedError
-from twisted.internet.ssl import ClientContextFactory, DefaultOpenSSLContextFactory
 from twisted.internet.defer import Deferred, succeed, fail, maybeDeferred
+from twisted.internet.endpoints import TCP4ClientEndpoint, SSL4ClientEndpoint, _WrappingProtocol, _WrappingFactory
 from twisted.application import service, internet
 from twisted.web import proxy, http, client, resource, http_headers, _newclient
 from twisted.web._newclient import Request, RequestNotSent, RequestGenerationFailed, TransportProxyProducer, STATUS
-from twisted.web.template import flattenString, XMLString
+from twisted.web.http_headers import _DictHeaders
 from twisted.web.server import NOT_DONE_YET
+from twisted.web.template import flattenString, XMLString
 from twisted.python.filepath import FilePath
 from twisted.python import log
 from twisted.python.logfile import DailyLogFile
 from twisted.python.failure import Failure
-from twisted.internet import protocol, defer
-from twisted.internet.endpoints import TCP4ClientEndpoint, SSL4ClientEndpoint, _WrappingProtocol, _WrappingFactory
 
-from config import config
 from tor2web import Tor2web, Tor2webObj
-from storage import Storage
-from templating import PageTemplate
-from socksclient import SOCKS5ClientEndpoint, SOCKSError
-from twisted.web.http_headers import _DictHeaders
+
+from utils.config import config
+from utils.mail import sendmail, MailException
+from utils.socks import SOCKS5ClientEndpoint, SOCKSError
+from utils.ssl import T2WSSLContextFactory
+from utils.storage import Storage
+from utils.templating import PageTemplate
 
 SOCKS_errors = {\
     0x00: "error_sock_generic.tpl",
     0x23: "error_sock_hs_not_found.tpl",
     0x24: "error_sock_hs_not_reachable.tpl"
 }
-
-def MailException(etype, value, tb):
-    """
-    Formats traceback and exception data and emails the error
-
-    @param etype: Exception class type
-    @param value: Exception string value
-    @param tb: Traceback string data
-    """
-    excType = re.sub("(<(type|class ')|'exceptions.|'>|__main__.)", "", str(etype)).strip()
-    message = ""
-    message += "From: Tor2web Node %s.%s <%s>\n" % (config.nodename, config.basehost, config.smtpmail)
-    message += "To: %s\n" % (config.smtpmailto_exceptions)
-    message += "Subject: Tor2web Node Exception (IPV4: %s, IPv6: %s)\n" % (config.listen_ipv4, config.listen_ipv6)
-    message += "Content-Type: text/plain; charset=ISO-8859-1\n"
-    message += "Content-Transfer-Encoding: 8bit\n\n"
-    message += "%s %s" % (excType, etype.__doc__)
-    for line in traceback.extract_tb(tb):
-        message += "\tFile: \"%s\"\n\t\t%s %s: %s\n" %(line[0], line[2], line[1], line[3])
-    while 1:
-        if not tb.tb_next: break
-        tb = tb.tb_next
-    stack = []
-    f = tb.tb_frame
-    while f:
-        stack.append(f)
-        f = f.f_back
-    stack.reverse()
-    message += "\nLocals by frame, innermost last:"
-    for frame in stack:
-        message += "\nFrame %s in %s at line %s" % (frame.f_code.co_name, frame.f_code.co_filename, frame.f_lineno)
-        for key, val in frame.f_locals.items():
-            message += "\n\t%20s = " % key
-            try:
-                message += str(val)
-            except:
-                message += "<ERROR WHILE PRINTING VALUE>"
-
-    message = StringIO(message)
-    sendmail(config.smtpuser, config.smtppass, config.smtpmail, config.smtpmailto_exceptions, message, config.smtpdomain, config.smtpport)
-
-
-def sendmail(authenticationUsername, authenticationSecret, fromAddress, toAddress, messageFile, smtpHost, smtpPort=25):
-    """
-    Sends an email using SSLv3 over SMTP
-
-    @param authenticationUsername: account username
-    @param authenticationSecret: account password
-    @param fromAddress: the from address field of the email
-    @param toAddress: the to address field of the email
-    @param messageFile: the message content
-    @param smtpHost: the smtp host
-    @param smtpPort: the smtp port
-    """
-    contextFactory = ClientContextFactory()
-    contextFactory.method = SSL.SSLv3_METHOD
-
-    resultDeferred = Deferred()
-
-    senderFactory = ESMTPSenderFactory(
-        authenticationUsername,
-        authenticationSecret,
-        fromAddress,
-        toAddress,
-        messageFile,
-        resultDeferred,
-        contextFactory=contextFactory)
-
-    reactor.connectTCP(smtpHost, smtpPort, senderFactory)
-
-    return resultDeferred
-
-
-class T2WSSLContextFactory(DefaultOpenSSLContextFactory):
-    """
-    """
-    _context = None
-
-    def __init__(self, privateKeyFileName, certificateChainFileName, dhFileName, cipherList):
-        """
-        @param privateKeyFileName: Name of a file containing a private key
-        @param certificateChainFileName: Name of a file containing a certificate chain
-        @param dhFileName: Name of a file containing diffie hellman parameters
-        @param cipherList: The SSL cipher list selection to use
-        """
-        self.privateKeyFileName = privateKeyFileName
-        self.certificateChainFileName = certificateChainFileName
-        self.sslmethod = SSL.SSLv23_METHOD
-        self.dhFileName = dhFileName
-        self.cipherList = cipherList
-
-        # Create a context object right now.  This is to force validation of
-        # the given parameters so that errors are detected earlier rather
-        # than later.
-        self.cacheContext()
-
-    def cacheContext(self):
-        if self._context is None:
-            ctx = SSL.Context(self.sslmethod)
-            # Disallow SSLv2! It's insecure!
-            ctx.set_options(SSL.OP_NO_SSLv2)
-            ctx.use_certificate_chain_file(self.certificateChainFileName)
-            ctx.use_privatekey_file(self.privateKeyFileName)
-            ctx.set_cipher_list(self.cipherList)
-            ctx.load_tmp_dh(self.dhFileName)
-            self._context = ctx
 
 class BodyReceiver(protocol.Protocol):
     def __init__(self, finished):
@@ -220,6 +112,7 @@ class Headers(http_headers.Headers):
 
 class HTTPClientParser(_newclient.HTTPClientParser):
     def connectionMade(self):
+        # We need to override Headers() class with our one.
         self.headers = Headers()
         self.connHeaders = Headers()
         self.state = STATUS
@@ -337,12 +230,8 @@ class T2WRequest(proxy.ProxyRequest):
     staticmap = "/" + config.staticmap + "/"
 
     def __init__(self, channel, queued, reactor=reactor):
+        # We need to overrind together some part of proxy.Request and of the base http.Request
         self.reactor = reactor
-        self.obj = Tor2webObj()
-        self.var = Storage()
-        self.var['basehost'] = config.basehost
-        self.var['errorcode'] = None
-
         self.notifications = []
         self.channel = channel
         self.queued = queued
@@ -351,15 +240,19 @@ class T2WRequest(proxy.ProxyRequest):
         self.responseHeaders = Headers()
         self.cookies = [] # outgoing cookies
 
-        self.html = False
-        self.decoderChunked = None        
-        self.decoderGzip = None
-        self.encoderGzip = None        
-
         if queued:
             self.transport = StringTransport()
         else:
             self.transport = self.channel.transport
+
+        self.obj = Tor2webObj()
+        self.var = Storage()
+        self.var['basehost'] = config.basehost
+        self.var['errorcode'] = None
+
+        self.html = False
+        self.decoderGzip = None
+        self.encoderGzip = None        
 
     def __setattr__(self, name, value):
         """
@@ -653,19 +546,19 @@ class T2WRequest(proxy.ProxyRequest):
 
         if(response.length is not 0):
             if self.obj.contentNeedFix:
-                finished = defer.Deferred()
+                finished = Deferred()
                 response.deliverBody(BodyReceiver(finished))
                 finished.addCallback(self.processResponseBody)
                 return finished
 
             else:
-                finished = defer.Deferred()
+                finished = Deferred()
                 response.deliverBody(BodyStreamer(self.handleForwardPart, finished))
                 finished.addCallback(self.handleForwardEnd)
                 return finished
         else:
             self.contentFinish('')
-            return defer.succeed
+            return succeed
 
     def handleHeader(self, key, value):
         keyLower = key.lower()
