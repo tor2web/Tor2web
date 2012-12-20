@@ -1,5 +1,6 @@
 # Tor2web configuration file
 [main]
+version = 3.0 Beta1
 nodename = changemewithanuniqueidentifier
 debugtostdout = False
 debugmode = False

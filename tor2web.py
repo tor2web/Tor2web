@@ -125,15 +125,11 @@ class Tor2web(object):
 
 
     def verify_resource_is_local(self, obj, host, uri, staticpath):
-        for ip in [self.config.listen_ipv4, self.config.listen_ipv6]:
-            if ip != None:
-                if ((isIPAddress(host) and (self.config.listen_ipv4 == '0.0.0.0' or ip == host)) or
-                    (isIPv6Address(host) and (self.config.listen_ipv6 == '::' or "["+ip+"]" == host))):
-                        obj.resourceislocal = True
-                        return True
-
-        obj.resourceislocal = uri.startswith(staticpath)
-        return obj.resourceislocal
+       if isIPAddress(host):
+           obj.resourceislocal = True
+       else:
+           obj.resourceislocal = uri.startswith(staticpath)
+       return obj.resourceislocal
 
     def verify_hostname(self, obj, host, uri):
         """

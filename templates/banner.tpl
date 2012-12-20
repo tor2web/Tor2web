@@ -15,6 +15,7 @@
       <div>Please send us your <a href="javascript:show_hide_notification_form()">feedback</a> and if you have concerns with this content, send us an <a href="javascript:show_hide_notification_form()">abuse notice</a>.</div>
       <div>For more informations please refer to <a href="/antanistaticmap/tos.html">Tor2Web Terms of Services.</a></div>
       <div><t:transparent t:render="mirror" /></div>
+      <div>Software Version: <a href="https://github.com/globaleaks/Tor2web-3.0"><t:transparent t:render="t2wvar-version" /></a></div>
     </div>
     <div id="tor2web_notification_form">
       <fieldset>

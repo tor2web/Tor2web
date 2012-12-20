@@ -41,6 +41,7 @@ import gzip
 import json
 import zlib
 from StringIO import StringIO
+from random import choice
 
 from twisted.internet import ssl, reactor, protocol
 from twisted.internet.error import ConnectionRefusedError
@@ -75,13 +76,13 @@ SOCKS_errors = {\
 class BodyReceiver(protocol.Protocol):
     def __init__(self, finished):
         self._finished = finished
-        self._data = ""
+        self._data = []
 
     def dataReceived(self, bytes):
-        self._data += bytes
+        self._data.append(bytes)
 
     def connectionLost(self, reason):
-        self._finished.callback(self._data)
+        self._finished.callback(''.join(self._data))
 
 class BodyStreamer(protocol.Protocol):
     def __init__(self, streamfunction, finished):
@@ -247,6 +248,7 @@ class T2WRequest(proxy.ProxyRequest):
 
         self.obj = Tor2webObj()
         self.var = Storage()
+        self.var['version'] = config.version
         self.var['basehost'] = config.basehost
         self.var['errorcode'] = None
 
@@ -401,7 +403,6 @@ class T2WRequest(proxy.ProxyRequest):
             request.uri = self.uri
 
             if config.mirror is not None:
-                from random import choice
                 self.var['mirror'] = choice(config.mirror)
             
             # we serve contents only over https
@@ -477,16 +478,16 @@ class T2WRequest(proxy.ProxyRequest):
                             return flattenString(self, antanistaticmap[staticpath]).addCallback(self.contentFinish)
                     elif staticpath == "notification":
                         if 'by' in self.args and 'url' in self.args and 'comment' in self.args:
-                            message = ""
-                            message += "From: Tor2web Node %s.%s <%s>\n" % (config.nodename, config.basehost, config.smtpmail)
-                            message += "To: %s\n" % (config.smtpmailto_notifications)
-                            message += "Subject: Tor2web Node (IPv4 %s, IPv6 %s): notification for %s\n" % (config.listen_ipv4, config.listen_ipv6, self.args['url'][0])
-                            message += "Content-Type: text/plain; charset=ISO-8859-1\n"
-                            message += "Content-Transfer-Encoding: 8bit\n\n"
-                            message += "BY: %s\n" % (self.args['by'][0])
-                            message += "URL: %s\n" % (self.args['url'][0])
-                            message += "COMMENT: %s\n" % (self.args['comment'][0])
-                            message = StringIO(message)
+                            message = []
+                            tmp.append("From: Tor2web Node %s.%s <%s>\n" % (config.nodename, config.basehost, config.smtpmail))
+                            tmp.append("To: %s\n" % (config.smtpmailto_notifications))
+                            tmp.append("Subject: Tor2web Node (IPv4 %s, IPv6 %s): notification for %s\n" % (config.listen_ipv4, config.listen_ipv6, self.args['url'][0]))
+                            tmp.append("Content-Type: text/plain; charset=ISO-8859-1\n")
+                            tmp.append("Content-Transfer-Encoding: 8bit\n\n")
+                            tmp.append("BY: %s\n" % (self.args['by'][0]))
+                            tmp.append("URL: %s\n" % (self.args['url'][0]))
+                            tmp.append("COMMENT: %s\n" % (self.args['comment'][0]))
+                            message = StringIO(''.join(tmp))
                             sendmail(config.smtpuser, config.smtppass, config.smtpmail, config.smtpmailto_notifications, message, config.smtpdomain, config.smtpport)
                     else:
                         return self.sendError(404)
