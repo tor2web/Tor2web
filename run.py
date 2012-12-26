@@ -477,8 +477,9 @@ class T2WRequest(proxy.ProxyRequest):
                         elif type(antanistaticmap[staticpath]) == PageTemplate:
                             return flattenString(self, antanistaticmap[staticpath]).addCallback(self.contentFinish)
                     elif staticpath == "notification":
+                        print "aaa"
                         if 'by' in self.args and 'url' in self.args and 'comment' in self.args:
-                            message = []
+                            tmp = []
                             tmp.append("From: Tor2web Node %s.%s <%s>\n" % (config.nodename, config.basehost, config.smtpmail))
                             tmp.append("To: %s\n" % (config.smtpmailto_notifications))
                             tmp.append("Subject: Tor2web Node (IPv4 %s, IPv6 %s): notification for %s\n" % (config.listen_ipv4, config.listen_ipv6, self.args['url'][0]))

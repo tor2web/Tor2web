@@ -27,8 +27,9 @@ function sendNotification() {
   var url = document.getElementById('url').value;
   var comment = document.getElementById('comment').value;
   var params = "by="+by+"&url="+url+"&comment="+comment;
-  
-  http.open("POST", "/antanistaticmap/notification", true);
+
+  alert(http.open("POST", "/antanistaticmap/notification", true));
+  alert(http);
 	
   http.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
   http.setRequestHeader("Content-length", params.length);
@@ -65,8 +66,10 @@ var tor2web_notification_form_visible = true;
 var http = getHTTPObject();
 
 window.onload = function() {
-  if (jaaulde.utils.cookies.get('tor2web_header_hidden') && jaaulde.utils.cookies.get('tor2web_header_hidden') == true) {
+  if(jaaulde.utils.cookies.get('tor2web_header_hidden') && jaaulde.utils.cookies.get('tor2web_header_hidden') == true) {
     show_hide_tor2web_header(true);
   }
-  document.getElementById('url').value = document.location;
+  if(document.getElementById('tor2web-header') != null) {
+    document.getElementById('url').value = document.location;
+  }
 }
