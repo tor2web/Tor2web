@@ -1,14 +1,16 @@
 # Tor2web configuration file
 [main]
 version = 3.0 Beta1
-nodename = changemewithanuniqueidentifier
+nodename = [UNIQUE_IDENTIFIER]
+
 debugtostdout = False
 debugmode = False
 logreqs = False
 debuglogpath = logs/debug.log
 accesslogpath = logs/access.log
-listen_ipv4 = 0.0.0.0
-listen_ipv6 = ::
+
+listen_ipv4 = [LISTENING_IPV4_ADDRESS]
+listen_ipv6 = [LISTENING_IPV6_ADDRESS]
 listen_port_http = 80
 listen_port_https = 443
 
@@ -29,7 +31,6 @@ sslcertfile = certs/tor2web-intermediate_cert_test.pem
 ssldhfile = certs/tor2web_dh_test.pem
 cipher_list = DHE-RSA-AES256-SHA:DHE-DSS-AES256-SHA:RC4-SHA
 
-bannerfile = templates/header.xml
 staticmap = antanistaticmap
 blockcrawl = True
 blocked_ua = lists/blocked_ua.txt
