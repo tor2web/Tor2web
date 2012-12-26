@@ -67,6 +67,8 @@ from utils.ssl import T2WSSLContextFactory
 from utils.storage import Storage
 from utils.templating import PageTemplate
 
+VERSION = "Tor2Web 3.0 Beta 1"
+
 SOCKS_errors = {\
     0x00: "error_sock_generic.tpl",
     0x23: "error_sock_hs_not_found.tpl",
@@ -248,7 +250,7 @@ class T2WRequest(proxy.ProxyRequest):
 
         self.obj = Tor2webObj()
         self.var = Storage()
-        self.var['version'] = config.version
+        self.var['version'] = VERSION
         self.var['basehost'] = config.basehost
         self.var['errorcode'] = None
 
