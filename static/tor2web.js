@@ -28,8 +28,7 @@ function sendNotification() {
   var comment = document.getElementById('comment').value;
   var params = "by="+by+"&url="+url+"&comment="+comment;
 
-  alert(http.open("POST", "/antanistaticmap/notification", true));
-  alert(http);
+  http.open("POST", "/antanistaticmap/notification", true);
 	
   http.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
   http.setRequestHeader("Content-length", params.length);
