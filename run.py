@@ -256,7 +256,7 @@ class T2WRequest(proxy.ProxyRequest):
 
         self.html = False
         self.decoderGzip = None
-        self.encoderGzip = None        
+        self.encoderGzip = None
 
     def __setattr__(self, name, value):
         """
@@ -365,14 +365,14 @@ class T2WRequest(proxy.ProxyRequest):
                 data2 = self.decoderGzip.flush()
 
             return data1 + data2
-            
+
         except:
             self.finish()
 
     def zip(self, data, end=False):
         data1 = data2 = ''
- 
-        try:     
+
+        try:
             if self.encoderGzip == None:
                 self.stringio = StringIO()
                 self.encoderGzip = gzip.GzipFile(fileobj=self.stringio, mode='w')
@@ -389,7 +389,7 @@ class T2WRequest(proxy.ProxyRequest):
                 self.stringio.seek(self.nextseek)
                 data2 = self.stringio.read()
                 self.stringio.close()
-                
+
             return data1 + data2
 
         except:
@@ -406,7 +406,7 @@ class T2WRequest(proxy.ProxyRequest):
 
             if config.mirror is not None:
                 self.var['mirror'] = choice(config.mirror)
-            
+
             # we serve contents only over https
             if not self.isSecure():
                 self.redirect("https://" + request.host + request.uri)
@@ -430,17 +430,17 @@ class T2WRequest(proxy.ProxyRequest):
             # we need to verify if the requested resource is local (/antanistaticmap/*) or remote
             # because some checks must be done only for remote requests;
             # in fact local content is always served (css, js, and png in fact are used in errors)
-            
+
             t2w.verify_resource_is_local(self.obj, request.host, request.uri, self.staticmap)
-            
+
             if not self.obj.resourceislocal:
                 # we need to validate the request to avoid useless processing
-                
+
                 if not t2w.verify_hostname(self.obj, request.host, request.uri):
                     return self.sendError(self.obj.error['code'], self.obj.error['template'])
 
                 # we need to verify if the user is using tor;
-                # on this condition it's better to redirect on the .onion             
+                # on this condition it's better to redirect on the .onion
                 if self.getClientIP() in t2w.TorExitNodes:
                     self.redirect("http://" + self.obj.hostname + request.uri)
                     self.finish()
@@ -455,7 +455,7 @@ class T2WRequest(proxy.ProxyRequest):
                     if request.headers.getRawHeaders('referer') == None or not config.basehost in request.headers.getRawHeaders('referer')[0].lower():
                         return self.sendError(403)
 
-            self.setHeader('strict-transport-security', 'max-age=31536000') 
+            self.setHeader('strict-transport-security', 'max-age=31536000')
 
             # 1: Client capability assesment stage
             if request.headers.getRawHeaders('accept-encoding') != None:
@@ -470,7 +470,7 @@ class T2WRequest(proxy.ProxyRequest):
                     staticpath = re.sub('\/$', '/index.html', staticpath)
                     staticpath = re.sub('^('+self.staticmap+')?', '', staticpath)
                     staticpath = re.sub('^/', '', staticpath)
-                    
+
                     if staticpath in antanistaticmap:
                         if type(antanistaticmap[staticpath]) == str:
                             filename, ext = os.path.splitext(staticpath)
@@ -518,7 +518,7 @@ class T2WRequest(proxy.ProxyRequest):
 
                 except:
                     return self.sendError(400, "error_invalid_hostname.tpl")
-                
+
                 dest = client._parse(self.obj.address) # scheme, host, port, path
 
                 self.var['onion'] = self.obj.onion
@@ -567,7 +567,7 @@ class T2WRequest(proxy.ProxyRequest):
     def handleHeader(self, key, value):
         keyLower = key.lower()
         valueLower = value.lower()
-        
+
         if keyLower == 'location':
             value = t2w.fix_link(self.obj, value)
 
@@ -584,7 +584,7 @@ class T2WRequest(proxy.ProxyRequest):
         elif keyLower == 'content-type' and re.search('text/html', valueLower):
             self.obj.contentNeedFix = True
             self.html = True
-            
+
         elif keyLower == 'content-length':
             self.receivedContentLen = value
             return
@@ -600,12 +600,12 @@ class T2WRequest(proxy.ProxyRequest):
     def processResponseHeaders(self, headers):
         for name, values in headers.getAllRawHeaders():
             self.handleHeader(name, values[0])
-        
+
         self.handleEndHeaders()
 
     def handleHTMLData(self, header, data):
         data = t2w.process_html(self.obj, header, data)
-        
+
         self.contentFinish(data)
 
     def processResponseBody(self, data):

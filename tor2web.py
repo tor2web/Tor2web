@@ -53,25 +53,25 @@ class Tor2webObj():
 
     # The destination hidden service identifier
     onion = None
-    
+
     # The path portion of the URI
     path = None
-    
+
     # The full address (hostname + uri) that must be requested
     address = None
 
     # The headers to be sent
     headers = None
-    
+
     # The requested uri
     uri = None
-    
+
     error = {}
-    
+
     client_supports_gzip = False
 
     server_response_is_gzip = False
-    
+
     contentNeedFix = False
 
 class Tor2web(object):
@@ -86,14 +86,14 @@ class Tor2web(object):
         self.config = config
 
         self.basehost = config.basehost
-      
+
         # construct blocklist merging local lists and upstram updates
-        
+
         # schedule upstream updates
         self.blocklist = hashedBlockList(config.blocklist_hashed)
 
         # clear local cleartext list
-        # (load -> hash -> clear feature; for security reasons)                                        
+        # (load -> hash -> clear feature; for security reasons)
         self.blocklist_cleartext = fileList(config.blocklist_cleartext)
         for i in self.blocklist_cleartext:
             self.blocklist.add(hashlib.md5(i).hexdigest())
@@ -120,7 +120,7 @@ class Tor2web(object):
         if tld == 'onion' and len(onion) == 16 and onion.isalnum():
             obj.onion = onion
             return True
-            
+
         return False
 
 
@@ -139,7 +139,7 @@ class Tor2web(object):
         if not host:
             obj.error = {'code': 400, 'template': 'error_invalid_hostname.tpl'}
             return False
-        
+
         obj.hostname = host.split(".")[0] + ".onion"
         log.msg("detected <onion_url>.tor2web Hostname: %s" % obj.hostname)
 
@@ -157,12 +157,12 @@ class Tor2web(object):
         """
         Returns the address of the request to be made on the Tor Network
         to contact the Tor Hidden Service.
-        
+
         the return address format is: http://<some>.onion/<URI>
         """
         obj.uri = req.uri
         log.msg("URI: %s" % obj.uri)
-   
+
         if hashlib.md5(obj.hostname).hexdigest() in self.blocklist:
             obj.error = {'code': 403, 'template': 'error_hs_completely_blocked.tpl'}
             return False
@@ -183,12 +183,12 @@ class Tor2web(object):
             - alters and sets the proper headers.
         """
         log.msg(req)
-        
+
         if not self.get_address(obj, req):
             return False
 
         obj.headers = req.headers
-        
+
         log.msg("Headers before fix:")
         log.msg(obj.headers)
 
@@ -225,11 +225,11 @@ class Tor2web(object):
 
         if scheme == 'http':
             scheme = 'https'
-            
+
         if scheme == 'data':
             link = data
             return link;
-        
+
         if scheme == '':
             link = data
         else:
@@ -243,7 +243,7 @@ class Tor2web(object):
             elif netloc.endswith(".onion"):
                 netloc = netloc.replace(".onion", "")
                 exiting = False
-                
+
             link = scheme + "://"
 
             if exiting:
@@ -255,14 +255,14 @@ class Tor2web(object):
 
             if parsed.query:
                 link += "?" + parsed.query
-        
+
         return link
 
     def fix_links(self, obj, data):
         """
         Fix links in the result from HS
 
-        example:        
+        example:
             when visiting <onion_url>.tor2web.org
             /something -> /something
             <onion_url>/something -> <onion_url>.tor2web.org/something
@@ -276,7 +276,7 @@ class Tor2web(object):
         Inject tor2web banner inside the returned page
         """
         return str(data.group(1)) + str(banner)
-        
+
     def process_links(self, obj, data):
         """
         Process all the possible HTML tag attributes that may contain links.
