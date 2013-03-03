@@ -1,2 +1,2 @@
-Twisted>=12.1.0
+Twisted==12.2.0
 zope.interface>=4.0.0
