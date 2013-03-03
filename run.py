@@ -732,7 +732,7 @@ ipv6 = config.listen_ipv6
 for ip in [ipv4, ipv6]:
     if ip == None:
         continue
-
+    print "Starting on %s" % ip
     service_https = startTor2webHTTPS(t2w, factory, ip)
     service_https.setServiceParent(application)
 
