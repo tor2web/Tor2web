@@ -43,7 +43,9 @@ import zlib
 from StringIO import StringIO
 from random import choice
 
-from twisted.internet import ssl, reactor, protocol
+from zope.interface import implements
+
+from twisted.internet import ssl, reactor, protocol, interfaces, defer
 from twisted.internet.error import ConnectionRefusedError
 from twisted.internet.defer import Deferred, succeed, fail, maybeDeferred
 from twisted.internet.endpoints import TCP4ClientEndpoint, SSL4ClientEndpoint, _WrappingProtocol, _WrappingFactory
@@ -53,6 +55,7 @@ from twisted.web._newclient import Request, RequestNotSent, RequestGenerationFai
 from twisted.web.http_headers import _DictHeaders
 from twisted.web.server import NOT_DONE_YET
 from twisted.web.template import flattenString, XMLString
+from twisted.web.iweb import IBodyProducer
 from twisted.python.filepath import FilePath
 from twisted.python import log
 from twisted.python.logfile import DailyLogFile
@@ -96,6 +99,31 @@ class BodyStreamer(protocol.Protocol):
 
     def connectionLost(self, reason):
         self._finished.callback('')
+
+
+class BodyProducer(object):
+    implements(IBodyProducer)
+
+    def __init__(self, content, content_length):
+        self.content = content
+        self.length = int(content_length)
+        self.finished = defer.Deferred()
+        self.consumed = 0
+
+    def startProducing(self, consumer):
+        buf = self.content.read(4096)
+        self.consumed += len(buf)
+        if buf:
+            consumer.write(str(buf))
+        if self.consumed >= self.length:
+            self.finished.callback(None)
+        return self.finished
+
+    def pauseProducing(self):
+        pass
+
+    def stopProducing(self):
+        pass
 
 class Headers(http_headers.Headers):
     def setRawHeaders(self, name, values):
@@ -256,7 +284,7 @@ class T2WRequest(proxy.ProxyRequest):
 
         self.html = False
         self.decoderGzip = None
-        self.encoderGzip = None        
+        self.encoderGzip = None
 
     def __setattr__(self, name, value):
         """
@@ -365,14 +393,14 @@ class T2WRequest(proxy.ProxyRequest):
                 data2 = self.decoderGzip.flush()
 
             return data1 + data2
-            
+
         except:
             self.finish()
 
     def zip(self, data, end=False):
         data1 = data2 = ''
- 
-        try:     
+
+        try:
             if self.encoderGzip == None:
                 self.stringio = StringIO()
                 self.encoderGzip = gzip.GzipFile(fileobj=self.stringio, mode='w')
@@ -389,7 +417,7 @@ class T2WRequest(proxy.ProxyRequest):
                 self.stringio.seek(self.nextseek)
                 data2 = self.stringio.read()
                 self.stringio.close()
-                
+
             return data1 + data2
 
         except:
@@ -405,7 +433,7 @@ class T2WRequest(proxy.ProxyRequest):
 
         if config.mirror is not None:
             self.var['mirror'] = choice(config.mirror)
-        
+
         # we serve contents only over https
         if not self.isSecure():
             self.redirect("https://" + request.host + request.uri)
@@ -429,17 +457,17 @@ class T2WRequest(proxy.ProxyRequest):
         # we need to verify if the requested resource is local (/antanistaticmap/*) or remote
         # because some checks must be done only for remote requests;
         # in fact local content is always served (css, js, and png in fact are used in errors)
-        
+
         t2w.verify_resource_is_local(self.obj, request.host, request.uri, self.staticmap)
-        
+
         if not self.obj.resourceislocal:
             # we need to validate the request to avoid useless processing
-            
+
             if not t2w.verify_hostname(self.obj, request.host, request.uri):
                 return self.sendError(self.obj.error['code'], self.obj.error['template'])
 
             # we need to verify if the user is using tor;
-            # on this condition it's better to redirect on the .onion         
+            # on this condition it's better to redirect on the .onion
             if self.getClientIP() in t2w.TorExitNodes:
                 self.redirect("http://" + self.obj.hostname + request.uri)
                 self.finish()
@@ -454,7 +482,7 @@ class T2WRequest(proxy.ProxyRequest):
                 if request.headers.getRawHeaders('referer') == None or not config.basehost in request.headers.getRawHeaders('referer')[0].lower():
                     return self.sendError(403)
 
-        self.setHeader('strict-transport-security', 'max-age=31536000') 
+        self.setHeader('strict-transport-security', 'max-age=31536000')
 
         # 1: Client capability assesment stage
         if request.headers.getRawHeaders('accept-encoding') != None:
@@ -469,7 +497,6 @@ class T2WRequest(proxy.ProxyRequest):
                 staticpath = re.sub('\/$', '/index.html', staticpath)
                 staticpath = re.sub('^('+self.staticmap+')?', '', staticpath)
                 staticpath = re.sub('^/', '', staticpath)
-                
                 if staticpath in antanistaticmap:
                     if type(antanistaticmap[staticpath]) == str:
                         filename, ext = os.path.splitext(staticpath)
@@ -516,14 +543,24 @@ class T2WRequest(proxy.ProxyRequest):
 
             except:
                 return self.sendError(400, "error_invalid_hostname.tpl")
-            
+
             dest = client._parse(self.obj.address) # scheme, host, port, path
 
             self.var['onion'] = self.obj.onion
             self.var['path'] = dest[3]
 
+            content_length = self.getHeader('content-length')
+            if content_length is not None and content_length >= 0:
+                bodyProducer = BodyProducer(self.content,
+                                            content_length)
+
+                request.headers.removeHeader('content-length')
+            else:
+                bodyProducer = None
+
             agent = Agent(reactor, sockhost="127.0.0.1", sockport=9050, pool=pool)
-            d = agent.request(self.method, 'shttp://'+dest[1]+dest[3], self.obj.headers, None)
+            d = agent.request(self.method, 'shttp://'+dest[1]+dest[3],
+                    self.obj.headers, bodyProducer=bodyProducer)
             d.addCallback(self.cbResponse)
             d.addErrback(self.handleError)
 
@@ -561,7 +598,7 @@ class T2WRequest(proxy.ProxyRequest):
     def handleHeader(self, key, value):
         keyLower = key.lower()
         valueLower = value.lower()
-        
+
         if keyLower == 'location':
             value = t2w.fix_link(self.obj, value)
 
@@ -578,7 +615,7 @@ class T2WRequest(proxy.ProxyRequest):
         elif keyLower == 'content-type' and re.search('text/html', valueLower):
             self.obj.contentNeedFix = True
             self.html = True
-            
+
         elif keyLower == 'content-length':
             self.receivedContentLen = value
             return
@@ -594,12 +631,12 @@ class T2WRequest(proxy.ProxyRequest):
     def processResponseHeaders(self, headers):
         for name, values in headers.getAllRawHeaders():
             self.handleHeader(name, values[0])
-        
+
         self.handleEndHeaders()
 
     def handleHTMLData(self, header, data):
         data = t2w.process_html(self.obj, header, data)
-        
+
         self.contentFinish(data)
 
     def processResponseBody(self, data):
@@ -647,7 +684,12 @@ def startTor2webHTTP(t2w, f, ip):
     return internet.TCPServer(int(t2w.config.listen_port_http), f, interface=ip)
 
 def startTor2webHTTPS(t2w, f, ip):
-    return internet.SSLServer(int(t2w.config.listen_port_https), f, T2WSSLContextFactory(t2w.config.sslkeyfile, t2w.config.sslcertfile, t2w.config.ssldhfile, t2w.config.cipher_list), interface=ip)
+    return internet.SSLServer(int(t2w.config.listen_port_https), f,
+                              T2WSSLContextFactory(t2w.config.sslkeyfile,
+                                                   t2w.config.sslcertfile,
+                                                   t2w.config.ssldhfile,
+                                                   t2w.config.cipher_list),
+                              interface=ip)
 
 sys.excepthook = MailException
 
@@ -690,7 +732,6 @@ ipv6 = config.listen_ipv6
 for ip in [ipv4, ipv6]:
     if ip == None:
         continue
-
     service_https = startTor2webHTTPS(t2w, factory, ip)
     service_https.setServiceParent(application)
 
