@@ -43,7 +43,9 @@ import zlib
 from StringIO import StringIO
 from random import choice
 
-from twisted.internet import ssl, reactor, protocol
+from zope.interface import implements
+
+from twisted.internet import ssl, reactor, protocol, interfaces, defer
 from twisted.internet.error import ConnectionRefusedError
 from twisted.internet.defer import Deferred, succeed, fail, maybeDeferred
 from twisted.internet.endpoints import TCP4ClientEndpoint, SSL4ClientEndpoint, _WrappingProtocol, _WrappingFactory
@@ -53,6 +55,7 @@ from twisted.web._newclient import Request, RequestNotSent, RequestGenerationFai
 from twisted.web.http_headers import _DictHeaders
 from twisted.web.server import NOT_DONE_YET
 from twisted.web.template import flattenString, XMLString
+from twisted.web.iweb import IBodyProducer
 from twisted.python.filepath import FilePath
 from twisted.python import log
 from twisted.python.logfile import DailyLogFile
@@ -96,6 +99,31 @@ class BodyStreamer(protocol.Protocol):
 
     def connectionLost(self, reason):
         self._finished.callback('')
+
+
+class BodyProducer(object):
+    implements(IBodyProducer)
+
+    def __init__(self, content, content_length):
+        self.content = content
+        self.length = int(content_length)
+        self.finished = defer.Deferred()
+        self.consumed = 0
+
+    def startProducing(self, consumer):
+        buf = self.content.read(4096)
+        self.consumed += len(buf)
+        if buf:
+            consumer.write(str(buf))
+        if self.consumed >= self.length:
+            self.finished.callback(None)
+        return self.finished
+
+    def pauseProducing(self):
+        pass
+
+    def stopProducing(self):
+        pass
 
 class Headers(http_headers.Headers):
     def setRawHeaders(self, name, values):
@@ -524,8 +552,16 @@ class T2WRequest(proxy.ProxyRequest):
                 self.var['onion'] = self.obj.onion
                 self.var['path'] = dest[3]
 
+                content_length = self.getHeader('content-length')
+                if content_length >= 0:
+                    bodyProducer = BodyProducer(self.content,
+                                                content_length)
+                else:
+                    bodyProducer = None
+
                 agent = Agent(reactor, sockhost="127.0.0.1", sockport=9050, pool=pool)
-                d = agent.request(self.method, 'shttp://'+dest[1]+dest[3], self.obj.headers, None)
+                d = agent.request(self.method, 'shttp://'+dest[1]+dest[3],
+                        self.obj.headers, bodyProducer=bodyProducer)
                 d.addCallback(self.cbResponse)
                 d.addErrback(self.handleError)
 
