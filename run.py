@@ -424,152 +424,147 @@ class T2WRequest(proxy.ProxyRequest):
             self.finish()
 
     def process(self):
-        try:
-            content = ""
+        content = ""
 
-            request = Storage()
-            request.headers = self.requestHeaders
-            request.host = self.getRequestHostname()
-            request.uri = self.uri
+        request = Storage()
+        request.headers = self.requestHeaders
+        request.host = self.getRequestHostname()
+        request.uri = self.uri
 
-            if config.mirror is not None:
-                self.var['mirror'] = choice(config.mirror)
+        if config.mirror is not None:
+            self.var['mirror'] = choice(config.mirror)
 
-            # we serve contents only over https
-            if not self.isSecure():
-                self.redirect("https://" + request.host + request.uri)
+        # we serve contents only over https
+        if not self.isSecure():
+            self.redirect("https://" + request.host + request.uri)
+            self.finish()
+            return
+
+        # 0: Request admission control stage
+        # firstly we try to instruct spiders that honour robots.txt that we don't want to get indexed
+        if request.uri == "/robots.txt" and config.blockcrawl:
+            self.write("User-Agent: *\n")
+            self.write("Disallow: /\n")
+            self.finish()
+            return
+
+        # secondly we try to deny some ua/crawlers regardless the request is (valid or not) / (local or not)
+        # we deny EVERY request to known user agents reconized with pattern matching
+        if request.headers.getRawHeaders('user-agent') != None:
+            if request.headers.getRawHeaders('user-agent')[0] in t2w.blocked_ua:
+                return self.sendError(403, "error_blocked_ua.tpl")
+
+        # we need to verify if the requested resource is local (/antanistaticmap/*) or remote
+        # because some checks must be done only for remote requests;
+        # in fact local content is always served (css, js, and png in fact are used in errors)
+
+        t2w.verify_resource_is_local(self.obj, request.host, request.uri, self.staticmap)
+
+        if not self.obj.resourceislocal:
+            # we need to validate the request to avoid useless processing
+
+            if not t2w.verify_hostname(self.obj, request.host, request.uri):
+                return self.sendError(self.obj.error['code'], self.obj.error['template'])
+
+            # we need to verify if the user is using tor;
+            # on this condition it's better to redirect on the .onion
+            if self.getClientIP() in t2w.TorExitNodes:
+                self.redirect("http://" + self.obj.hostname + request.uri)
                 self.finish()
                 return
 
-            # 0: Request admission control stage
-            # firstly we try to instruct spiders that honour robots.txt that we don't want to get indexed
-            if request.uri == "/robots.txt" and config.blockcrawl:
-                self.write("User-Agent: *\n")
-                self.write("Disallow: /\n")
-                self.finish()
-                return
+            # pattern matching checks to for early request refusal.
+            #
+            # future pattern matching checks for denied content and conditions must be put in the stage
+            #
+            if request.uri.lower().endswith(('gif','jpg','png')):
+                # Avoid image hotlinking
+                if request.headers.getRawHeaders('referer') == None or not config.basehost in request.headers.getRawHeaders('referer')[0].lower():
+                    return self.sendError(403)
 
-            # secondly we try to deny some ua/crawlers regardless the request is (valid or not) / (local or not)
-            # we deny EVERY request to known user agents reconized with pattern matching
-            if request.headers.getRawHeaders('user-agent') != None:
-                if request.headers.getRawHeaders('user-agent')[0] in t2w.blocked_ua:
-                    return self.sendError(403, "error_blocked_ua.tpl")
+        self.setHeader('strict-transport-security', 'max-age=31536000')
 
-            # we need to verify if the requested resource is local (/antanistaticmap/*) or remote
-            # because some checks must be done only for remote requests;
-            # in fact local content is always served (css, js, and png in fact are used in errors)
+        # 1: Client capability assesment stage
+        if request.headers.getRawHeaders('accept-encoding') != None:
+            if re.search('gzip', request.headers.getRawHeaders('accept-encoding')[0]):
+                self.obj.client_supports_gzip = True
 
-            t2w.verify_resource_is_local(self.obj, request.host, request.uri, self.staticmap)
+        # 2: Content delivery stage
+        if self.obj.resourceislocal:
+            # the requested resource is local, we deliver it directly
+            try:
+                staticpath = request.uri
+                staticpath = re.sub('\/$', '/index.html', staticpath)
+                staticpath = re.sub('^('+self.staticmap+')?', '', staticpath)
+                staticpath = re.sub('^/', '', staticpath)
 
-            if not self.obj.resourceislocal:
-                # we need to validate the request to avoid useless processing
-
-                if not t2w.verify_hostname(self.obj, request.host, request.uri):
-                    return self.sendError(self.obj.error['code'], self.obj.error['template'])
-
-                # we need to verify if the user is using tor;
-                # on this condition it's better to redirect on the .onion
-                if self.getClientIP() in t2w.TorExitNodes:
-                    self.redirect("http://" + self.obj.hostname + request.uri)
-                    self.finish()
-                    return
-
-                # pattern matching checks to for early request refusal.
-                #
-                # future pattern matching checks for denied content and conditions must be put in the stage
-                #
-                if request.uri.lower().endswith(('gif','jpg','png')):
-                    # Avoid image hotlinking
-                    if request.headers.getRawHeaders('referer') == None or not config.basehost in request.headers.getRawHeaders('referer')[0].lower():
-                        return self.sendError(403)
-
-            self.setHeader('strict-transport-security', 'max-age=31536000')
-
-            # 1: Client capability assesment stage
-            if request.headers.getRawHeaders('accept-encoding') != None:
-                if re.search('gzip', request.headers.getRawHeaders('accept-encoding')[0]):
-                    self.obj.client_supports_gzip = True
-
-            # 2: Content delivery stage
-            if self.obj.resourceislocal:
-                # the requested resource is local, we deliver it directly
-                try:
-                    staticpath = request.uri
-                    staticpath = re.sub('\/$', '/index.html', staticpath)
-                    staticpath = re.sub('^('+self.staticmap+')?', '', staticpath)
-                    staticpath = re.sub('^/', '', staticpath)
-
-                    if staticpath in antanistaticmap:
-                        if type(antanistaticmap[staticpath]) == str:
-                            filename, ext = os.path.splitext(staticpath)
-                            self.setHeader('content-type', mimetypes.types_map[ext])
-                            content = antanistaticmap[staticpath]
-                        elif type(antanistaticmap[staticpath]) == PageTemplate:
-                            return flattenString(self, antanistaticmap[staticpath]).addCallback(self.contentFinish)
-                    elif staticpath == "notification":
-                        print "aaa"
-                        if 'by' in self.args and 'url' in self.args and 'comment' in self.args:
-                            tmp = []
-                            tmp.append("From: Tor2web Node %s.%s <%s>\n" % (config.nodename, config.basehost, config.smtpmail))
-                            tmp.append("To: %s\n" % (config.smtpmailto_notifications))
-                            tmp.append("Subject: Tor2web Node (IPv4 %s, IPv6 %s): notification for %s\n" % (config.listen_ipv4, config.listen_ipv6, self.args['url'][0]))
-                            tmp.append("Content-Type: text/plain; charset=ISO-8859-1\n")
-                            tmp.append("Content-Transfer-Encoding: 8bit\n\n")
-                            tmp.append("BY: %s\n" % (self.args['by'][0]))
-                            tmp.append("URL: %s\n" % (self.args['url'][0]))
-                            tmp.append("COMMENT: %s\n" % (self.args['comment'][0]))
-                            message = StringIO(''.join(tmp))
-                            sendmail(config.smtpuser, config.smtppass, config.smtpmail, config.smtpmailto_notifications, message, config.smtpdomain, config.smtpport)
-                    else:
-                        return self.sendError(404)
-
-                except:
+                if staticpath in antanistaticmap:
+                    if type(antanistaticmap[staticpath]) == str:
+                        filename, ext = os.path.splitext(staticpath)
+                        self.setHeader('content-type', mimetypes.types_map[ext])
+                        content = antanistaticmap[staticpath]
+                    elif type(antanistaticmap[staticpath]) == PageTemplate:
+                        return flattenString(self, antanistaticmap[staticpath]).addCallback(self.contentFinish)
+                elif staticpath == "notification":
+                    print "aaa"
+                    if 'by' in self.args and 'url' in self.args and 'comment' in self.args:
+                        tmp = []
+                        tmp.append("From: Tor2web Node %s.%s <%s>\n" % (config.nodename, config.basehost, config.smtpmail))
+                        tmp.append("To: %s\n" % (config.smtpmailto_notifications))
+                        tmp.append("Subject: Tor2web Node (IPv4 %s, IPv6 %s): notification for %s\n" % (config.listen_ipv4, config.listen_ipv6, self.args['url'][0]))
+                        tmp.append("Content-Type: text/plain; charset=ISO-8859-1\n")
+                        tmp.append("Content-Transfer-Encoding: 8bit\n\n")
+                        tmp.append("BY: %s\n" % (self.args['by'][0]))
+                        tmp.append("URL: %s\n" % (self.args['url'][0]))
+                        tmp.append("COMMENT: %s\n" % (self.args['comment'][0]))
+                        message = StringIO(''.join(tmp))
+                        sendmail(config.smtpuser, config.smtppass, config.smtpmail, config.smtpmailto_notifications, message, config.smtpdomain, config.smtpport)
+                else:
                     return self.sendError(404)
 
-                return self.contentFinish(content)
+            except:
+                return self.sendError(404)
 
-            else:
-                # the requested resource is remote, we act as proxy
+            return self.contentFinish(content)
 
-                if not t2w.process_request(self.obj, request):
-                    return self.sendError(self.obj.error['code'], self.obj.error['template'])
+        else:
+            # the requested resource is remote, we act as proxy
 
-                try:
-                    parsed = urlparse.urlparse(self.obj.address)
-                    protocol = parsed[0]
-                    host = parsed[1]
-                    if ':' in host:
-                        host, port = host.split(":")
-                        port = int(port)
-                    else:
-                        port = self.ports[protocol]
+            if not t2w.process_request(self.obj, request):
+                return self.sendError(self.obj.error['code'], self.obj.error['template'])
 
-                except:
-                    return self.sendError(400, "error_invalid_hostname.tpl")
-
-                dest = client._parse(self.obj.address) # scheme, host, port, path
-
-                self.var['onion'] = self.obj.onion
-                self.var['path'] = dest[3]
-
-                content_length = self.getHeader('content-length')
-                if content_length >= 0:
-                    bodyProducer = BodyProducer(self.content,
-                                                content_length)
+            try:
+                parsed = urlparse.urlparse(self.obj.address)
+                protocol = parsed[0]
+                host = parsed[1]
+                if ':' in host:
+                    host, port = host.split(":")
+                    port = int(port)
                 else:
-                    bodyProducer = None
+                    port = self.ports[protocol]
 
-                agent = Agent(reactor, sockhost="127.0.0.1", sockport=9050, pool=pool)
-                d = agent.request(self.method, 'shttp://'+dest[1]+dest[3],
-                        self.obj.headers, bodyProducer=bodyProducer)
-                d.addCallback(self.cbResponse)
-                d.addErrback(self.handleError)
+            except:
+                return self.sendError(400, "error_invalid_hostname.tpl")
 
-                return NOT_DONE_YET
+            dest = client._parse(self.obj.address) # scheme, host, port, path
 
-        except:
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            MailException(exc_type, exc_value, exc_traceback)
+            self.var['onion'] = self.obj.onion
+            self.var['path'] = dest[3]
+
+            content_length = self.getHeader('content-length')
+            if content_length >= 0:
+                bodyProducer = BodyProducer(self.content,
+                                            content_length)
+            else:
+                bodyProducer = None
+
+            agent = Agent(reactor, sockhost="127.0.0.1", sockport=9050, pool=pool)
+            d = agent.request(self.method, 'shttp://'+dest[1]+dest[3],
+                    self.obj.headers, bodyProducer=bodyProducer)
+            d.addCallback(self.cbResponse)
+            d.addErrback(self.handleError)
+
+            return NOT_DONE_YET
 
     def cbResponse(self, response):
         if int(response.code) >= 600 and int(response.code) <= 699:
