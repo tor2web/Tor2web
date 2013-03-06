@@ -100,7 +100,6 @@ class BodyStreamer(protocol.Protocol):
     def connectionLost(self, reason):
         self._finished.callback('')
 
-
 class BodyProducer(object):
     implements(IBodyProducer)
 
@@ -111,12 +110,12 @@ class BodyProducer(object):
         self.consumed = 0
 
     def startProducing(self, consumer):
-        buf = self.content.read(4096)
-        self.consumed += len(buf)
-        if buf:
-            consumer.write(str(buf))
-        if self.consumed >= self.length:
-            self.finished.callback(None)
+        while True:
+            tmp = self.content.read(4096)
+            if len(tmp) == 0:
+                break
+            consumer.write(tmp)
+        self.finished.callback(None)
         return self.finished
 
     def pauseProducing(self):
