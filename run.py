@@ -501,8 +501,8 @@ class T2WRequest(proxy.ProxyRequest):
                         filename, ext = os.path.splitext(staticpath)
                         self.setHeader('content-type', mimetypes.types_map[ext])
                         content = antanistaticmap[staticpath]
-                elif type(antanistaticmap[staticpath]) == PageTemplate:
-                    return flattenString(self, antanistaticmap[staticpath]).addCallback(self.contentFinish)
+                    elif type(antanistaticmap[staticpath]) == PageTemplate:
+                        return flattenString(self, antanistaticmap[staticpath]).addCallback(self.contentFinish)
                 elif staticpath == "notification":
                     if 'by' in self.args and 'url' in self.args and 'comment' in self.args:
                         tmp = []
