@@ -557,7 +557,7 @@ class T2WRequest(proxy.ProxyRequest):
             else:
                 bodyProducer = None
 
-            agent = Agent(reactor, sockhost="127.0.0.1", sockport=9050, pool=pool)
+            agent = Agent(reactor, sockhost=config.sockshost, sockport=config.socksport, pool=pool)
             d = agent.request(self.method, 'shttp://'+dest[1]+dest[3],
                     self.obj.headers, bodyProducer=bodyProducer)
             d.addCallback(self.cbResponse)
