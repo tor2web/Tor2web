@@ -36,7 +36,7 @@ blocked_ua = lists/blocked_ua.txt
 blocklist_cleartext = lists/blocklist_cleartext.txt
 blocklist_hashed = lists/blocklist_hashed.txt
 
-# Mail configuration for automatic exceptions notification and user abuse notice  
+# Mail configuration for automatic exceptions notification and user abuse notice
 smtpuser = [USERNAME]
 smtppass = [PASSWORD]
 smtpmail = [EMAIL]
@@ -48,4 +48,4 @@ smtpport = 587
 # Exit nodes list refresh period in seconds
 exit_node_list_refresh = 600
 exit_node_list = lists/exitnodelist.txt
-mirror = [tor2web.fi, tor2web.blutmagie.de]
+mirror = [tor2web.fi, tor2web.blutmagie.de, onion.sh]
