@@ -560,6 +560,7 @@ class T2WRequest(proxy.ProxyRequest):
             agent = Agent(reactor, sockhost=config.sockshost, sockport=config.socksport, pool=pool)
             d = agent.request(self.method, 'shttp://'+dest[1]+dest[3],
                     self.obj.headers, bodyProducer=bodyProducer)
+
             d.addCallback(self.cbResponse)
             d.addErrback(self.handleError)
 
@@ -594,12 +595,15 @@ class T2WRequest(proxy.ProxyRequest):
             self.contentFinish('')
             return succeed
 
-    def handleHeader(self, key, value):
+    def handleHeader(self, key, values):
         keyLower = key.lower()
-        valueLower = value.lower()
+
+        # some headers does not allow multiple occurrences
+        # in case of multiple occurrences we evaluate only the first
+        valueLower = values[0].lower()
 
         if keyLower == 'location':
-            value = t2w.fix_link(self.obj, value)
+            value = t2w.fix_link(self.obj, valueLower)
 
         elif keyLower == 'connection':
             return
@@ -616,20 +620,24 @@ class T2WRequest(proxy.ProxyRequest):
             self.html = True
 
         elif keyLower == 'content-length':
-            self.receivedContentLen = value
+            self.receivedContentLen = valueLower
             return
 
         elif keyLower == 'cache-control':
             return
 
-        self.setHeader(key, value)
+        fixed_values = []
+        for value in values:
+            fixed_values.append(value.replace(self.obj.host_onion, self.obj.host_tor2web))
+
+        self.responseHeaders.setRawHeaders(key, fixed_values)
 
     def handleEndHeaders(self):
         self.setHeader('cache-control', 'no-cache')
 
     def processResponseHeaders(self, headers):
-        for name, values in headers.getAllRawHeaders():
-            self.handleHeader(name, values[0])
+        for key, values in headers.getAllRawHeaders():
+            self.handleHeader(key, values)
 
         self.handleEndHeaders()
 

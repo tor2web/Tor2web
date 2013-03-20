@@ -193,11 +193,21 @@ class Tor2web(object):
         log.msg(obj.headers)
 
         obj.headers.removeHeader('If-Modified-Since')
+        obj.headers.removeHeader('If-None-Match')
         obj.headers.setRawHeaders('Host', [obj.hostname])
         obj.headers.setRawHeaders('X-tor2web', ['encrypted'])
         obj.headers.setRawHeaders('Connection', ['keep-alive'])
         obj.headers.setRawHeaders('Accept-Encoding', ['gzip, chunked'])
-        obj.headers.setRawHeaders('Host', [obj.hostname])
+
+        obj.host_onion = "http://" + obj.onion + ".onion"
+        obj.host_tor2web = "https://" + obj.onion + "." + self.config.basehost + ":" + str(self.config.listen_port_https)
+
+        for key, values in obj.headers.getAllRawHeaders():
+            fixed_values = []
+            for value in values:
+                fixed_values.append(value.replace(obj.host_tor2web, obj.host_onion))
+
+            obj.headers.setRawHeaders(key, fixed_values)
 
         log.msg("Headers after fix:")
         log.msg(obj.headers)
