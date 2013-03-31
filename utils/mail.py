@@ -92,26 +92,8 @@ def MailException(etype, value, tb):
     tmp.append("Content-Type: text/plain; charset=ISO-8859-1\n")
     tmp.append("Content-Transfer-Encoding: 8bit\n\n")
     tmp.append("%s %s" % (excType, etype.__doc__))
-    for line in traceback.extract_tb(tb):
-        tmp.append("\tFile: \"%s\"\n\t\t%s %s: %s\n" % (line[0], line[2], line[1], line[3]))
-    while 1:
-        if not tb.tb_next: break
-        tb = tb.tb_next
-    stack = []
-    f = tb.tb_frame
-    while f:
-        stack.append(f)
-        f = f.f_back
-    stack.reverse()
-    tmp.append("\nLocals by frame, innermost last:")
-    for frame in stack:
-        tmp.append("\nFrame %s in %s at line %s" % (frame.f_code.co_name, frame.f_code.co_filename, frame.f_lineno))
-        for key, val in frame.f_locals.items():
-            tmp.append("\n\t%20s = " % key)
-            try:
-                tmp.append(str(val))
-            except:
-                tmp.append("<ERROR WHILE PRINTING VALUE>")
+
+    tmp.append(traceback.format_exception(etype, value, tb))
 
     message = StringIO(''.join(tmp))
     sendmail(config.smtpuser, config.smtppass, config.smtpmail, config.smtpmailto_exceptions, message, config.smtpdomain, config.smtpport)
