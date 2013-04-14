@@ -350,7 +350,8 @@ class T2WRequest(proxy.ProxyRequest):
             self.handleCleartextForwardPart(data)
 
     def handleForwardEnd(self, data):
-        self.handleCleartextForwardPart(data, True)
+        if data != '':
+            self.handleCleartextForwardPart(data, True)
         self.finish()
 
     def contentFinish(self, content):
