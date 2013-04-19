@@ -1,13 +1,18 @@
 # Tor2web configuration file
 [main]
+
+# unique nodename identifier
 nodename = [UNIQUE_IDENTIFIER]
 
+# path to Tor2web data directort
+datadir = ./data
+
+# debug and logging
 debugtostdout = False
 debugmode = False
 logreqs = False
-debuglogpath = logs/debug.log
-accesslogpath = logs/access.log
 
+# ip addresses and ports
 listen_ipv4 = [LISTENING_IPV4_ADDRESS]
 listen_ipv6 = [LISTENING_IPV6_ADDRESS]
 listen_port_http = 80
@@ -25,16 +30,11 @@ sockcachedconnectiontimeout = 240
 sockretryautomatically = True
 
 # SSL configuration
-sslkeyfile = certs/tor2web_key_test.key
-sslcertfile = certs/tor2web-intermediate_cert_test.pem
-ssldhfile = certs/tor2web_dh_test.pem
 cipher_list = DHE-RSA-AES256-SHA:DHE-DSS-AES256-SHA:RC4-SHA
 
-staticmap = antanistaticmap
+# Access Blocking
+blocklists = True
 blockcrawl = True
-blocked_ua = lists/blocked_ua.txt
-blocklist_cleartext = lists/blocklist_cleartext.txt
-blocklist_hashed = lists/blocklist_hashed.txt
 
 # Mail configuration for automatic exceptions notification and user abuse notice
 smtpuser = [USERNAME]
@@ -45,7 +45,8 @@ smtpmailto_notifications = stackexception@lists.tor2web.org
 smtpdomain = smtp.gmail.com
 smtpport = 587
 
-# Exit nodes list refresh period in seconds
+# Exit nodes list refresh period (in seconds)
 exit_node_list_refresh = 600
-exit_node_list = lists/exitnodelist.txt
+
+# List of mirrors showed in Tor2web banner
 mirror = [tor2web.fi, tor2web.blutmagie.de, onion.sh]

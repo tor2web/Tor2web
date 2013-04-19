@@ -31,11 +31,7 @@
 
 # -*- coding: utf-8 -*-
 
-from twisted.web.template import Element, XMLString, renderer, tags, flattenString
-from twisted.python.filepath import FilePath
-
-from utils.config import config
-from utils.fileList import fileList
+from twisted.web.template import Element, renderer, tags
 
 class PageTemplate(Element):
     def lookupRenderMethod(self, name):

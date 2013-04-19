@@ -31,13 +31,12 @@
 
 # -*- coding: utf-8 -*-
 
-import socket
 import struct
 
 from zope.interface import implements
-from twisted.internet import defer, interfaces
+from twisted.internet import defer
 from twisted.internet.interfaces import IStreamClientEndpoint
-from twisted.internet.endpoints import TCP4ClientEndpoint, SSL4ClientEndpoint, _WrappingProtocol, _WrappingFactory
+from twisted.internet.endpoints import _WrappingProtocol, _WrappingFactory
 from twisted.protocols import policies
 from twisted.python.failure import Failure
 
@@ -55,7 +54,7 @@ class SOCKSv5ClientProtocol(_WrappingProtocol):
         self._port = port
         self._optimistic = optimistic
         self._buf = ''
-        
+
     def error(self, error):
         if not self._optimistic:
             self._connectedDeferred.errback(error)
@@ -82,7 +81,7 @@ class SOCKSv5ClientProtocol(_WrappingProtocol):
             self.transport.write(struct.pack("!BBBBB", 5, 1, 0, 3, len(self._host)) + self._host + struct.pack("!H", self._port))
 
         self._buf = self._buf[2:]
-        
+
         self.state = self.state + 1
 
     def socks_state_2(self):
@@ -92,7 +91,7 @@ class SOCKSv5ClientProtocol(_WrappingProtocol):
         if self._buf[:2] != "\x05\x00":
             self.error(Failure(SOCKSError(ord(self._buf[1]))))
             return
-    
+
         self._buf = self._buf[10:]
 
         if not self._optimistic:
@@ -104,12 +103,12 @@ class SOCKSv5ClientProtocol(_WrappingProtocol):
     def connectionMade(self):
         # We implement only Anonymous access
         self.transport.write(struct.pack("!BB", 5, len("\x00")) + "\x00")
-        
+
         if self._optimistic:
             self.transport.write(struct.pack("!BBBBB", 5, 1, 0, 3, len(self._host)) + self._host + struct.pack("!H", self._port))
             self._wrappedProtocol.makeConnection(self.transport)
             self._connectedDeferred.callback(self._wrappedProtocol)
-        
+
         self.state = self.state + 1
 
     def dataReceived(self, data):
@@ -121,7 +120,7 @@ class SOCKSv5ClientProtocol(_WrappingProtocol):
 
 class SOCKSv5ClientFactory(_WrappingFactory):
     protocol = SOCKSv5ClientProtocol
-    
+
     def __init__(self, wrappedFactory, host, port, optimistic):
         _WrappingFactory.__init__(self, wrappedFactory)
         self._host = host
@@ -141,7 +140,7 @@ class SOCKS5ClientEndpoint(object):
     """
     SOCKS5 TCP client endpoint with an IPv4 configuration.
     """
-    implements(interfaces.IStreamClientEndpoint)
+    implements(IStreamClientEndpoint)
 
     def __init__(self, reactor, sockhost, sockport,
                  host, port, optimistic, timeout=30, bindAddress=None):

@@ -31,6 +31,9 @@
 
 # -*- coding: utf-8 -*-
 
+VERSION = "Tor2Web 3.0 Beta 1"
+
+import os
 import re
 import ConfigParser
 from storage import Storage
@@ -45,14 +48,27 @@ class Config(Storage):
     def __init__(self, section, cfgfile="tor2web.conf"):
         Storage.__init__(self)
 
-        self._cfgfile = cfgfile
-        self._cfgparser = ConfigParser.ConfigParser()
-        self._cfgparser.read([self._cfgfile])
-        self._section = section
+        try:
+            if (not os.path.exists(cfgfile) or
+                not os.path.isfile(cfgfile) or
+                not os.access(cfgfile, os.R_OK)):
+                print "Tor2web Startup Failure: cannot open config file (%s)" % cfgfile
+                exit(1)
+        except:
+            print "Tor2web Startup Failure: error while accessing config file (%s)" % cfgfile
+            exit(1)
 
-        for name in self._cfgparser.options(section):
-            value = self._cfgparser.get(self._section, name)
-            self.__dict__[name] = self.parse(name)
+        try:
+            self._cfgfile = cfgfile
+            self._cfgparser = ConfigParser.ConfigParser()
+            self._cfgparser.read([self._cfgfile])
+            self._section = section
+
+            for name in self._cfgparser.options(section):
+                value = self._cfgparser.get(self._section, name)
+                self.__dict__[name] = self.parse(name)
+        except:
+            raise Exception("Tor2web Error: invalid config file (%s)" % cfgfile)
 
     def splitlist(self, line):
         return [x[1:-1] if x[:1] == x[-1:] == '"' else x
@@ -66,7 +82,7 @@ class Config(Storage):
                 value = int(value)
            elif value.lower() in ('true', 'false'):
                 value = value.lower() == 'true'
-           elif value == '' or value == None:
+           elif value.lower() in ('', 'none'):
                 value = None
            elif value[0] == "[" and value[-1] == "]":
                 value = self.splitlist(value[1:-1])
