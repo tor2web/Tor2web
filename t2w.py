@@ -964,7 +964,7 @@ def startTor2webHTTPS(t2w, f, ip):
                               interface=ip)
 
 ###############################################################################
-# Basic Safery Checks
+# Basic Safety Checks
 ###############################################################################
 if not os.path.exists(config.datadir):
     print "Tor2web Startup Failure: unexistent directory (%s)" % config.datadir

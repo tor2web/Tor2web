@@ -18,8 +18,8 @@
 # Description:       This file starts up the tor2web server.
 ### END INIT INFO
 
-# Authors: Arturo Filasto' <art@Tor2web.org>
-#          Giovanni Pellerano <evilaliv3@Tor2web.org>
+# Authors: Arturo Filasto' <art@globaleaks.org>
+#          Giovanni Pellerano <evilaliv3@globaleaks.org>
 
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 NAME=tor2web
