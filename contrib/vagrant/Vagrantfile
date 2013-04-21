@@ -1,0 +1,154 @@
+# ********************************************************
+#   TOR2WEB-3.0 VAGRANT CONFIG FILE
+#
+# 0) Install VirtualBox (https://www.virtualbox.org/) 
+# 1) Install Vagrant (http://www.vagrantup.com/)
+# 2) Create a dir and save this file as "Vagrantfile"
+# 3) Edit parameters in line 131 for cert generation as you see fit
+# 4) In the same dir run "vagrant up"
+# 5) After everything is done, connect to VM via "vagrant ssh" and configure /home/tor2web/Tor2web-3.0/tor2web.conf
+# 6) start with /etc/init.d/tor2web start
+# 7) play :)
+# 
+# Based on the Installation Guide for Tor2web-3.0 to be found here:
+# <https://github.com/globaleaks/Tor2web-3.0/wiki/Getting-started-with-Tor2web>
+# 
+# ********************************************************
+
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  # All Vagrant configuration is done here. The most common configuration
+  # options are documented and commented below. For a complete reference,
+  # please see the online documentation at vagrantup.com.
+
+  # Every Vagrant virtual environment requires a box to build off of.
+  config.vm.box = "precise32"
+
+  # The url from where the 'config.vm.box' box will be fetched if it
+  # doesn't already exist on the user's system.
+  config.vm.box_url = "http://files.vagrantup.com/precise32.box"
+
+  # Create a forwarded port mapping which allows access to a specific port
+  # within the machine from a port on the host machine. In the example below,
+  # accessing "localhost:8080" will access port 80 on the guest machine.
+  # config.vm.network :forwarded_port, guest: 80, host: 8080
+
+  # Create a private network, which allows host-only access to the machine
+  # using a specific IP.
+  # config.vm.network :private_network, ip: "192.168.33.10"
+
+  # Create a public network, which generally matched to bridged network.
+  # Bridged networks make the machine appear as another physical device on
+  # your network.
+  config.vm.network :public_network
+
+  # Share an additional folder to the guest VM. The first argument is
+  # the path on the host to the actual folder. The second argument is
+  # the path on the guest to mount the folder. And the optional third
+  # argument is a set of non-required options.
+  # config.vm.synced_folder "../data", "/vagrant_data"
+
+  # Provider-specific configuration so you can fine-tune various
+  # backing providers for Vagrant. These expose provider-specific options.
+  # Example for VirtualBox:
+  #
+  # config.vm.provider :virtualbox do |vb|
+  #   # Don't boot with headless mode
+  #   vb.gui = true
+  #
+  #   # Use VBoxManage to customize the VM. For example to change memory:
+  #   vb.customize ["modifyvm", :id, "--memory", "1024"]
+  # end
+  #
+end
+
+$script = <<SCRIPT
+date > /etc/vagrant_provisioned_at
+
+echo " ********************************************************"
+echo "    STEP 1: Updating system and dependencies installation"
+echo " ********************************************************"
+mkdir ~/tor2web-buildenv
+cd ~/tor2web-buildenv
+echo grub-pc hold | dpkg --set-selections
+apt-get -y update && apt-get -y upgrade
+apt-get -y install vim git python-dev python-pip python-virtualenv
+
+echo " ********************************************************"
+echo "    STEP 2: Adding TOR repositories"
+echo " ********************************************************"
+echo "deb http://deb.torproject.org/torproject.org precise main" >> /etc/apt/sources.list
+echo "deb-src http://deb.torproject.org/torproject.org precise main" >> /etc/apt/sources.list
+echo "deb-src http://deb.torproject.org/torproject.org experimental-precise main" >> /etc/apt/sources.list
+mkdir ~/tor2web-buildenv/debian-packages
+cd ~/tor2web-buildenv/debian-packages
+gpg --keyserver keys.gnupg.net --recv 886DDD89
+gpg --export A3C4F0F979CAA22CDBA8F512EE8CBC9E886DDD89 | sudo apt-key add -
+apt-get update
+apt-get -y install deb.torproject.org-keyring
+apt-get update
+
+echo " ********************************************************"
+echo "    STEP 3: Setting up compilation environment and sources"
+echo " ********************************************************"
+apt-get -y install build-essential fakeroot devscripts
+apt-get -y build-dep tor
+apt-get -y source tor
+cd tor-*
+sed  -i -e 's#--disable-silent-rules#& --enable-tor2web-mode#' debian/rules
+wget -O patch_hs.patch 'https://gitweb.torproject.org/user/art/tor.git/patch/f6d3dc3d9e0e70f2c553ce254b49630bd98910e9?hp=ca525db02dbb026bda4305881476dada754c3ca3'
+patch -p1 < patch_hs.patch
+sed  -i -e 's/  V(Tor2webMode,                 BOOL,     "0"),/  V(Tor2webMode,                 BOOL,     "1"),/' src/or/config.c
+
+echo " ********************************************************"
+echo "    STEP 4: Installing TOR"
+echo " ********************************************************"
+debuild -rfakeroot -uc -us
+cd ..
+dpkg -i tor_*.deb
+
+echo " ********************************************************"
+echo "    STEP 5: Installing TOR2WEB"
+echo " ********************************************************"
+useradd -U -s /sbin/nologin -d /home/tor2web/ -m tor2web
+cd /home/tor2web
+git clone https://github.com/globaleaks/Tor2web-3.0.git
+virtualenv -p python2.7 t2wenv
+source t2wenv/bin/activate
+pip install -r Tor2web-3.0/requirements.txt
+export PYTHONPATH=`pwd`
+cp Tor2web-3.0/contrib/debian/tor2web.init /etc/init.d/tor2web
+chmod 755 /etc/init.d/tor2web
+update-rc.d tor2web defaults
+
+echo " ********************************************************"
+echo "    STEP 6: Generating certs"
+echo " ********************************************************"
+cd /home/tor2web/Tor2web-3.0/data/certs/
+openssl genrsa -out tor2web-key.pem 2048
+openssl req -new -key tor2web-key.pem -subj "/C=IT/ST=Erehwon/L=Null/O=T2W/CN=www.tor2web.local" -out tor2web-csr.pem
+openssl x509 -req -days 365 -in tor2web-csr.pem -signkey tor2web-key.pem -out tor2web-intermediate.pem
+cd /home/tor2web/Tor2web-3.0/data/certs/
+openssl dhparam -out tor2web-dh.pem 2048
+
+echo " ********************************************************"
+echo "    STEP 7: Final settings"
+echo " ********************************************************"
+cd /home/tor2web/
+cp Tor2web-3.0/tor2web.conf.example Tor2web-3.0/tor2web.conf
+cd /home/tor2web/
+touch Tor2web-3.0/data/logs/debug.log Tor2web-3.0/data/logs/access.log 
+chown tor2web:tor2web Tor2web-3.0/data/logs/debug.log Tor2web-3.0/data/logs/access.log
+/etc/init.d/tor2web start
+
+echo " ********************************************************"
+echo " Now please edit /home/tor2web/Tor2web-3.0/tor2web.conf and restart tor2web"
+echo " ********************************************************"
+SCRIPT
+
+Vagrant.configure("2") do |config|
+  config.vm.provision :shell, :inline => $script
+end
+
