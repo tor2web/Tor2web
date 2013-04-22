@@ -134,7 +134,9 @@ class Tor2web(object):
 
         self.blocked_ua = []
         if config.blockcrawl:
-            self.blocked_ua = fileList(os.path.join(config.datadir, 'lists', 'blocked_ua.txt'))
+            tmp = fileList(os.path.join(config.datadir, 'lists', 'blocked_ua.txt'))
+            for ua in tmp:
+                self.blocked_ua.append(ua.lower())
 
         # Load Exit Nodes list with the refresh rate configured  in config file
         self.TorExitNodes = torExitNodeList(os.path.join(config.datadir, 'lists', 'exitnodelist.txt'),
@@ -716,8 +718,10 @@ class T2WRequest(proxy.ProxyRequest):
         # secondly we try to deny some ua/crawlers regardless the request is (valid or not) / (local or not)
         # we deny EVERY request to known user agents reconized with pattern matching
         if request.headers.getRawHeaders('user-agent') != None:
-            if request.headers.getRawHeaders('user-agent')[0] in t2w.blocked_ua:
-                return self.sendError(403, "error_blocked_ua.tpl")
+            for ua in t2w.blocked_ua:
+                check = request.headers.getRawHeaders('user-agent')[0].lower()
+                if re.match(ua, check)
+                    return self.sendError(403, "error_blocked_ua.tpl")
 
         # we need to verify if the requested resource is local (/antanistaticmap/*) or remote
         # because some checks must be done only for remote requests;
