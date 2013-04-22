@@ -720,7 +720,7 @@ class T2WRequest(proxy.ProxyRequest):
         if request.headers.getRawHeaders('user-agent') != None:
             for ua in t2w.blocked_ua:
                 check = request.headers.getRawHeaders('user-agent')[0].lower()
-                if re.match(ua, check)
+                if re.match(ua, check):
                     return self.sendError(403, "error_blocked_ua.tpl")
 
         # we need to verify if the requested resource is local (/antanistaticmap/*) or remote
