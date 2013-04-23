@@ -42,9 +42,7 @@ from twisted.internet.defer import Deferred
 from twisted.web.client import HTTPPageGetter, HTTPClientFactory, _parse
 
 class HTTPCacheDownloader(HTTPPageGetter):
-  
     def connectionMade(self, isCached=False):
-
         self.content_is_gzip = False
 
         if self.factory.url in self.factory.cache and 'response' in self.factory.cache[self.factory.url]:
@@ -168,12 +166,17 @@ def getPageCached(url, contextFactory=None, *args, **kwargs):
 
     return factory.deferred
     
-class fileList(set):
-    def __init__(self, filename):
+class List(set):
+    def __init__(self, filename, url='', refreshPeriod=0):
         set.__init__(self)
         self.filename = filename
+        self.url = url
        
         self.load()
+
+        if url != '' and refreshPeriod != 0:
+            self.lc = LoopingCall(self.update)
+            self.lc.start(refreshPeriod)
 
     def load(self):
         """
@@ -198,13 +201,10 @@ class fileList(set):
            fh.write(l + "\n")
         fh.close()
     
-class updateFileList(fileList):
-    def __init__(self, filename, url='', refreshPeriod=0):
-        fileList.__init__(self, filename)
-        self.url = url
-        if refreshPeriod != 0:
-            self.lc = LoopingCall(self.update)
-            self.lc.start(refreshPeriod)
+    def handleData(self, data):
+        for elem in data.split('\n'):
+            if(elem != ''):
+                self.add(elem)
 
     def processData(self, data, d):
         if(len(data) != 0):
@@ -227,7 +227,7 @@ class updateFileList(fileList):
         pageFetchedDeferred.addErrback(self.handleError, update_finished)
         return update_finished
 
-class torExitNodeList(updateFileList):
+class torExitNodeList(List):
     def handleData(self, data):
         self.clear()
         data = json.loads(data)
@@ -235,9 +235,3 @@ class torExitNodeList(updateFileList):
             for ip in relay['a']:
                 if(ip != ''):
                     self.add(ip)
-
-class hashedBlockList(updateFileList):
-    def handleData(self, data):
-        for blockelem in data.split('\n'):
-            if(blockelem != ''):
-                self.add(blockelem)

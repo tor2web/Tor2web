@@ -51,6 +51,7 @@ from twisted.internet.endpoints import TCP4ClientEndpoint, SSL4ClientEndpoint
 from twisted.application import service, internet
 from twisted.web import proxy, http, client, resource, http_headers, _newclient
 from twisted.web._newclient import Request, RequestNotSent, RequestGenerationFailed, TransportProxyProducer, STATUS
+from twisted.web.http import StringTransport
 from twisted.web.http_headers import _DictHeaders
 from twisted.web.server import NOT_DONE_YET
 from twisted.web.template import flattenString, XMLString
@@ -59,7 +60,7 @@ from twisted.python.filepath import FilePath
 from twisted.python import log, logfile, failure
 
 from utils.config import VERSION, config
-from utils.fileList import fileList, updateFileList, hashedBlockList, torExitNodeList
+from utils.lists import List, torExitNodeList
 from utils.mail import sendmail, MailException
 from utils.socks import SOCKS5ClientEndpoint, SOCKSError
 from utils.ssl import T2WSSLContextFactory
@@ -78,6 +79,24 @@ SOCKS_errors = {\
     0x23: "error_sock_hs_not_found.tpl",
     0x24: "error_sock_hs_not_reachable.tpl"
 }
+
+def verify_onion(address):
+    """
+    Check to see if the address is a .onion.
+    returns the onion address as a string if True else returns False
+    """
+    try:
+        onion, tld = address.split(".")
+        log.msg('onion: %s tld: %s' % (onion, tld))
+        if tld == 'onion' and len(onion) == 16 and onion.isalnum():
+            return True
+    except:
+        pass
+
+    return False
+    
+def verify_resource_is_local(host, uri, path):
+    return isIPAddress(host) or isIPv6Address(host) or uri.startswith(path)
 
 class Tor2webObj():
 
@@ -117,24 +136,30 @@ class Tor2web(object):
 
         self.basehost = config.basehost
 
-        self.blocklist = []
-        if config.blocklists:
-            self.blocklist = hashedBlockList(os.path.join(config.datadir, 'lists', 'blocklist_hashed.txt'))
+        self.accesslist = []
+        if config.mode == "TRANSLATION":
+            pass
+
+        elif config.mode == "WHITELIST":
+            self.accesslist = List(os.path.join(config.datadir, 'lists', 'whitelist.txt'))
+        
+        elif config.mode == "BLACKLIST":
+            self.accesslist = List(os.path.join(config.datadir, 'lists', 'blocklist_hashed.txt'))
 
             # clear local cleartext list
             # (load -> hash -> clear feature; for security reasons)
-            self.blocklist_cleartext = fileList(os.path.join(config.datadir, 'lists', 'blocklist_cleartext.txt'))
+            self.blocklist_cleartext = List(os.path.join(config.datadir, 'lists', 'blocklist_cleartext.txt'))
             for i in self.blocklist_cleartext:
-                self.blocklist.add(hashlib.md5(i).hexdigest())
+                self.accesslist.add(hashlib.md5(i).hexdigest())
 
-            self.blocklist.dump()
+            self.accesslist.dump()
 
             self.blocklist_cleartext.clear()
             self.blocklist_cleartext.dump()
 
         self.blocked_ua = []
         if config.blockcrawl:
-            tmp = fileList(os.path.join(config.datadir, 'lists', 'blocked_ua.txt'))
+            tmp = List(os.path.join(config.datadir, 'lists', 'blocked_ua.txt'))
             for ua in tmp:
                 self.blocked_ua.append(ua.lower())
 
@@ -142,72 +167,6 @@ class Tor2web(object):
         self.TorExitNodes = torExitNodeList(os.path.join(config.datadir, 'lists', 'exitnodelist.txt'),
                                             "https://onionoo.torproject.org/summary?type=relay",
                                             config.exit_node_list_refresh)
-
-    def verify_onion(self, obj, address):
-        """
-        Check to see if the address is a .onion.
-        returns the onion address as a string if True else returns False
-        """
-        onion, tld = address.split(".")
-        log.msg('onion: %s tld: %s' % (onion, tld))
-        if tld == 'onion' and len(onion) == 16 and onion.isalnum():
-            obj.onion = onion
-            return True
-
-        return False
-
-
-    def verify_resource_is_local(self, obj, host, uri, staticpath):
-       if isIPAddress(host):
-           obj.resourceislocal = True
-       else:
-           obj.resourceislocal = uri.startswith(staticpath)
-       return obj.resourceislocal
-
-    def verify_hostname(self, obj, host, uri):
-        """
-        Resolve the supplied request to a HS.
-        HSs are accepted in the <onion_url>.<tor2web_domain>.<tld>/ format
-        """
-        if not host:
-            obj.error = {'code': 400, 'template': 'error_invalid_hostname.tpl'}
-            return False
-
-        obj.hostname = host.split(".")[0] + ".onion"
-        log.msg("detected <onion_url>.tor2web Hostname: %s" % obj.hostname)
-
-        try:
-            if self.verify_onion(obj, obj.hostname):
-                return True
-        except:
-            pass
-
-        obj.error = {'code': 406, 'template': 'error_invalid_hostname.tpl'}
-
-        return False
-
-    def get_address(self, obj, req):
-        """
-        Returns the address of the request to be made on the Tor Network
-        to contact the Tor Hidden Service.
-
-        the return address format is: http://<some>.onion/<URI>
-        """
-        obj.uri = req.uri
-        log.msg("URI: %s" % obj.uri)
-
-        if hashlib.md5(obj.hostname).hexdigest() in self.blocklist:
-            obj.error = {'code': 403, 'template': 'error_hs_completely_blocked.tpl'}
-            return False
-
-        if hashlib.md5(obj.hostname + obj.uri).hexdigest() in self.blocklist:
-            obj.error = {'code': 403, 'template': 'error_hs_specific_page_blocked.tpl'}
-            return False
-
-        # When connecting to HS use only HTTP
-        obj.address = "http://" + obj.hostname + obj.uri
-
-        return True
 
     def process_request(self, obj, req):
         """
@@ -217,8 +176,9 @@ class Tor2web(object):
         """
         log.msg(req)
 
-        if not self.get_address(obj, req):
-            return False
+        obj.host_tor = "http://" + obj.onion + ".onion"
+        obj.host_tor2web = "https://" + obj.onion + "." + self.config.basehost + ":" + str(self.config.listen_port_https)
+        obj.address = "http://" + obj.onion + obj.uri
 
         obj.headers = req.headers
 
@@ -227,18 +187,15 @@ class Tor2web(object):
 
         obj.headers.removeHeader('If-Modified-Since')
         obj.headers.removeHeader('If-None-Match')
-        obj.headers.setRawHeaders('Host', [obj.hostname])
+        obj.headers.setRawHeaders('Host', [obj.onion])
         obj.headers.setRawHeaders('X-tor2web', ['encrypted'])
         obj.headers.setRawHeaders('Connection', ['keep-alive'])
         obj.headers.setRawHeaders('Accept-Encoding', ['gzip, chunked'])
 
-        obj.host_onion = "http://" + obj.onion + ".onion"
-        obj.host_tor2web = "https://" + obj.onion + "." + self.config.basehost + ":" + str(self.config.listen_port_https)
-
         for key, values in obj.headers.getAllRawHeaders():
             fixed_values = []
             for value in values:
-                fixed_values.append(value.replace(obj.host_tor2web, obj.host_onion))
+                fixed_values.append(value.replace(obj.host_tor2web, obj.host_tor))
 
             obj.headers.setRawHeaders(key, fixed_values)
 
@@ -277,7 +234,7 @@ class Tor2web(object):
             link = data
         else:
             if parsed.netloc == '':
-                netloc = obj.hostname
+                netloc = obj.onion
             else:
                 netloc = parsed.netloc
 
@@ -528,7 +485,7 @@ class T2WRequest(proxy.ProxyRequest):
     staticmap = "/antanistaticmap/"
 
     def __init__(self, channel, queued, reactor=reactor):
-        # We need to overrind together some part of proxy.Request and of the base http.Request
+        # We need to override together some part of proxy.Request and of the base http.Request
         self.reactor = reactor
         self.notifications = []
         self.channel = channel
@@ -727,18 +684,35 @@ class T2WRequest(proxy.ProxyRequest):
         # because some checks must be done only for remote requests;
         # in fact local content is always served (css, js, and png in fact are used in errors)
 
-        t2w.verify_resource_is_local(self.obj, request.host, request.uri, self.staticmap)
+        if not verify_resource_is_local(request.host, request.uri, self.staticpath):
+            if not request.host:
+                return self.sendError(406, 'error_invalid_hostname.tpl')
 
-        if not self.obj.resourceislocal:
-            # we need to validate the request to avoid useless processing
+            if config.mode == "TRANSLATION":
+                self.obj.onion = config.onion
+            else:
+                self.obj.onion = request.host.split(".")[0] + ".onion"
+                log.msg("detected <onion_url>.tor2web Hostname: %s" % self.obj.onion)
+                if not verify_onion(self.obj.onion):
+                    return self.sendError(406, 'error_invalid_hostname.tpl')
 
-            if not t2w.verify_hostname(self.obj, request.host, request.uri):
-                return self.sendError(self.obj.error['code'], self.obj.error['template'])
+                if config.mode == "ACCESSLIST":
+                    if self.obj.onion not in self.accesslist:
+                        return self.sendError(403, 'error_hs_completely_blocked.tpl')
+
+                elif config.mode == "BLOCKLIST":
+                    if hashlib.md5(self.obj.onion).hexdigest() in self.accesslist:
+                        return self.sendError(403, 'error_hs_completely_blocked.tpl')
+
+                    if hashlib.md5(self.obj.onion + self.obj.uri).hexdigest() in accesslist:
+                        return self.sendError(403, 'error_hs_specific_page_blocked.tpl')
+            
+            self.obj.uri = request.uri
 
             # we need to verify if the user is using tor;
             # on this condition it's better to redirect on the .onion
             if self.getClientIP() in t2w.TorExitNodes:
-                self.redirect("http://" + self.obj.hostname + request.uri)
+                self.redirect("http://" + self.obj.onion + request.uri)
                 self.finish()
                 return
 
@@ -759,7 +733,7 @@ class T2WRequest(proxy.ProxyRequest):
                 self.obj.client_supports_gzip = True
 
         # 2: Content delivery stage
-        if self.obj.resourceislocal:
+        if verify_resource_is_local(request.host, request.uri, self.staticpath):
             # the requested resource is local, we deliver it directly
             try:
                 staticpath = request.uri
@@ -797,8 +771,7 @@ class T2WRequest(proxy.ProxyRequest):
         else:
             # the requested resource is remote, we act as proxy
 
-            if not t2w.process_request(self.obj, request):
-                return self.sendError(self.obj.error['code'], self.obj.error['template'])
+            t2w.process_request(self.obj, request)
 
             try:
                 parsed = urlparse(self.obj.address)
@@ -897,7 +870,7 @@ class T2WRequest(proxy.ProxyRequest):
 
         fixed_values = []
         for value in values:
-            fixed_values.append(value.replace(self.obj.host_onion, self.obj.host_tor2web))
+            fixed_values.append(value.replace(self.obj.host_tor, self.obj.host_tor2web))
 
         self.responseHeaders.setRawHeaders(key, fixed_values)
 
@@ -974,6 +947,15 @@ if not os.path.exists(config.datadir):
     print "Tor2web Startup Failure: unexistent directory (%s)" % config.datadir
     exit(1)
 
+if config.mode not in [ 'TRANSLATION', 'WHITELIST', 'BLACKLIST' ]:
+    print "Tor2web Startup Failure: config.mode must be one of: TRANSLATION / WHITELIST / BLACKLIST"
+    exit(1)
+
+if config.mode == "TRANSLATION":
+    if not verify_onion(config.onion):
+        print "Tor2web Startup Failure: TRANSLATION config.mode require config.onion configuration"
+        exit(1)        
+    
 for d in [ 'certs',  'lists', 'logs',  'static', 'templates']:
     path = os.path.join(config.datadir, d)
     if not os.path.exists(path):
