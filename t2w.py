@@ -983,6 +983,7 @@ sys.excepthook = MailException
 t2w = Tor2web(config)
 
 application = service.Application("Tor2web")
+service.IProcess(application).processName = "tor2web"
 if config.debugmode:
     if config.debugtostdout is not True:
         application.setComponent(log.ILogObserver,
