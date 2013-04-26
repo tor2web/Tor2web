@@ -45,30 +45,44 @@ class Config(Storage):
     A Storage-like class which loads and store each attribute into a portable
     conf file.
     """
-    def __init__(self, section, cfgfile="tor2web.conf"):
+    def __init__(self, cfgfile="/etc/tor2web.conf"):
         Storage.__init__(self)
+        self._file = cfgfile
+        self._section = 'main'
+        self._parser = ConfigParser.ConfigParser()
 
+    def load(self):
         try:
-            if (not os.path.exists(cfgfile) or
-                not os.path.isfile(cfgfile) or
-                not os.access(cfgfile, os.R_OK)):
-                print "Tor2web Startup Failure: cannot open config file (%s)" % cfgfile
+            if (not os.path.exists(self._file) or
+                not os.path.isfile(self._file) or
+                not os.access(self._file, os.R_OK)):
+                print "Tor2web Startup Failure: cannot open config file (%s)" % self._file
                 exit(1)
         except:
-            print "Tor2web Startup Failure: error while accessing config file (%s)" % cfgfile
+            print "Tor2web Startup Failure: error while accessing config file (%s)" % self._file
             exit(1)
 
         try:
-            self._cfgfile = cfgfile
-            self._cfgparser = ConfigParser.ConfigParser()
-            self._cfgparser.read([self._cfgfile])
-            self._section = section
+            self._parser.read([self._file])
 
-            for name in self._cfgparser.options(section):
-                value = self._cfgparser.get(self._section, name)
+            for name in self._parser.options(self._section):
+                value = self._parser.get(self._section, name)
                 self.__dict__[name] = self.parse(name)
         except:
-            raise Exception("Tor2web Error: invalid config file (%s)" % cfgfile)
+            raise Exception("Tor2web Error: invalid config file (%s)" % self._file)
+
+    def store(self):
+        """
+        Commit changes in config file.
+        """
+        if self._file is None:
+            raise Exception("Tor2web Error: cannot store configuration (never loaded)")
+
+        self._file = open(self._file, 'w')
+        try:
+            self._parser.write(self._file)
+        finally:
+            self._file.close()
 
     def splitlist(self, line):
         return [x[1:-1] if x[:1] == x[-1:] == '"' else x
@@ -77,7 +91,7 @@ class Config(Storage):
     def parse(self, name):
         try:
 
-           value = self._cfgparser.get(self._section, name)
+           value = self._parser.get(self._section, name)
            if value.isdigit():
                 value = int(value)
            elif value.lower() in ('true', 'false'):
@@ -106,19 +120,9 @@ class Config(Storage):
         try:
 
             # XXX: Automagically discover variable type
-            self._cfgparser.set(self._section, name, value)
+            self._parser.set(self._section, name, value)
 
         except ConfigParser.NoOptionError:
             raise NameError(name)
 
-    def commit(self):
-        """
-        Commit changes in config file.
-        """
-        cfgfile = open(self._cfgfile, 'w')
-        try:
-            self._cfgparser.write(cfgfile)
-        finally:
-            cfgfile.close()
-
-config = Config("main")
+config = Config()

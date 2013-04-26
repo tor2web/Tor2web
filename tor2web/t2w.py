@@ -59,13 +59,13 @@ from twisted.web.iweb import IBodyProducer
 from twisted.python.filepath import FilePath
 from twisted.python import log, logfile, failure
 
-from utils.config import VERSION, config
-from utils.lists import List, torExitNodeList
-from utils.mail import sendmail, MailException
-from utils.socks import SOCKS5ClientEndpoint, SOCKSError
-from utils.ssl import T2WSSLContextFactory
-from utils.storage import Storage
-from utils.templating import PageTemplate
+from tor2web.utils.config import VERSION, config
+from tor2web.utils.lists import List, torExitNodeList
+from tor2web.utils.mail import sendmail, MailException
+from tor2web.utils.socks import SOCKS5ClientEndpoint, SOCKSError
+from tor2web.utils.ssl import T2WSSLContextFactory
+from tor2web.utils.storage import Storage
+from tor2web.utils.templating import PageTemplate
 
 rexp = {
     'href': re.compile(r'<[a-z]*\s*.*?\s*href\s*=\s*[\\\'"]?([a-z0-9/#:\-\.]*)[\\\'"]?\s*.*?>', re.I),
@@ -684,7 +684,7 @@ class T2WRequest(proxy.ProxyRequest):
         # because some checks must be done only for remote requests;
         # in fact local content is always served (css, js, and png in fact are used in errors)
 
-        if not verify_resource_is_local(request.host, request.uri, self.staticpath):
+        if not verify_resource_is_local(request.host, request.uri, self.staticmap):
             if not request.host:
                 return self.sendError(406, 'error_invalid_hostname.tpl')
 
@@ -733,7 +733,7 @@ class T2WRequest(proxy.ProxyRequest):
                 self.obj.client_supports_gzip = True
 
         # 2: Content delivery stage
-        if verify_resource_is_local(request.host, request.uri, self.staticpath):
+        if verify_resource_is_local(request.host, request.uri, self.staticmap):
             # the requested resource is local, we deliver it directly
             try:
                 staticpath = request.uri
@@ -943,6 +943,8 @@ def startTor2webHTTPS(t2w, f, ip):
 ###############################################################################
 # Basic Safety Checks
 ###############################################################################
+config.load()
+
 if not os.path.exists(config.datadir):
     print "Tor2web Startup Failure: unexistent directory (%s)" % config.datadir
     exit(1)

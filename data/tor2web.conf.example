@@ -5,7 +5,7 @@
 nodename = [UNIQUE_IDENTIFIER]
 
 # path to Tor2web data directort
-datadir = ./data
+datadir = /home/tor2web/Tor2web-3.0/data
 
 # debug and logging
 debugtostdout = False
@@ -33,7 +33,8 @@ sockretryautomatically = True
 cipher_list = DHE-RSA-AES256-SHA:DHE-DSS-AES256-SHA:RC4-SHA
 
 # Access Blocking
-blocklists = True
+mode = BLACKLIST
+onion = None
 blockcrawl = True
 
 # Mail configuration for automatic exceptions notification and user abuse notice

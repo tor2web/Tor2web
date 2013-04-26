@@ -24,11 +24,10 @@
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 NAME=tor2web
 DAEMON=twistd
-DAEMON_ENV=/home/tor2web/t2wenv/bin/activate
 DAEMON_DIR=/home/tor2web/Tor2web-3.0
 DAEMON_PIDFILE=${DAEMON_DIR}/tor2web.pid
 DAEMON_USER=tor2web
-DAEMON_ARGS="--pidfile ${DAEMON_PIDFILE} --uid ${DAEMON_USER} --gid ${DAEMON_USER} -y ${DAEMON_DIR}/t2w.py"
+DAEMON_ARGS="--pidfile ${DAEMON_PIDFILE} --uid ${DAEMON_USER} --gid ${DAEMON_USER} -y ${DAEMON_DIR}/tor2web/t2w.py"
 
 NAME=$(basename $(readlink -nf $0))
 
@@ -72,7 +71,7 @@ else
         MAX_FILEDESCRIPTORS=8192
 fi
 
-do_setup_env()
+checks()
 {
     if [[ $EUID -ne 0 ]]; then
        log_failure_msg "Error: Tor2web init script must be run as root"
@@ -87,15 +86,6 @@ do_setup_env()
         exit 1
     fi
 
-    if [ ! -f ${DAEMON_ENV} ]
-    then
-        log_failure_msg "invalid DAEMON_ENV: ${DAEMON_ENV}"
-        log_end_msg 1
-        exit 1
-    fi
-
-    . ${DAEMON_ENV}
-
     DAEMON=`which twistd`
     if [ ! ${DAEMON} ]; then
         log_end_msg 1 "twistd is not installed"
@@ -105,7 +95,7 @@ do_setup_env()
 
 do_t2w_start()
 {
-    do_setup_env
+    checks
 
     if [ -n "$MAX_FILEDESCRIPTORS" ]; then
         ulimit -n "$MAX_FILEDESCRIPTORS"
@@ -128,7 +118,7 @@ do_t2w_start()
 
 do_t2w_stop()
 {
-    do_setup_env
+    checks
 
     start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --pidfile ${DAEMON_PIDFILE}
 }

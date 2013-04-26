@@ -37,11 +37,11 @@ import traceback
 from OpenSSL import SSL
 from StringIO import StringIO
 
-from utils.config import VERSION, config
-
 from twisted.internet import reactor
 from twisted.mail.smtp import ESMTPSenderFactory
 from twisted.internet.ssl import ClientContextFactory
+
+from tor2web.utils.config import VERSION, config
 
 def sendmail(authenticationUsername, authenticationSecret, fromAddress, toAddress, messageFile, smtpHost, smtpPort=25):
     """
