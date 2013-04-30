@@ -31,8 +31,6 @@ function sendNotification() {
   http.open("POST", "/antanistaticmap/notification", true);
 	
   http.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-  http.setRequestHeader("Content-length", params.length);
-  http.setRequestHeader("Connection", "close");
 
   http.onreadystatechange = handler;
   
