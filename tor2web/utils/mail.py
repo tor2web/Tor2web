@@ -37,7 +37,7 @@ import traceback
 from OpenSSL import SSL
 from StringIO import StringIO
 
-from twisted.internet import reactor
+from twisted.internet import reactor, defer
 from twisted.mail.smtp import ESMTPSenderFactory
 from twisted.internet.ssl import ClientContextFactory
 

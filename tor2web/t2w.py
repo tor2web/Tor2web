@@ -56,8 +56,10 @@ from twisted.web.http_headers import _DictHeaders
 from twisted.web.server import NOT_DONE_YET
 from twisted.web.template import flattenString, XMLString
 from twisted.web.iweb import IBodyProducer
-from twisted.python.filepath import FilePath
 from twisted.python import log, logfile, failure
+from twisted.python.compat import networkString, intToBytes
+from twisted.python.filepath import FilePath
+
 
 from tor2web.utils.config import VERSION, config
 from tor2web.utils.lists import List, torExitNodeList
@@ -182,12 +184,12 @@ class Tor2web(object):
         log.msg("Headers before fix:")
         log.msg(obj.headers)
 
-        obj.headers.removeHeader('If-Modified-Since')
-        obj.headers.removeHeader('If-None-Match')
-        obj.headers.setRawHeaders('Host', [obj.onion])
-        obj.headers.setRawHeaders('X-tor2web', ['encrypted'])
-        obj.headers.setRawHeaders('Connection', ['keep-alive'])
-        obj.headers.setRawHeaders('Accept-Encoding', ['gzip, chunked'])
+        obj.headers.removeHeader(b'If-Modified-Since')
+        obj.headers.removeHeader(b'If-None-Match')
+        obj.headers.setRawHeaders(b'Host', [obj.onion])
+        obj.headers.setRawHeaders(b'X-tor2web', [b'encrypted'])
+        obj.headers.setRawHeaders(b'Connection', [b'keep-alive'])
+        obj.headers.setRawHeaders(b'Accept-Encoding', [b'gzip, chunked'])
 
         for key, values in obj.headers.getAllRawHeaders():
             fixed_values = []
@@ -280,7 +282,7 @@ class Tor2web(object):
         """
         log.msg("processing HTML type content")
 
-        data = re.sub(r'([a-z0-9]{16}).onion', r'\1.' + self.config.basehost, data)
+        data = re.sub(r'http://([a-z0-9]{16}).onion', r'https://\1.' + self.config.basehost, data)
 
         data = re.sub(rexp['body'], partial(self.add_banner, obj, banner), data)
 
@@ -526,20 +528,20 @@ class T2WRequest(proxy.ProxyRequest):
             Function overload to fix ipv6 bug:
                 http://twistedmatrix.com/trac/ticket/6014
         """
-        host = self.getHeader('host')
+        host = self.getHeader(b'host')
         if host:
             if host[0]=='[':
                 return host.split(']',1)[0] + "]"
-            return host.split(':', 1)[0]
-        return self.getHost().host
+            return networkString(host.split(':', 1)[0])
+        return networkString(self.getHost().host)
 
     def forwardData(self, data, end=False):
         if not self.startedWriting:
             if self.obj.client_supports_gzip:
-                self.setHeader('content-encoding', 'gzip')
+                self.setHeader(b'content-encoding', b'gzip')
 
             if data != '' and end:
-                self.setHeader('content-length', len(data))
+                self.setHeader(b'content-length', intToBytes(len(data)))
 
         if data != '':
             self.write(data)
@@ -571,10 +573,10 @@ class T2WRequest(proxy.ProxyRequest):
 
     def contentFinish(self, content):
         if self.obj.client_supports_gzip:
-            self.setHeader('content-encoding', 'gzip')
+            self.setHeader(b'content-encoding', b'gzip')
             content = self.zip(content, True)
 
-        self.setHeader('content-length', len(content))
+        self.setHeader(b'content-length', intToBytes(len(content)))
         self.write(content)
         self.finish()
 
@@ -657,9 +659,9 @@ class T2WRequest(proxy.ProxyRequest):
 
         # secondly we try to deny some ua/crawlers regardless the request is (valid or not) / (local or not)
         # we deny EVERY request to known user agents reconized with pattern matching
-        if request.headers.getRawHeaders('user-agent') != None:
+        if request.headers.getRawHeaders(b'user-agent') != None:
             for ua in t2w.blocked_ua:
-                check = request.headers.getRawHeaders('user-agent')[0].lower()
+                check = request.headers.getRawHeaders(b'user-agent')[0].lower()
                 if re.match(ua, check):
                     return self.sendError(403, "error_blocked_ua.tpl")
 
@@ -699,20 +701,16 @@ class T2WRequest(proxy.ProxyRequest):
                 self.finish()
                 return
 
-            # pattern matching checks to for early request refusal.
-            #
-            # future pattern matching checks for denied content and conditions must be put in the stage
-            #
+            # Avoid image hotlinking
             if request.uri.lower().endswith(('gif','jpg','png')):
-                # Avoid image hotlinking
-                if request.headers.getRawHeaders('referer') == None or not config.basehost in request.headers.getRawHeaders('referer')[0].lower():
+                if request.headers.getRawHeaders(b'referer') != None and not config.basehost in request.headers.getRawHeaders(b'referer')[0].lower():
                     return self.sendError(403)
 
-        self.setHeader('strict-transport-security', 'max-age=31536000')
+        self.setHeader(b'strict-transport-security', b'max-age=31536000')
 
         # 1: Client capability assesment stage
-        if request.headers.getRawHeaders('accept-encoding') != None:
-            if re.search('gzip', request.headers.getRawHeaders('accept-encoding')[0]):
+        if request.headers.getRawHeaders(b'accept-encoding') != None:
+            if re.search('gzip', request.headers.getRawHeaders(b'accept-encoding')[0]):
                 self.obj.client_supports_gzip = True
 
         # 2: Content delivery stage
@@ -726,7 +724,7 @@ class T2WRequest(proxy.ProxyRequest):
                 if staticpath in antanistaticmap:
                     if type(antanistaticmap[staticpath]) == str:
                         filename, ext = os.path.splitext(staticpath)
-                        self.setHeader('content-type', mimetypes.types_map[ext])
+                        self.setHeader(b'content-type', mimetypes.types_map[ext])
                         content = antanistaticmap[staticpath]
                     elif type(antanistaticmap[staticpath]) == PageTemplate:
                         return flattenString(self, antanistaticmap[staticpath]).addCallback(self.contentFinish)
@@ -774,12 +772,12 @@ class T2WRequest(proxy.ProxyRequest):
             self.var['onion'] = self.obj.onion
             self.var['path'] = dest[3]
 
-            content_length = self.getHeader('content-length')
+            content_length = self.getHeader(b'content-length')
             if content_length is not None and content_length >= 0:
                 bodyProducer = BodyProducer(self.content,
                                             content_length)
 
-                request.headers.removeHeader('content-length')
+                request.headers.removeHeader(b'content-length')
             else:
                 bodyProducer = None
 
@@ -858,7 +856,7 @@ class T2WRequest(proxy.ProxyRequest):
         self.responseHeaders.setRawHeaders(key, fixed_values)
 
     def handleEndHeaders(self):
-        self.setHeader('cache-control', 'no-cache')
+        self.setHeader(b'cache-control', b'no-cache')
 
     def processResponseHeaders(self, headers):
         for key, values in headers.getAllRawHeaders():
@@ -901,15 +899,15 @@ class T2WProxyFactory(http.HTTPFactory):
         """
         if config.logreqs and hasattr(self, "logFile"):
             line = "127.0.0.1 (%s) - - %s \"%s\" %s %s \"%s\" \"%s\"\n" % (
-                self._escape(request.getHeader('host')),
+                self._escape(request.getHeader(b'host')),
                 self._logDateTime,
                 '%s %s %s' % (self._escape(request.method),
                               self._escape(request.uri),
                               self._escape(request.clientproto)),
                 request.code,
                 request.sentLength or "-",
-                self._escape(request.getHeader('referer') or "-"),
-                self._escape(request.getHeader('user-agent') or "-"))
+                self._escape(request.getHeader(b'referer') or "-"),
+                self._escape(request.getHeader(b'user-agent') or "-"))
             self.logFile.write(line)
 
 def startTor2webHTTP(t2w, f, ip):
