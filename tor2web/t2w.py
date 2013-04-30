@@ -68,9 +68,6 @@ from tor2web.utils.storage import Storage
 from tor2web.utils.templating import PageTemplate
 
 rexp = {
-    'href': re.compile(r'<[a-z]*\s*.*?\s*href\s*=\s*[\\\'"]?([a-z0-9/#:\-\.]*)[\\\'"]?\s*.*?>', re.I),
-    'src': re.compile(r'<[a-z]*\s*.*?\s*src\s*=\s*[\\\'"]?([a-z0-9/#:\-\.]*)[\\\'"]?\s*.*?>', re.I),
-    'action': re.compile(r'<[a-z]*\s*.*?\s*action\s*=\s*[\\\'"]?([a-z0-9/#:\-\.]*)[\\\'"]?\s*.*?>', re.I),
     'body': re.compile(r'(<body.*?\s*>)', re.I)
 }
 
@@ -176,8 +173,8 @@ class Tor2web(object):
         """
         log.msg(req)
 
-        obj.host_tor = "http://" + obj.onion + ".onion"
-        obj.host_tor2web = "https://" + obj.onion + "." + self.config.basehost + ":" + str(self.config.listen_port_https)
+        obj.host_tor = "http://" + obj.onion
+        obj.host_tor2web = "https://" + obj.onion.replace(".onion", "") + "." + self.config.basehost + ":" + str(self.config.listen_port_https)
         obj.address = "http://" + obj.onion + obj.uri
 
         obj.headers = req.headers
@@ -277,27 +274,13 @@ class Tor2web(object):
         """
         return str(data.group(1)) + str(banner)
 
-    def process_links(self, obj, data):
-        """
-        Process all the possible HTML tag attributes that may contain links.
-        """
-        log.msg("processing URL attributes")
-
-        items = ['src', 'href', 'action']
-        for item in items:
-            data = re.sub(rexp[item], partial(self.fix_links, obj), data)
-
-        log.msg("finished processing links...")
-
-        return data
-
     def process_html(self, obj, banner, data):
         """
         Process the result from the Hidden Services HTML
         """
         log.msg("processing HTML type content")
 
-        data = self.process_links(obj, data)
+        data = re.sub(r'([a-z0-9]{16}).onion', r'\1.' + self.config.basehost, data)
 
         data = re.sub(rexp['body'], partial(self.add_banner, obj, banner), data)
 
