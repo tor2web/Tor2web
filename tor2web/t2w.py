@@ -495,10 +495,7 @@ class T2WRequest(proxy.ProxyRequest):
         self.decoderGzip = None
         self.encoderGzip = None
 
-        self.pool = HTTPConnectionPool(reactor, True,
-                                       config.sockmaxpersistentperhost,
-                                       config.sockcachedconnectiontimeout,
-                                       config.sockretryautomatically)
+        self.pool = pool
 
     def __setattr__(self, name, value):
         """
@@ -985,6 +982,11 @@ for file in files:
     templates[file.basename()] = PageTemplate(XMLString(file.getContent()))
 
 antanistaticmap['tos.html'] = templates['tos.tpl']
+
+pool = HTTPConnectionPool(reactor, True,
+                          config.sockmaxpersistentperhost,
+                          config.sockcachedconnectiontimeout,
+                          config.sockretryautomatically)
 
 factory = T2WProxyFactory(os.path.join(config.datadir, 'logs', 'access.log'))
 
