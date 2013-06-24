@@ -165,7 +165,7 @@ def getPageCached(url, contextFactory=None, *args, **kwargs):
         reactor.connectTCP(host, port, factory)
 
     return factory.deferred
-    
+
 class List(set):
     def __init__(self, filename, url='', refreshPeriod=0):
         set.__init__(self)
@@ -206,26 +206,18 @@ class List(set):
             if(elem != ''):
                 self.add(elem)
 
-    def processData(self, data, d):
-        if(len(data) != 0):
-            try:
+    def processData(self, data):
+        try:
+            if(len(data) != 0):
                 self.handleData(data)
-            except:
-                d.callback(False)
-          
-            self.dump()
-
-        d.callback(True)
-
-    def handleError(self, error, d):
-        d.errback()
+                self.dump()
+        except:
+            pass
 
     def update(self):
-        update_finished = Deferred()
         pageFetchedDeferred = getPageCached(self.url)
-        pageFetchedDeferred.addCallback(self.processData, update_finished)
-        pageFetchedDeferred.addErrback(self.handleError, update_finished)
-        return update_finished
+        pageFetchedDeferred.addCallback(self.processData)
+        return pageFetchedDeferred
 
 class torExitNodeList(List):
     def handleData(self, data):

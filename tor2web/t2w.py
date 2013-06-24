@@ -50,8 +50,8 @@ from twisted.internet.error import ConnectionRefusedError
 from twisted.internet.endpoints import TCP4ClientEndpoint, SSL4ClientEndpoint
 from twisted.application import service, internet
 from twisted.web import proxy, http, client, resource, http_headers, _newclient
-from twisted.web._newclient import Request, RequestNotSent, RequestGenerationFailed, TransportProxyProducer, STATUS
-from twisted.web.http import StringTransport
+from twisted.web._newclient import Request, RequestNotSent, RequestGenerationFailed, TransportProxyProducer, STATUS, UNKNOWN_LENGTH
+from twisted.web.http import StringTransport, _IdentityTransferDecoder, _ChunkedTransferDecoder, _MalformedChunkedDataError
 from twisted.web.http_headers import _DictHeaders
 from twisted.web.server import NOT_DONE_YET
 from twisted.web.template import flattenString, XMLString
@@ -78,6 +78,29 @@ SOCKS_errors = {\
     0x23: "error_sock_hs_not_found.tpl",
     0x24: "error_sock_hs_not_reachable.tpl"
 }
+
+def re_sub(pattern, replacement, string):
+	def _r(m):
+		# Now this is ugly.
+		# Python has a "feature" where unmatched groups return None
+		# then re_sub chokes on this.
+		# see http://bugs.python.org/issue1519638
+		
+		# this works around and hooks into the internal of the re module...
+ 
+		# the match object is replaced with a wrapper that
+		# returns "" instead of None for unmatched groups
+ 
+		class _m():
+			def __init__(self, m):
+				self.m=m
+				self.string=m.string
+			def group(self, n):
+				return m.group(n) or ""
+ 
+		return re._expand(pattern, _m(m), replacement)
+	
+	return re.sub(pattern, _r, string)
 
 def verify_onion(address):
     """
@@ -133,8 +156,6 @@ class Tor2web(object):
         """
         self.config = config
 
-        self.basehost = config.basehost
-
         self.accesslist = []
         if config.mode == "TRANSLATION":
             pass
@@ -176,7 +197,7 @@ class Tor2web(object):
         log.msg(req)
 
         obj.host_tor = "http://" + obj.onion
-        obj.host_tor2web = "https://" + obj.onion.replace(".onion", "") + "." + self.config.basehost + ":" + str(self.config.listen_port_https)
+        obj.host_tor2web = "https://" + obj.onion.replace(".onion", "") + "." + config.basehost
         obj.address = "http://" + obj.onion + obj.uri
 
         obj.headers = req.headers
@@ -184,17 +205,20 @@ class Tor2web(object):
         log.msg("Headers before fix:")
         log.msg(obj.headers)
 
-        obj.headers.removeHeader(b'If-Modified-Since')
-        obj.headers.removeHeader(b'If-None-Match')
-        obj.headers.setRawHeaders(b'Host', [obj.onion])
-        obj.headers.setRawHeaders(b'X-tor2web', [b'encrypted'])
-        obj.headers.setRawHeaders(b'Connection', [b'keep-alive'])
-        obj.headers.setRawHeaders(b'Accept-Encoding', [b'gzip, chunked'])
+        obj.headers.removeHeader(b'if-modified-since')
+        obj.headers.removeHeader(b'if-none-match')
+        obj.headers.setRawHeaders(b'host', [obj.onion])
+        obj.headers.setRawHeaders(b'connection', [b'keep-alive'])
+        obj.headers.setRawHeaders(b'accept-encoding', [b'gzip, chunked'])
+        obj.headers.setRawHeaders(b'x-tor2web', [b'encrypted'])
 
         for key, values in obj.headers.getAllRawHeaders():
             fixed_values = []
             for value in values:
-                fixed_values.append(value.replace(obj.host_tor2web, obj.host_tor))
+                value = re_sub(r'https://([a-z0-9]{16}).' + config.basehost + '(:443)?',
+                               r'http://\1.onion',
+                               value)
+                fixed_values.append(value)
 
             obj.headers.setRawHeaders(key, fixed_values)
 
@@ -211,7 +235,7 @@ class Tor2web(object):
         if target.query:
             link += "?" + target.query
 
-        return "https://leaving." + self.basehost + "/" + link
+        return "https://leaving." + config.basehost + "/" + link
 
     def fix_link(self, obj, data):
         """
@@ -250,7 +274,7 @@ class Tor2web(object):
                 # link = self.leaving_link(obj, parsed)
                 link = data
             else:
-                link += netloc + "." + self.basehost + parsed.path
+                link += netloc + "." + config.basehost + parsed.path
 
             if parsed.query:
                 link += "?" + parsed.query
@@ -281,8 +305,10 @@ class Tor2web(object):
         Process the result from the Hidden Services HTML
         """
         log.msg("processing HTML type content")
-
-        data = re.sub(r'http://([a-z0-9]{16}).onion', r'https://\1.' + self.config.basehost, data)
+        
+        data = re_sub(r'http://([a-z0-9]{16}).onion(:80)?',
+                      r'https://\1.' + config.basehost,
+                      data)
 
         data = re.sub(rexp['body'], partial(self.add_banner, obj, banner), data)
 
@@ -304,29 +330,45 @@ class BodyStreamer(protocol.Protocol):
         self._finished = finished
         self._streamfunction = streamfunction
 
-    def dataReceived(self, bytes):
-        self._streamfunction(bytes)
+    def dataReceived(self, data):
+        self._streamfunction(data)
 
     def connectionLost(self, reason):
         self._finished.callback('')
 
 class BodyProducer(object):
     implements(IBodyProducer)
-
-    def __init__(self, content, content_length):
-        self.content = content
-        self.length = int(content_length)
+    
+    def __init__(self):
+        self.consumer = None
+        self.content_queue = defer.DeferredQueue()
+        self.length = UNKNOWN_LENGTH
         self.finished = defer.Deferred()
-        self.consumed = 0
+        self.all_data_received = False
+        self.paused = False        
 
     def startProducing(self, consumer):
-        while True:
-            tmp = self.content.read(4096)
-            if len(tmp) == 0:
-                break
-            consumer.write(tmp)
-        self.finished.callback(None)
+        self.consumer = consumer
+        self.content_queue.get().addCallback(self.streamData)
         return self.finished
+
+    def streamData(self, data):
+        if data:
+            self.consumer.write(data)
+            if not self.paused:
+                self.content_queue.get().addCallback(self.streamData)
+        elif self.all_data_received:
+            self.finished.callback(None)
+
+    def dataReceived(self, data):
+        self.content_queue.put(data)
+
+    def allDataReceived(self):
+        self.all_data_received = True
+        self.content_queue.put(False)
+
+    def resumeProducing(self):
+        self.content_queue.get().addCallback(self.streamData)
 
     def pauseProducing(self):
         pass
@@ -352,7 +394,9 @@ class Headers(http_headers.Headers):
 
 class HTTPClientParser(_newclient.HTTPClientParser):
     def connectionMade(self):
-        # We need to override Headers() class with our one.
+        """
+        We need to override Headers() class with our one.
+        """
         self.headers = Headers()
         self.connHeaders = Headers()
         self.state = STATUS
@@ -470,7 +514,9 @@ class T2WRequest(proxy.ProxyRequest):
     staticmap = "/antanistaticmap/"
 
     def __init__(self, channel, queued, reactor=reactor):
-        # We need to override together some part of proxy.Request and of the base http.Request
+        """
+        Method overridden to change some part of proxy.Request and of the base http.Request
+        """
         self.reactor = reactor
         self.notifications = []
         self.channel = channel
@@ -479,6 +525,7 @@ class T2WRequest(proxy.ProxyRequest):
         self.received_cookies = {}
         self.responseHeaders = Headers()
         self.cookies = [] # outgoing cookies
+        self.bodyProducer = BodyProducer()
 
         if queued:
             self.transport = StringTransport()
@@ -520,6 +567,19 @@ class T2WRequest(proxy.ProxyRequest):
         else:
             self.__dict__[name] = value
 
+    def _cleanup(self):
+        """
+        Method overridden to avoid self.content actions.
+        """
+        if self.producer:
+            log.err(RuntimeError("Producer was not unregistered for %s" % self.uri))
+            self.unregisterProducer()
+        self.channel.requestDone(self)
+        del self.channel
+        for d in self.notifications:
+            d.callback(None)
+        self.notifications = []
+
     def getRequestHostname(self):
         """
             Function overload to fix ipv6 bug:
@@ -543,38 +603,56 @@ class T2WRequest(proxy.ProxyRequest):
         if data != '':
             self.write(data)
 
+    def requestReceived(self, command, path, version):
+        """
+        Method overridden to reduce the function actions
+        """
+        self.method, self.uri = command, path
+        self.clientproto = version
+
+        # cache the client and server information, we'll need this later to be
+        # serialized and sent with the request so CGIs will work remotely
+        self.client = self.channel.transport.getPeer()
+        self.host = self.channel.transport.getHost()
+
+        self.process()
+
     def handleGzippedForwardPart(self, data, end=False):
         if not self.obj.client_supports_gzip:
             data = self.unzip(data, end)
 
-        self.forwardData(data, end)
+        return data
 
     def handleCleartextForwardPart(self, data, end=False):
         if self.obj.client_supports_gzip:
            data = self.zip(data, end)
-
-        self.forwardData(data, end)
+        
+        return data
 
     def handleForwardPart(self, data):
         if self.obj.server_response_is_gzip:
-            self.handleGzippedForwardPart(data)
+            data = self.handleGzippedForwardPart(data)
         else:
-            self.handleCleartextForwardPart(data)
+            data = self.handleCleartextForwardPart(data)
+
+        self.forwardData(data, False)
 
     def handleForwardEnd(self, data):
         if self.obj.server_response_is_gzip:
-            self.handleGzippedForwardPart(data, True)
+            data = self.handleGzippedForwardPart(data, True)
         else:
-            self.handleCleartextForwardPart(data, True)
+            data = self.handleCleartextForwardPart(data, True)
+
+        self.forwardData(data, True)
         self.finish()
 
-    def contentFinish(self, content):
+    def contentFinish(self, data):
         if self.obj.client_supports_gzip:
             self.setHeader(b'content-encoding', b'gzip')
-            content = self.zip(content, True)
+            data = self.zip(data, True)
 
-        self.setHeader(b'content-length', intToBytes(len(content)))
-        self.write(content)
+        self.setHeader(b'content-length', intToBytes(len(data)))
+        self.write(data)
         self.finish()
 
     def sendError(self, error=500, errortemplate='error_generic.tpl'):
@@ -606,10 +684,10 @@ class T2WRequest(proxy.ProxyRequest):
             if end:
                 data2 = self.decoderGzip.flush()
 
-            return data1 + data2
-
         except:
-            self.finish()
+            pass
+
+        return data1 + data2
 
     def zip(self, data, end=False):
         data1 = data2 = ''
@@ -623,11 +701,11 @@ class T2WRequest(proxy.ProxyRequest):
 
             if end:
                 data2 = self.encoderGzip.flush()
-
-            return data1 + data2
-
+        
         except:
-            self.finish()
+            pass
+
+        return data1 + data2
 
     def process(self):
         content = ""
@@ -649,8 +727,7 @@ class T2WRequest(proxy.ProxyRequest):
         # 0: Request admission control stage
         # firstly we try to instruct spiders that honour robots.txt that we don't want to get indexed
         if request.uri == "/robots.txt" and config.blockcrawl:
-            self.write("User-Agent: *\n")
-            self.write("Disallow: /\n")
+            self.write("User-Agent: *\nDisallow: /\n")
             self.finish()
             return
 
@@ -702,8 +779,6 @@ class T2WRequest(proxy.ProxyRequest):
             if request.uri.lower().endswith(('gif','jpg','png')):
                 if request.headers.getRawHeaders(b'referer') != None and not config.basehost in request.headers.getRawHeaders(b'referer')[0].lower():
                     return self.sendError(403)
-
-        self.setHeader(b'strict-transport-security', b'max-age=31536000')
 
         # 1: Client capability assesment stage
         if request.headers.getRawHeaders(b'accept-encoding') != None:
@@ -770,17 +845,21 @@ class T2WRequest(proxy.ProxyRequest):
             self.var['path'] = dest[3]
 
             content_length = self.getHeader(b'content-length')
-            if content_length is not None and content_length >= 0:
-                bodyProducer = BodyProducer(self.content,
-                                            content_length)
+            transfer_encoding = self.getHeader(b'transfer-encoding')
 
-                request.headers.removeHeader(b'content-length')
+            if content_length is not None:
+                self.bodyProducer.length = int(content_length)
+                producer = self.bodyProducer
+                self.obj.headers.removeHeader(b'content-length')
+            elif transfer_encoding is not None:
+                producer = self.bodyProducer
+                self.obj.headers.removeHeader(b'transfer-encoding')
             else:
-                bodyProducer = None
+                producer = None
 
             agent = Agent(reactor, sockhost=config.sockshost, sockport=config.socksport, pool=self.pool)
             d = agent.request(self.method, 'shttp://'+dest[1]+dest[3],
-                    self.obj.headers, bodyProducer=bodyProducer)
+                    self.obj.headers, bodyProducer=producer)
 
             d.addCallback(self.cbResponse)
             d.addErrback(self.handleError)
@@ -848,12 +927,16 @@ class T2WRequest(proxy.ProxyRequest):
 
         fixed_values = []
         for value in values:
-            fixed_values.append(value.replace(self.obj.host_tor, self.obj.host_tor2web))
+            value = re_sub(r'http://([a-z0-9]{16}).onion(:80)?',
+                           r'https://\1.' + config.basehost,
+                           value)
+            fixed_values.append(value)
 
         self.responseHeaders.setRawHeaders(key, fixed_values)
 
     def handleEndHeaders(self):
         self.setHeader(b'cache-control', b'no-cache')
+        self.setHeader(b'strict-transport-security', b'max-age=31536000')
 
     def processResponseHeaders(self, headers):
         for key, values in headers.getAllRawHeaders():
@@ -881,13 +964,75 @@ class T2WRequest(proxy.ProxyRequest):
 class T2WProxy(http.HTTPChannel):
     requestFactory = T2WRequest
 
+    def headerReceived(self, line):
+        """
+        Overridden to reduce the function actions and
+        in particular to avoid self._transferDecoder actions and
+        implement a streaming proxy
+        """
+        header, data = line.split(b':', 1)
+        header = header.lower()
+        data = data.strip()
+        req = self.requests[-1]
+        if header == b'content-length':
+            try:
+                self.length = int(data)
+            except ValueError:
+                self.transport.write(b"HTTP/1.1 400 Bad Request\r\n\r\n")
+                self.length = None
+                self.transport.loseConnection()
+                return
+            self._transferDecoder = _IdentityTransferDecoder(
+                self.length, req.bodyProducer.dataReceived, self._finishRequestBody)
+        elif header == b'transfer-encoding' and data.lower() == b'chunked':
+            self.length = None
+            self._transferDecoder = _ChunkedTransferDecoder(
+                req.bodyProducer.dataReceived, self._finishRequestBody)
+        reqHeaders = req.requestHeaders
+        values = reqHeaders.getRawHeaders(header)
+        if values is not None:
+            values.append(data)
+        else:
+            reqHeaders.setRawHeaders(header, [data])
+
+    def allHeadersReceived(self):
+        """
+        Overridden to reduce the function actions
+        """
+        req = self.requests[-1]
+        self.persistent = self.checkPersistence(req, self._version)
+
+        req.requestReceived(self._command, self._path, self._version)
+
+    def allContentReceived(self):
+        if len(self.requests):
+            req = self.requests[-1]
+            req.bodyProducer.allDataReceived()
+        
+        # reset ALL state variables, so we don't interfere with next request
+        self.length = 0
+        self._HTTPChannel__first_line = 1
+        self._transferDecoder = None
+        del self._command, self._path, self._version
+
+        # Disable the idle timeout, in case this request takes a long
+        # time to finish generating output.
+        if self.timeOut:
+            self._savedTimeOut = self.setTimeout(None)
+
+    def rawDataReceived(self, data):
+        self.resetTimeout()
+
+        try:
+            self._transferDecoder.dataReceived(data)
+        except _MalformedChunkedDataError:
+            self.transport.write(b"HTTP/1.1 400 Bad Request\r\n\r\n")
+            self.transport.loseConnection()
+
 class T2WProxyFactory(http.HTTPFactory):
     protocol = T2WProxy
 
     def _openLogFile(self, path):
-        """
-        Override in subclasses, e.g. to use twisted.python.logfile.
-        """
         return logfile.DailyLogFile.fromFullPath(path)
 
     def log(self, request):
