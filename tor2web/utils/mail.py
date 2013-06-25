@@ -83,7 +83,9 @@ def MailException(etype, value, tb):
     @param value: Exception string value
     @param tb: Traceback string data
     """
-    excType = re.sub("(<(type|class ')|'exceptions.|'>|__main__.)", "", str(etype)).strip()
+
+    exc_type = re.sub("(<(type|class ')|'exceptions.|'>|__main__.)", "", str(etype))
+
     tmp = []
     tmp.append("From: Tor2web Node %s.%s <%s>\n" % (config.nodename, config.basehost, config.smtpmail))
     tmp.append("To: %s\n" % (config.smtpmailto_exceptions))
@@ -92,9 +94,13 @@ def MailException(etype, value, tb):
     tmp.append("Content-Transfer-Encoding: 8bit\n\n")
     tmp.append("Exception from Node %s (IPV4: %s, IPv6: %s)\n" % (config.nodename, config.listen_ipv4, config.listen_ipv6))
     tmp.append("Tor2web version: %s\n" % (VERSION))
-    tmp.append("%s %s" % (excType, etype.__doc__))
 
-    tmp.append(traceback.format_exception(etype, value, tb))
+    error_message = "%s %s" % (exc_type.strip(), etype.__doc__)
+    tmp.append(error_message)
 
-    message = StringIO(''.join(tmp))
+    traceinfo = '\n'.join(traceback.format_exception(etype, value, tback))
+    tmp.append(traceinfo)
+
+    info_string = ''.join(tmp)
+    message = StringIO(info_string)
     sendmail(config.smtpuser, config.smtppass, config.smtpmail, config.smtpmailto_exceptions, message, config.smtpdomain, config.smtpport)

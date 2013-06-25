@@ -69,10 +69,6 @@ from tor2web.utils.ssl import T2WSSLContextFactory
 from tor2web.utils.storage import Storage
 from tor2web.utils.templating import PageTemplate
 
-rexp = {
-    'body': re.compile(r'(<body.*?\s*>)', re.I)
-}
-
 SOCKS_errors = {\
     0x00: "error_sock_generic.tpl",
     0x23: "error_sock_hs_not_found.tpl",
@@ -215,9 +211,7 @@ class Tor2web(object):
         for key, values in obj.headers.getAllRawHeaders():
             fixed_values = []
             for value in values:
-                value = re_sub(r'https://([a-z0-9]{16}).' + config.basehost + '(:443)?',
-                               r'http://\1.onion',
-                               value)
+                value = re_sub(rexp['w2t'], r'http://\1.onion', value)
                 fixed_values.append(value)
 
             obj.headers.setRawHeaders(key, fixed_values)
@@ -306,9 +300,7 @@ class Tor2web(object):
         """
         log.msg("processing HTML type content")
         
-        data = re_sub(r'http://([a-z0-9]{16}).onion(:80)?',
-                      r'https://\1.' + config.basehost,
-                      data)
+        data = re_sub(rexp['t2w'], r'https://\1.' + config.basehost, data)
 
         data = re.sub(rexp['body'], partial(self.add_banner, obj, banner), data)
 
@@ -340,35 +332,29 @@ class BodyProducer(object):
     implements(IBodyProducer)
     
     def __init__(self):
-        self.consumer = None
-        self.content_queue = defer.DeferredQueue()
         self.length = UNKNOWN_LENGTH
         self.finished = defer.Deferred()
-        self.all_data_received = False
-        self.paused = False        
+        self.consumer = None
+        self.can_stream = False
+        self.can_stream_d = defer.Deferred()
 
     def startProducing(self, consumer):
         self.consumer = consumer
-        self.content_queue.get().addCallback(self.streamData)
+        self.can_stream = True
+        self.can_stream_d.callback(True)
         return self.finished
 
-    def streamData(self, data):
-        if data:
-            self.consumer.write(data)
-            if not self.paused:
-                self.content_queue.get().addCallback(self.streamData)
-        elif self.all_data_received:
-            self.finished.callback(None)
-
+    @defer.inlineCallbacks
     def dataReceived(self, data):
-        self.content_queue.put(data)
+        if not self.can_stream:
+            yield self.can_stream_d
+        self.consumer.write(data)
 
     def allDataReceived(self):
-        self.all_data_received = True
-        self.content_queue.put(False)
+        self.finished.callback(None)
 
     def resumeProducing(self):
-        self.content_queue.get().addCallback(self.streamData)
+        pass
 
     def pauseProducing(self):
         pass
@@ -927,9 +913,7 @@ class T2WRequest(proxy.ProxyRequest):
 
         fixed_values = []
         for value in values:
-            value = re_sub(r'http://([a-z0-9]{16}).onion(:80)?',
-                           r'https://\1.' + config.basehost,
-                           value)
+            value = re_sub(rexp['t2w'], r'https://\1.' + config.basehost, value)
             fixed_values.append(value)
 
         self.responseHeaders.setRawHeaders(key, fixed_values)
@@ -1106,6 +1090,12 @@ for f in files:
 sys.excepthook = MailException
 
 t2w = Tor2web(config)
+
+rexp = {
+    'body': re.compile(r'(<body.*?\s*>)', re.I),
+    'w2t': re.compile(r'https://([a-z0-9]{16}).' + config.basehost + '(:443)?', re.I),
+    't2w': re.compile(r'http://([a-z0-9]{16}).onion(:80)?', re.I)
+}
 
 application = service.Application("Tor2web")
 service.IProcess(application).processName = "tor2web"
