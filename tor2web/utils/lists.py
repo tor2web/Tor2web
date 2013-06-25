@@ -35,11 +35,45 @@ import re
 import gzip
 import json
 from StringIO import StringIO
+from OpenSSL import SSL
 
 from twisted.internet import reactor, ssl
 from twisted.internet.task import LoopingCall
 from twisted.internet.defer import Deferred
 from twisted.web.client import HTTPPageGetter, HTTPClientFactory, _parse
+
+
+class ClientContextFactory(ssl.ClientContextFactory):
+    def getContext(self):
+        ctx = self._contextFactory(self.method)
+        # Disallow SSLv2! It's insecure!
+        ctx.set_options(SSL.OP_NO_SSLv2)
+        # https://twistedmatrix.com/trac/ticket/5487
+        # SSL_OP_NO_COMPRESSION = 0x00020000L
+        ctx.set_options(0x00020000)
+        # SSL_MODE_RELEASE_BUFFERS = 0x00000010L
+        ctx.set_options(0x00000010L)
+        return ctx
+
+def getPageCached(url, contextFactory=None, *args, **kwargs):
+    """download a web page as a string, keep a cache of already downloaded pages
+
+    Download a page. Return a deferred, which will callback with a
+    page (as a string) or errback with a description of the error.
+
+    See HTTPClientCacheFactory to see what extra args can be passed.
+    """       
+    scheme, host, port, path = _parse(url)
+    factory = HTTPClientCacheFactory(url, *args, **kwargs)
+
+    if scheme == 'https':
+        if contextFactory is None:
+            contextFactory = ClientContextFactory()
+        reactor.connectSSL(host, port, factory, contextFactory)
+    else:
+        reactor.connectTCP(host, port, factory)
+
+    return factory.deferred
 
 class HTTPCacheDownloader(HTTPPageGetter):
     def connectionMade(self, isCached=False):
@@ -147,24 +181,6 @@ class HTTPClientCacheFactory(HTTPClientFactory):
                 timeout=timeout, cookies=cookies, followRedirect=followRedirect)
         self.deferred = Deferred()
 
-def getPageCached(url, contextFactory=None, *args, **kwargs):
-    """download a web page as a string, keep a cache of already downloaded pages
-
-    Download a page. Return a deferred, which will callback with a
-    page (as a string) or errback with a description of the error.
-
-    See HTTPClientCacheFactory to see what extra args can be passed.
-    """       
-    scheme, host, port, path = _parse(url)
-    factory = HTTPClientCacheFactory(url, *args, **kwargs)
-    if scheme == 'https':
-        if contextFactory is None:
-            contextFactory = ssl.ClientContextFactory()
-        reactor.connectSSL(host, port, factory, contextFactory)
-    else:
-        reactor.connectTCP(host, port, factory)
-
-    return factory.deferred
 
 class List(set):
     def __init__(self, filename, url='', refreshPeriod=0):
@@ -187,19 +203,17 @@ class List(set):
         #simple touch to create non existent files
         open(self.filename, 'a').close()
 
-        fh = open(self.filename, 'r')
-        for l in fh.readlines():
-            self.add(re.split("#", l)[0].rstrip("[ , \n,\t]"))
-        fh.close()
+        with open(self.filename, 'r') as fh:
+            for l in fh.readlines():
+                self.add(re.split("#", l)[0].rstrip("[ , \n,\t]"))
 
     def dump(self):
         """
         Dump the list to the specified file.
         """
-        fh = open(self.filename, 'w')
-        for l in self:
-           fh.write(l + "\n")
-        fh.close()
+        with open(self.filename, 'w') as fh:
+            for l in self:
+                fh.write(l + "\n")
     
     def handleData(self, data):
         for elem in data.split('\n'):
