@@ -3,7 +3,7 @@
 
 import os
 import re
-from distutils.core import setup
+from setuptools import setup
 
 def pip_to_requirements(s):
     """
@@ -17,7 +17,7 @@ def pip_to_requirements(s):
 
 def get_requires():
     with open('requirements.txt') as f:
-        requires = map(pip_to_requirements, f.readlines())
+        requires = f.readlines()
         return requires
 
 data_files = [
@@ -63,5 +63,5 @@ setup(
     packages=["tor2web", "tor2web.utils"],
     scripts=["bin/tor2web"],
     data_files=data_files,
-    requires=get_requires()
+    install_requires=get_requires()
 )

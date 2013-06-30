@@ -1,2 +1,4 @@
 include requirements.txt
 include debian/*
+include bin/tor2web
+graft data

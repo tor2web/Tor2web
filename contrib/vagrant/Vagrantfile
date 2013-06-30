@@ -112,35 +112,26 @@ dpkg -i tor_*.deb
 echo " ********************************************************"
 echo "    STEP 5: Installing TOR2WEB"
 echo " ********************************************************"
-useradd -U -s /sbin/nologin -d /home/tor2web/ -m tor2web
-cd /home/tor2web
-git clone https://github.com/globaleaks/Tor2web-3.0.git
-virtualenv -p python2.7 t2wenv
-source t2wenv/bin/activate
-pip install -r Tor2web-3.0/requirements.txt
-export PYTHONPATH=`pwd`
-cp Tor2web-3.0/contrib/debian/tor2web.init /etc/init.d/tor2web
-chmod 755 /etc/init.d/tor2web
-update-rc.d tor2web defaults
+wget https://raw.github.com/globaleaks/GLBackend/master/requirements.txt
+pip install -r requirements.txt
+echo "deb http://dl.bintray.com/globaleaks/deb /" >> /etc/apt/sources.list
+apt-get update
+apt-get install tor2web --assume-yes --force-yes
 
 echo " ********************************************************"
 echo "    STEP 6: Generating certs"
 echo " ********************************************************"
-cd /home/tor2web/Tor2web-3.0/data/certs/
+cd /home/tor2web/certs/
 openssl genrsa -out tor2web-key.pem 2048
 openssl req -new -key tor2web-key.pem -subj "/C=IT/ST=Erehwon/L=Null/O=T2W/CN=www.tor2web.local" -out tor2web-csr.pem
 openssl x509 -req -days 365 -in tor2web-csr.pem -signkey tor2web-key.pem -out tor2web-intermediate.pem
-cd /home/tor2web/Tor2web-3.0/data/certs/
 openssl dhparam -out tor2web-dh.pem 2048
 
 echo " ********************************************************"
 echo "    STEP 7: Final settings"
 echo " ********************************************************"
-cd /home/tor2web/
-cp Tor2web-3.0/tor2web.conf.example Tor2web-3.0/tor2web.conf
-cd /home/tor2web/
-touch Tor2web-3.0/data/logs/debug.log Tor2web-3.0/data/logs/access.log 
-chown tor2web:tor2web Tor2web-3.0/data/logs/debug.log Tor2web-3.0/data/logs/access.log
+cd /etc
+cp tor2web.conf.example tor2web.conf
 /etc/init.d/tor2web start
 
 echo " ********************************************************"

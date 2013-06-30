@@ -9,6 +9,5 @@ script:
   - sudo -i bash -x -c 'mkdir -p /data/globaleaks'
   - sudo -i bash -x -c 'chown travis:travis /data/globaleaks'
   - sudo -i bash -x -c 'mkdir -p /data/globaleaks/deb/'
-  - ./scripts/build-testing-package.sh -v${TRAVIS_BRANCH} -y
-  - sudo -i bash -x -c 'cp /home/travis/build/globaleaks/Tor2web-3.0_tmp/tor2web_build/deb_dist/tor2web*deb /data/globaleaks/deb/'
-
+  - git clone https://github.com/globaleaks/Tor2web-3.0 /data/globaleaks/Tor2web-3.0
+  - /data/globaleaks/Tor2web-3.0/scripts/build-testing-package.sh -v${TRAVIS_BRANCH} -y
