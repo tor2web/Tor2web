@@ -17,7 +17,7 @@ EOF
 }
 
 SIGN=1
-while getopts “yhv:n” OPTION
+while getopts “hv:ny” OPTION
 do
   case $OPTION in
     h)

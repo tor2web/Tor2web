@@ -14,12 +14,14 @@ usage: ./${SCRIPTNAME} options
 OPTIONS:
    -h   Show this message
    -v   To build a specific tor2web version
+   -y   Assume 'yes' to all questions
 
 EOF
 }
 
 SIGN=1
-while getopts “hc:b:” OPTION
+AUTOYES=0
+while getopts “hv:y” OPTION
 do
   case $OPTION in
     h)
@@ -29,6 +31,9 @@ do
     v)
       TAG=$OPTARG
       ;;
+    y)
+      AUTOYES=1
+      ;;
     ?)
       usage
       exit
@@ -36,8 +41,21 @@ do
     esac
 done
 
-if test $TAG; then
-  ${DIR}/build-tor2web.sh -v $TAG -n
+echo "[+] Setupping GLClient and GLBackend build environments"
+
+if [ ! -f ${DIR}/.environment_setupped ]; then
+    sudo -i apt-get install python-dev build-essential python-virtualenv python-pip python-stdeb devscripts -y
+    touch ${DIR}/.environment_setupped
+fi
+
+if [ $AUTOYES ]; then
+  OPTS="-y"
 else
-  ${DIR}/build-tor2web.sh -n
+  OPTS=""
+fi
+
+if test $TAG; then
+  ${DIR}/build-tor2web.sh -v $TAG -n $OPTS
+else
+  ${DIR}/build-tor2web.sh -n $OPTS
 fi
