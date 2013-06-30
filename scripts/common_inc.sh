@@ -23,9 +23,9 @@ fi
 
 cd ${BUILD_DIR}
 
-T2W_DIR=$( readlink -m ${BUILD_DIR}/T2W)
+T2W_DIR=$( readlink -m ${BUILD_DIR}/Tor2web-3.0)
 T2W_TMP=${T2W_DIR}_tmp
-T2W_BUILD=$( readlink -m ${T2W_TMP}/T2W_build)
+T2W_BUILD=$( readlink -m ${T2W_TMP}/Tor2web-3.0_build)
 
 echo "Running command ${SCRIPTNAME} $*"
 echo "Build directory used: ${BUILD_DIR}"

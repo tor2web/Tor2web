@@ -122,7 +122,7 @@ build_T2W()
 
   cd dist
   py2dsc tor2web-*.tar.gz
-  cd deb_dist/globaleaks-*
+  cd deb_dist/tor2web-*
   rm -rf debian/
   cp -rf ${T2W_TMP}/debian debian
 

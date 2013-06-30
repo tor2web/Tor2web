@@ -6,7 +6,6 @@ install:
   - pip install -r requirements.txt
 script:
   - sudo -i bash -x -c 'apt-get update -y'
-  - sudo -i bash -x -c 'apt-get install curl git python-software-properties -y'
   - sudo -i bash -x -c 'mkdir -p /data/globaleaks'
   - sudo -i bash -x -c 'chown travis:travis /data/globaleaks'
   - sudo -i bash -x -c 'mkdir -p /data/globaleaks/deb/'

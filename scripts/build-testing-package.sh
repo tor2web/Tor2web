@@ -37,7 +37,7 @@ do
 done
 
 if test $TAG; then
-  ${DIR}/build-tor2web.sh -v $TAG
+  ${DIR}/build-tor2web.sh -v $TAG -n
 else
-  ${DIR}/build-tor2web.sh
+  ${DIR}/build-tor2web.sh -n
 fi

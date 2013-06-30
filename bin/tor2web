@@ -4,11 +4,17 @@
 import tor2web
 
 import os
+import sys
 from subprocess import call
 
 t2w = os.path.abspath(os.path.join(os.path.dirname(tor2web.__file__), 't2w.py'))
 
+args = ["twistd", "-y", t2w]
+args += sys.argv[1:]
+
 try:
-    call(["twistd", "-n", "-y", t2w])
+    exit(call(args))
 except:
     pass
+
+exit(1)

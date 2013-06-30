@@ -24,28 +24,42 @@
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 NAME=tor2web
 
-DAEMON=twistd
+DAEMON=tor2web
 
 # Configurable variables overridden in /etc/default/tor2web
-DAEMON_DIR=/var/tor2web
+DAEMON_DIR=/home/tor2web
 DAEMON_PIDFILE=/var/run/tor2web.pid
 DAEMON_USER=tor2web
 # End of configurable variables
 
-DAEMON_ARGS="-y tor2web/t2w.py --pidfile ${DAEMON_PIDFILE} --uid ${DAEMON_USER} --gid ${DAEMON_USER}"
+DAEMON_ARGS="--pidfile ${DAEMON_PIDFILE} --uid ${DAEMON_USER} --gid ${DAEMON_USER}"
 
 NAME=$(basename $(readlink -nf $0))
 
 SCRIPTNAME=$0
 
-if test -e /etc/default/tor2web ; then
-    . /etc/default/tor2web
-else
-    echo "Error: missing tor2web default file"
-    exit 0
-fi
+checks()
+{
+    if [[ $EUID -ne 0 ]]; then
+       log_failure_msg "Error: Tor2web init script must be run as root"
+       log_end_msg 1
+       exit 1
+    fi
 
-# Load the VERBOSE setting and other rcS variables
+    if [ ! -d ${DAEMON_DIR} ]
+    then
+        log_failure_msg "unexistent DAEMON_DIR: ${DAEMON_DIR}"
+        log_end_msg 1
+        exit 1
+    fi
+
+    DAEMON=`which ${DAEMON}`
+    if [ ! ${DAEMON} ]; then
+        log_end_msg 1 "${DAEMON} is not installed"
+        exit 1
+    fi
+}
+
 . /lib/init/vars.sh
 
 # Define LSB log_* functions.
@@ -53,6 +67,14 @@ fi
 # and status_of_proc is working.
 . /lib/lsb/init-functions
 
+checks
+
+if test -e /etc/default/tor2web ; then
+    . /etc/default/tor2web
+else
+    echo "Error: missing tor2web default file"
+    exit 0
+fi
 
 # Let's try to figure our some sane defaults:
 if [ -r /proc/sys/fs/file-max ]; then
@@ -80,32 +102,8 @@ else
         MAX_FILEDESCRIPTORS=8192
 fi
 
-checks()
-{
-    if [[ $EUID -ne 0 ]]; then
-       log_failure_msg "Error: Tor2web init script must be run as root"
-       log_end_msg 1
-       exit 1
-    fi
-
-    if [ ! -d ${DAEMON_DIR} ]
-    then
-        log_failure_msg "unexistent DAEMON_DIR: ${DAEMON_DIR}"
-        log_end_msg 1
-        exit 1
-    fi
-
-    DAEMON=`which ${DAEMON}`
-    if [ ! ${DAEMON} ]; then
-        log_end_msg 1 "${DAEMON} is not installed"
-        exit 1
-    fi
-}
-
 do_t2w_start()
 {
-    checks
-
     if [ -n "$MAX_FILEDESCRIPTORS" ]; then
         ulimit -n "$MAX_FILEDESCRIPTORS"
     fi
@@ -127,8 +125,6 @@ do_t2w_start()
 
 do_t2w_stop()
 {
-    checks
-
     start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --pidfile ${DAEMON_PIDFILE}
 }
 

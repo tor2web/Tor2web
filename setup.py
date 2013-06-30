@@ -1,14 +1,57 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
 
-from setuptools import setup
+import os
+import re
+from distutils.core import setup
 
-data_files = []
+def pip_to_requirements(s):
+    """
+    Change a PIP-style requirements.txt string into one suitable for setup.py
+    """
 
-requires = [
-"twisted (==12.3.0)",
-"zope.interface (>=4.0.0)",
-"pyOpenSSL"
+    m = re.match('(.*)([>=]=[.0-9]*).*', s)
+    if m:
+        return '%s (%s)' % (m.group(1), m.group(2))
+    return s.strip()
+
+def get_requires():
+    with open('requirements.txt') as f:
+        requires = map(pip_to_requirements, f.readlines())
+        return requires
+
+data_files = [
+
+    ('/opt/tor2web/certs', [
+    ]),
+    ('/etc', [
+    os.path.join('data', 'tor2web.conf.example'),
+    ]),
+    ('/opt/tor2web/lists', [
+    os.path.join('data', 'lists', 'blocked_ua.txt'),
+    ]),
+    ('/opt/tor2web/logs', [
+    ]),
+    ('/opt/tor2web/static', [
+    os.path.join('data', 'static', 'index.html'),
+    os.path.join('data', 'static', 'tor2web.css'),
+    os.path.join('data', 'static', 'tor2web.js'),
+    os.path.join('data', 'static', 'tor2web.png'),
+    os.path.join('data', 'static', 'tor2web-big.png'),
+    os.path.join('data', 'static', 'tor2web-small.png'),
+    ]),
+    ('/opt/tor2web/templates', [
+    os.path.join('data', 'templates', 'banner.tpl'),
+    os.path.join('data', 'templates', 'error_blocked_ua.tpl'),
+    os.path.join('data', 'templates', 'error_generic.tpl'),
+    os.path.join('data', 'templates', 'error_hs_completely_blocked.tpl'),
+    os.path.join('data', 'templates', 'error_hs_specific_page_blocked.tpl'),
+    os.path.join('data', 'templates', 'error_invalid_hostname.tpl'),
+    os.path.join('data', 'templates', 'error_sock_generic.tpl'),
+    os.path.join('data', 'templates', 'error_sock_hs_not_found.tpl'),
+    os.path.join('data', 'templates', 'error_sock_hs_not_reachable.tpl'),
+    os.path.join('data', 'templates', 'tos.tpl'),
+    ]),
 ]
 
 setup(
@@ -18,6 +61,7 @@ setup(
     author_email = "info@globaleaks.org",
     url="https://tor2web.org/",
     packages=["tor2web", "tor2web.utils"],
+    scripts=["bin/tor2web"],
     data_files=data_files,
-    requires=requires
+    requires=get_requires()
 )

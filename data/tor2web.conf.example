@@ -4,8 +4,8 @@
 # unique nodename identifier
 nodename = [UNIQUE_IDENTIFIER]
 
-# path to Tor2web data directort
-datadir = /home/tor2web/Tor2web-3.0/data
+# path to Tor2web data directory
+datadir = /home/tor2web
 
 # debug and logging
 debugtostdout = False
