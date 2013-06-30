@@ -1,0 +1,3 @@
+DAEMON_DIR=/var/tor2web
+DAEMON_PIDFILE=/var/run/tor2web.pid
+DAEMON_USER=tor2web

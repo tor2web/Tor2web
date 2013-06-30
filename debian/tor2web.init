@@ -1,0 +1,209 @@
+#! /bin/bash
+
+### BEGIN INIT INFO
+# startup script for Ubuntu and Debian Linux servers
+#
+# To use this file
+# cp tor2web.init.sh /etc/init.d/tor2web
+#
+# To automatitcally start at reboot
+# sudo update-rc.d tor2web defaults
+#
+# Provides:          tor2web
+# Required-Start:    $local_fs $remote_fs
+# Required-Stop:     $local_fs $remote_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: tor2web initscript
+# Description:       This file starts up the tor2web server.
+### END INIT INFO
+
+# Authors: Arturo Filasto' <art@globaleaks.org>
+#          Giovanni Pellerano <evilaliv3@globaleaks.org>
+
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+NAME=tor2web
+
+DAEMON=twistd
+
+# Configurable variables overridden in /etc/default/tor2web
+DAEMON_DIR=/var/tor2web
+DAEMON_PIDFILE=/var/run/tor2web.pid
+DAEMON_USER=tor2web
+# End of configurable variables
+
+DAEMON_ARGS="-y tor2web/t2w.py --pidfile ${DAEMON_PIDFILE} --uid ${DAEMON_USER} --gid ${DAEMON_USER}"
+
+NAME=$(basename $(readlink -nf $0))
+
+SCRIPTNAME=$0
+
+if test -e /etc/default/tor2web ; then
+    . /etc/default/tor2web
+else
+    echo "Error: missing tor2web default file"
+    exit 0
+fi
+
+# Load the VERBOSE setting and other rcS variables
+. /lib/init/vars.sh
+
+# Define LSB log_* functions.
+# Depend on lsb-base (>= 3.2-14) to ensure that this file is present
+# and status_of_proc is working.
+. /lib/lsb/init-functions
+
+
+# Let's try to figure our some sane defaults:
+if [ -r /proc/sys/fs/file-max ]; then
+        system_max=`cat /proc/sys/fs/file-max`
+        if [ "$system_max" -gt "80000" ] ; then
+                MAX_FILEDESCRIPTORS=32768
+        elif [ "$system_max" -gt "40000" ] ; then
+                MAX_FILEDESCRIPTORS=16384
+        elif [ "$system_max" -gt "10000" ] ; then
+                MAX_FILEDESCRIPTORS=8192
+        else
+                MAX_FILEDESCRIPTORS=1024
+                cat << EOF
+
+Warning: Your system has very few filedescriptors available in total.
+
+Maybe you should try raising that by adding 'fs.file-max=100000' to your
+/etc/sysctl.conf file.  Feel free to pick any number that you deem appropriate.
+Then run 'sysctl -p'.  See /proc/sys/fs/file-max for the current value, and
+file-nr in the same directory for how many of those are used at the moment.
+
+EOF
+        fi
+else
+        MAX_FILEDESCRIPTORS=8192
+fi
+
+checks()
+{
+    if [[ $EUID -ne 0 ]]; then
+       log_failure_msg "Error: Tor2web init script must be run as root"
+       log_end_msg 1
+       exit 1
+    fi
+
+    if [ ! -d ${DAEMON_DIR} ]
+    then
+        log_failure_msg "unexistent DAEMON_DIR: ${DAEMON_DIR}"
+        log_end_msg 1
+        exit 1
+    fi
+
+    DAEMON=`which ${DAEMON}`
+    if [ ! ${DAEMON} ]; then
+        log_end_msg 1 "${DAEMON} is not installed"
+        exit 1
+    fi
+}
+
+do_t2w_start()
+{
+    checks
+
+    if [ -n "$MAX_FILEDESCRIPTORS" ]; then
+        ulimit -n "$MAX_FILEDESCRIPTORS"
+    fi
+
+    # Check to see if the daemon is already running.
+    start-stop-daemon --start --quiet --pidfile ${DAEMON_PIDFILE} \
+        --exec $DAEMON -- $DAEMON_ARGS
+    RETVAL=$?
+    if [ $RETVAL -eq 1 ]; then
+        log_end_msg 1 "already running"
+        exit 1
+    fi
+
+    if [ $RETVAL -ne 0 ]; then
+        log_end_msg 1 "couldn't start"
+        exit 1
+    fi
+}
+
+do_t2w_stop()
+{
+    checks
+
+    start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --pidfile ${DAEMON_PIDFILE}
+}
+
+do_start()
+{
+    /etc/init.d/tor start
+    do_t2w_start
+}
+
+do_stop()
+{
+    do_t2w_stop
+    /etc/init.d/tor stop
+}
+
+#
+# Function that restart tor2web
+#
+do_restart() {
+    do_t2w_stop
+    /etc/init.d/tor restart
+    do_t2w_start
+}
+
+#
+# Function that queries the status of the daemon/service
+#
+
+case "$1" in
+  start)
+  	log_action_begin_msg "Starting Tor2web" "tor2web"
+	[ "$VERBOSE" != no ] && log_daemon_msg "Starting $DESC" "$NAME"
+	do_start
+    log_action_end_msg 0
+    exit 0
+	;;
+  stop)
+  	log_action_begin_msg "Stopping Tor2web" "tor2web"
+	[ "$VERBOSE" != no ] && log_daemon_msg "Stopping $DESC" "$NAME"
+	do_stop
+    log_action_end_msg 0
+    exit 0
+    ;;
+  status)
+    if test ! -r $(dirname ${DAEMON_PIDFILE}); then
+        log_failure_msg "cannot read PID file ${DAEMON_PIDFILE}"
+        exit 4
+    fi
+    pid=`cat ${DAEMON_PIDFILE} 2>/dev/null` || true
+    if test ! -f ${DAEMON_PIDFILE} -o -z "$pid"; then
+        log_failure_msg "Tor2web is not running"
+        exit 3
+    fi
+    if ps "$pid" >/dev/null 2>&1; then
+        log_success_msg "Tor2web is running"
+        exit 0
+    else
+        log_failure_msg "Tor2web is not running"
+        exit 1
+    fi
+    ;;
+  restart|force-reload)
+	#
+	# If the "reload" option is implemented then remove the
+	# 'force-reload' alias
+	#
+	log_action_begin_msg "Restarting Tor2web" "tor2web"
+	do_restart
+    log_action_end_msg 0
+    exit 0
+	;;
+  *)
+	echo "Usage: $SCRIPTNAME {start|stop|status|restart|force-reload}" >&2
+	exit 3
+	;;
+esac
+
+:

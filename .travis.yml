@@ -1,0 +1,15 @@
+language: python
+python:
+  - "2.7"
+install:
+  - wget https://raw.github.com/globaleaks/Tor2web-3.0/master/requirements.txt
+  - pip install -r requirements.txt
+script:
+  - sudo -i bash -x -c 'apt-get update -y'
+  - sudo -i bash -x -c 'apt-get install curl git python-software-properties -y'
+  - sudo -i bash -x -c 'mkdir -p /data/globaleaks'
+  - sudo -i bash -x -c 'chown travis:travis /data/globaleaks'
+  - sudo -i bash -x -c 'mkdir -p /data/globaleaks/deb/'
+  - ./scripts/build-testing-package.sh -v${TRAVIS_BRANCH}
+  - sudo -i bash -x -c 'cp /data/globaleaks/Tor2web-3.0_tmp/tor2web_build/deb_dist/tor2web*deb /data/globaleaks/deb/'
+

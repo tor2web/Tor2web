@@ -1,0 +1,14 @@
+Source: tor2web
+Maintainer: Random GlobaLeaks developers <info@globaleaks.org>
+Section: web
+Priority: optional
+Build-Depends: python (>= 2.7), debhelper (>= 7.4.3)
+X-Python-Version: 2.7
+Standards-Version: 3.9.1
+
+Package: tor2web
+Architecture: all
+X-Python-Version: 2.7
+Depends: ${misc:Depends}, python (>= 2.7), tor
+Description: Tor2web is a project to let Internet users access anonymous servers based on Tor Hidden Services.
+Provides: ${python:Provides}
