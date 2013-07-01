@@ -40,7 +40,7 @@ from OpenSSL import SSL
 from twisted.internet import reactor, ssl
 from twisted.internet.task import LoopingCall
 from twisted.internet.defer import Deferred
-from twisted.web.client import HTTPPageGetter, HTTPClientFactory, _parse
+from twisted.web.client import HTTPPageGetter, HTTPClientFactory, _URI
 
 
 class ClientContextFactory(ssl.ClientContextFactory):
@@ -62,8 +62,13 @@ def getPageCached(url, contextFactory=None, *args, **kwargs):
     page (as a string) or errback with a description of the error.
 
     See HTTPClientCacheFactory to see what extra args can be passed.
-    """       
-    scheme, host, port, path = _parse(url)
+    """
+    uri = _URI.fromBytes(url)
+    scheme = uri.scheme
+    host = uri.host
+    port = uri.port
+    path = uri.originForm
+ 
     factory = HTTPClientCacheFactory(url, *args, **kwargs)
 
     if scheme == 'https':

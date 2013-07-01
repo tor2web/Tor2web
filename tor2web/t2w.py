@@ -825,10 +825,10 @@ class T2WRequest(proxy.ProxyRequest):
             except:
                 return self.sendError(400, "error_invalid_hostname.tpl")
 
-            dest = client._parse(self.obj.address) # scheme, host, port, path
+            uri = client._URI.fromBytes(self.obj.address)
 
             self.var['onion'] = self.obj.onion
-            self.var['path'] = dest[3]
+            self.var['path'] = uri.originForm
 
             content_length = self.getHeader(b'content-length')
             transfer_encoding = self.getHeader(b'transfer-encoding')
@@ -844,7 +844,7 @@ class T2WRequest(proxy.ProxyRequest):
                 producer = None
 
             agent = Agent(reactor, sockhost=config.sockshost, sockport=config.socksport, pool=self.pool)
-            d = agent.request(self.method, 'shttp://'+dest[1]+dest[3],
+            d = agent.request(self.method, 'shttp://'+uri.host+uri.path,
                     self.obj.headers, bodyProducer=producer)
 
             d.addCallback(self.cbResponse)
