@@ -96,7 +96,10 @@ class SOCKSv5ClientProtocol(_WrappingProtocol):
 
         if not self._optimistic:
             self._wrappedProtocol.makeConnection(self.transport)
-            self._connectedDeferred.callback(self._wrappedProtocol)
+            try:
+                self._connectedDeferred.callback(self._wrappedProtocol)
+            except:
+                pass
 
         self.state = self.state + 1
 
@@ -107,7 +110,10 @@ class SOCKSv5ClientProtocol(_WrappingProtocol):
         if self._optimistic:
             self.transport.write(struct.pack("!BBBBB", 5, 1, 0, 3, len(self._host)) + self._host + struct.pack("!H", self._port))
             self._wrappedProtocol.makeConnection(self.transport)
-            self._connectedDeferred.callback(self._wrappedProtocol)
+            try:
+                self._connectedDeferred.callback(self._wrappedProtocol)
+            except:
+                pass
 
         self.state = self.state + 1
 

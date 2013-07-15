@@ -113,8 +113,8 @@ do_t2w_start()
         --exec $DAEMON -- $DAEMON_ARGS
     RETVAL=$?
     if [ $RETVAL -eq 1 ]; then
-        log_end_msg 1 "already running"
-        exit 1
+        log_end_msg 0 "already running"
+        exit 0
     fi
 
     if [ $RETVAL -ne 0 ]; then

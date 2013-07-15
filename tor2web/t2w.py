@@ -512,6 +512,8 @@ class T2WRequest(proxy.ProxyRequest):
         self.responseHeaders = Headers()
         self.cookies = [] # outgoing cookies
         self.bodyProducer = BodyProducer()
+        self.proxy_d = None
+        self.proxy_response = None
 
         if queued:
             self.transport = StringTransport()
@@ -630,7 +632,10 @@ class T2WRequest(proxy.ProxyRequest):
             data = self.handleCleartextForwardPart(data, True)
 
         self.forwardData(data, True)
-        self.finish()
+        try:
+            self.finish()
+        except:
+            pass
 
     def contentFinish(self, data):
         if self.obj.client_supports_gzip:
@@ -639,7 +644,10 @@ class T2WRequest(proxy.ProxyRequest):
 
         self.setHeader(b'content-length', intToBytes(len(data)))
         self.write(data)
-        self.finish()
+        try:
+            self.finish()
+        except:
+            pass
 
     def sendError(self, error=500, errortemplate='error_generic.tpl'):
         self.setResponseCode(error)
@@ -843,16 +851,17 @@ class T2WRequest(proxy.ProxyRequest):
             else:
                 producer = None
 
-            agent = Agent(reactor, sockhost=config.sockshost, sockport=config.socksport, pool=self.pool)
-            d = agent.request(self.method, 'shttp://'+uri.host+uri.path,
+            agent  = Agent(reactor, sockhost=config.sockshost, sockport=config.socksport, pool=self.pool)
+            self.proxy_d = agent.request(self.method, 'shttp://'+uri.host+uri.path,
                     self.obj.headers, bodyProducer=producer)
 
-            d.addCallback(self.cbResponse)
-            d.addErrback(self.handleError)
+            self.proxy_d.addCallback(self.cbResponse)
+            self.proxy_d.addErrback(self.handleError)
 
             return NOT_DONE_YET
 
     def cbResponse(self, response):
+        self.proxy_response = response
         if int(response.code) >= 600 and int(response.code) <= 699:
             self.setResponseCode(500)
             self.var['errorcode'] = int(response.code) - 600
@@ -944,6 +953,20 @@ class T2WRequest(proxy.ProxyRequest):
                 return
 
         self.contentFinish(data)
+
+    def connectionLost(self, reason):
+        try:
+            if self.proxy_d:
+                self.proxy_d.cancel()
+        except:
+            pass
+        try:
+            if self.proxy_response:
+                self.proxy_response._transport.stopProducing()
+        except:
+            pass
+        proxy.ProxyRequest.connectionLost(self, reason)
+
 
 class T2WProxy(http.HTTPChannel):
     requestFactory = T2WRequest
