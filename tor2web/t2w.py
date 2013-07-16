@@ -275,19 +275,6 @@ class Tor2web(object):
 
         return link
 
-    def fix_links(self, obj, data):
-        """
-        Fix links in the result from HS
-
-        example:
-            when visiting <onion_url>.tor2web.org
-            /something -> /something
-            <onion_url>/something -> <onion_url>.tor2web.org/something
-        """
-        link = self.fix_link(obj, data.group(1))
-
-        return data.group(0).replace(data.group(1), link)
-
     def add_banner(self, obj, banner, data):
         """
         Inject tor2web banner inside the returned page
