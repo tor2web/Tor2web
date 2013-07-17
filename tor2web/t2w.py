@@ -42,6 +42,8 @@ from random import choice
 from functools import partial
 from urlparse import urlparse
 
+from cgi import parse_header
+
 from zope.interface import implements
 
 from twisted.internet import reactor, protocol, defer
@@ -51,7 +53,7 @@ from twisted.internet.endpoints import TCP4ClientEndpoint, SSL4ClientEndpoint
 from twisted.application import service, internet
 from twisted.web import proxy, http, client, resource, http_headers, _newclient
 from twisted.web._newclient import Request, RequestNotSent, RequestGenerationFailed, TransportProxyProducer, STATUS, UNKNOWN_LENGTH
-from twisted.web.http import StringTransport, _IdentityTransferDecoder, _ChunkedTransferDecoder, _MalformedChunkedDataError
+from twisted.web.http import StringTransport, _IdentityTransferDecoder, _ChunkedTransferDecoder, _MalformedChunkedDataError, parse_qs
 from twisted.web.http_headers import _DictHeaders
 from twisted.web.server import NOT_DONE_YET
 from twisted.web.template import flattenString, XMLString
@@ -59,7 +61,6 @@ from twisted.web.iweb import IBodyProducer
 from twisted.python import log, logfile, failure
 from twisted.python.compat import networkString, intToBytes
 from twisted.python.filepath import FilePath
-
 
 from tor2web.utils.config import VERSION, config
 from tor2web.utils.lists import List, torExitNodeList
@@ -299,6 +300,9 @@ class BodyReceiver(protocol.Protocol):
         self._data = []
 
     def dataReceived(self, bytes):
+        self._data.append(bytes)
+
+    def write(self, bytes):
         self._data.append(bytes)
 
     def connectionLost(self, reason):
@@ -688,6 +692,7 @@ class T2WRequest(proxy.ProxyRequest):
 
         return data1 + data2
 
+    @defer.inlineCallbacks
     def process(self):
         content = ""
 
@@ -695,6 +700,19 @@ class T2WRequest(proxy.ProxyRequest):
         request.headers = self.requestHeaders
         request.host = self.getRequestHostname()
         request.uri = self.uri
+
+        content_length = self.getHeader(b'content-length')
+        transfer_encoding = self.getHeader(b'transfer-encoding')
+
+        if content_length is not None:
+            self.bodyProducer.length = int(content_length)
+            producer = self.bodyProducer
+            request.headers.removeHeader(b'content-length')
+        elif transfer_encoding is not None:
+            producer = self.bodyProducer
+            request.headers.removeHeader(b'transfer-encoding')
+        else:
+            producer = None
 
         if config.mirror is not None:
             self.var['mirror'] = choice(config.mirror)
@@ -718,7 +736,8 @@ class T2WRequest(proxy.ProxyRequest):
             for ua in t2w.blocked_ua:
                 check = request.headers.getRawHeaders(b'user-agent')[0].lower()
                 if re.match(ua, check):
-                    return self.sendError(403, "error_blocked_ua.tpl")
+                    self.sendError(403, "error_blocked_ua.tpl")
+                    defer.returnValue(NOT_DONE_YET)
 
         # we need to verify if the requested resource is local (/antanistaticmap/*) or remote
         # because some checks must be done only for remote requests;
@@ -726,7 +745,8 @@ class T2WRequest(proxy.ProxyRequest):
 
         if not verify_resource_is_local(request.host, request.uri, self.staticmap):
             if not request.host:
-                return self.sendError(406, 'error_invalid_hostname.tpl')
+                self.sendError(406, 'error_invalid_hostname.tpl')
+                defer.returnValue(NOT_DONE_YET)
 
             if config.mode == "TRANSLATION":
                 self.obj.onion = config.onion
@@ -734,18 +754,22 @@ class T2WRequest(proxy.ProxyRequest):
                 self.obj.onion = request.host.split(".")[0] + ".onion"
                 log.msg("detected <onion_url>.tor2web Hostname: %s" % self.obj.onion)
                 if not verify_onion(self.obj.onion):
-                    return self.sendError(406, 'error_invalid_hostname.tpl')
+                    self.sendError(406, 'error_invalid_hostname.tpl')
+                    defer.returnValue(NOT_DONE_YET)
 
                 if config.mode == "ACCESSLIST":
                     if self.obj.onion not in self.accesslist:
-                        return self.sendError(403, 'error_hs_completely_blocked.tpl')
+                        self.sendError(403, 'error_hs_completely_blocked.tpl')
+                        defer.returnValue(NOT_DONE_YET)
 
                 elif config.mode == "BLOCKLIST":
                     if hashlib.md5(self.obj.onion).hexdigest() in self.accesslist:
-                        return self.sendError(403, 'error_hs_completely_blocked.tpl')
+                        self.sendError(403, 'error_hs_completely_blocked.tpl')
+                        defer.returnValue(NOT_DONE_YET)
 
                     if hashlib.md5(self.obj.onion + self.obj.uri).hexdigest() in accesslist:
-                        return self.sendError(403, 'error_hs_specific_page_blocked.tpl')
+                        self.sendError(403, 'error_hs_specific_page_blocked.tpl')
+                        defer.returnValue(NOT_DONE_YET)
             
             self.obj.uri = request.uri
 
@@ -759,7 +783,8 @@ class T2WRequest(proxy.ProxyRequest):
             # Avoid image hotlinking
             if request.uri.lower().endswith(('gif','jpg','png')):
                 if request.headers.getRawHeaders(b'referer') != None and not config.basehost in request.headers.getRawHeaders(b'referer')[0].lower():
-                    return self.sendError(403)
+                    self.sendError(403)
+                    defer.returnValue(NOT_DONE_YET)
 
         # 1: Client capability assesment stage
         if request.headers.getRawHeaders(b'accept-encoding') != None:
@@ -780,27 +805,54 @@ class T2WRequest(proxy.ProxyRequest):
                         self.setHeader(b'content-type', mimetypes.types_map[ext])
                         content = antanistaticmap[staticpath]
                     elif type(antanistaticmap[staticpath]) == PageTemplate:
-                        return flattenString(self, antanistaticmap[staticpath]).addCallback(self.contentFinish)
+                        defer.returnValue(flattenString(self, antanistaticmap[staticpath]).addCallback(self.contentFinish))
                 elif staticpath == "notification":
-                    if 'by' in self.args and 'url' in self.args and 'comment' in self.args:
+ 
+                    #################################################################
+                    # Here we need to parse POST data in x-www-form-urlencoded format
+                    #################################################################
+                    content_receiver = BodyReceiver(defer.Deferred())
+                    self.bodyProducer.startProducing(content_receiver)
+                    yield self.bodyProducer.finished
+                    content = ''.join(content_receiver._data)
+
+                    args = {}
+
+                    ctype = self.requestHeaders.getRawHeaders(b'content-type')
+                    if ctype is not None:
+                        ctype = ctype[0]
+
+                    if self.method == b"POST" and ctype:
+                        mfd = b'multipart/form-data'
+                        key, pdict = parse_header(ctype)
+                        if key == b'application/x-www-form-urlencoded':
+                            args.update(parse_qs(content, 1))
+                    #################################################################
+                    
+                    if 'by' in args and 'url' in args and 'comment' in args:
                         tmp = []
                         tmp.append("From: Tor2web Node %s.%s <%s>\n" % (config.nodename, config.basehost, config.smtpmail))
                         tmp.append("To: %s\n" % (config.smtpmailto_notifications))
-                        tmp.append("Subject: Tor2web Node (IPv4 %s, IPv6 %s): notification for %s\n" % (config.listen_ipv4, config.listen_ipv6, self.args['url'][0]))
+                        tmp.append("Subject: Tor2web Node (IPv4 %s, IPv6 %s): notification for %s\n" % (config.listen_ipv4, config.listen_ipv6, args['url'][0]))
                         tmp.append("Content-Type: text/plain; charset=ISO-8859-1\n")
                         tmp.append("Content-Transfer-Encoding: 8bit\n\n")
-                        tmp.append("BY: %s\n" % (self.args['by'][0]))
-                        tmp.append("URL: %s\n" % (self.args['url'][0]))
-                        tmp.append("COMMENT: %s\n" % (self.args['comment'][0]))
+                        tmp.append("BY: %s\n" % (args['by'][0]))
+                        tmp.append("URL: %s\n" % (args['url'][0]))
+                        tmp.append("COMMENT: %s\n" % (args['comment'][0]))
                         message = StringIO(''.join(tmp))
-                        sendmail(config.smtpuser, config.smtppass, config.smtpmail, config.smtpmailto_notifications, message, config.smtpdomain, config.smtpport)
+                        try:
+                            sendmail(config.smtpuser, config.smtppass, config.smtpmail, config.smtpmailto_notifications, message, config.smtpdomain, config.smtpport)
+                        except:
+                            pass
                     else:
-                        return self.sendError(404)
+                        self.sendError(404)
+                        defer.returnValue(NOT_DONE_YET)
 
             except:
-                return self.sendError(404)
+                self.sendError(404)
+                defer.returnValue(NOT_DONE_YET)
 
-            return self.contentFinish(content)
+            defer.returnValue(self.contentFinish(content))
 
         else:
             # the requested resource is remote, we act as proxy
@@ -818,25 +870,13 @@ class T2WRequest(proxy.ProxyRequest):
                     port = self.ports[protocol]
 
             except:
-                return self.sendError(400, "error_invalid_hostname.tpl")
+                self.sendError(400, "error_invalid_hostname.tpl")
+                defer.returnValue(NOT_DONE_YET)
 
             uri = client._URI.fromBytes(self.obj.address)
 
             self.var['onion'] = self.obj.onion
             self.var['path'] = uri.originForm
-
-            content_length = self.getHeader(b'content-length')
-            transfer_encoding = self.getHeader(b'transfer-encoding')
-
-            if content_length is not None:
-                self.bodyProducer.length = int(content_length)
-                producer = self.bodyProducer
-                self.obj.headers.removeHeader(b'content-length')
-            elif transfer_encoding is not None:
-                producer = self.bodyProducer
-                self.obj.headers.removeHeader(b'transfer-encoding')
-            else:
-                producer = None
 
             agent  = Agent(reactor, sockhost=config.sockshost, sockport=config.socksport, pool=self.pool)
             self.proxy_d = agent.request(self.method, 'shttp://'+uri.host+uri.path,
@@ -845,7 +885,7 @@ class T2WRequest(proxy.ProxyRequest):
             self.proxy_d.addCallback(self.cbResponse)
             self.proxy_d.addErrback(self.handleError)
 
-            return NOT_DONE_YET
+            defer.returnValue(NOT_DONE_YET)
 
     def cbResponse(self, response):
         self.proxy_response = response
