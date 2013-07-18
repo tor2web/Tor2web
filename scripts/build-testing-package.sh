@@ -41,7 +41,7 @@ do
     esac
 done
 
-echo "[+] Setupping GLClient and GLBackend build environments"
+echo "[+] Setupping Tor2web build environments"
 
 if [ ! -f ${DIR}/.environment_setupped ]; then
     sudo -i apt-get install python-dev build-essential python-virtualenv python-pip python-stdeb devscripts -y
