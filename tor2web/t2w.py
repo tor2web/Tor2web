@@ -48,13 +48,11 @@ from zope.interface import implements
 
 from twisted.internet import reactor, protocol, defer
 from twisted.internet.abstract import isIPAddress, isIPv6Address
-from twisted.internet.error import ConnectionRefusedError
 from twisted.internet.endpoints import TCP4ClientEndpoint, SSL4ClientEndpoint
 from twisted.application import service, internet
-from twisted.web import proxy, http, client, resource, http_headers, _newclient
-from twisted.web._newclient import Request, RequestNotSent, RequestGenerationFailed, TransportProxyProducer, STATUS, UNKNOWN_LENGTH
+from twisted.web import http, client, resource, _newclient
 from twisted.web.http import StringTransport, _IdentityTransferDecoder, _ChunkedTransferDecoder, _MalformedChunkedDataError, parse_qs
-from twisted.web.http_headers import _DictHeaders
+from twisted.web.http_headers import Headers
 from twisted.web.server import NOT_DONE_YET
 from twisted.web.template import flattenString, XMLString
 from twisted.web.iweb import IBodyProducer
@@ -77,27 +75,27 @@ SOCKS_errors = {\
 }
 
 def re_sub(pattern, replacement, string):
-	def _r(m):
-		# Now this is ugly.
-		# Python has a "feature" where unmatched groups return None
-		# then re_sub chokes on this.
-		# see http://bugs.python.org/issue1519638
-		
-		# this works around and hooks into the internal of the re module...
+    def _r(m):
+        # Now this is ugly.
+        # Python has a "feature" where unmatched groups return None
+        # then re_sub chokes on this.
+        # see http://bugs.python.org/issue1519638
+        
+        # this works around and hooks into the internal of the re module...
  
-		# the match object is replaced with a wrapper that
-		# returns "" instead of None for unmatched groups
+        # the match object is replaced with a wrapper that
+        # returns "" instead of None for unmatched groups
  
-		class _m():
-			def __init__(self, m):
-				self.m=m
-				self.string=m.string
-			def group(self, n):
-				return m.group(n) or ""
+        class _m():
+            def __init__(self, m):
+                self.m=m
+                self.string=m.string
+            def group(self, n):
+                return m.group(n) or ""
  
-		return re._expand(pattern, _m(m), replacement)
-	
-	return re.sub(pattern, _r, string)
+        return re._expand(pattern, _m(m), replacement)
+    
+    return re.sub(pattern, _r, string)
 
 def verify_onion(address):
     """
@@ -118,29 +116,29 @@ def verify_resource_is_local(host, uri, path):
     return isIPAddress(host) or isIPv6Address(host) or uri.startswith(path)
 
 class Tor2webObj():
+    def __init__(self):
+        # The destination hidden service identifier
+        self.onion = None
 
-    # The destination hidden service identifier
-    onion = None
+        # The path portion of the URI
+        self.path = None
 
-    # The path portion of the URI
-    path = None
+        # The full address (hostname + uri) that must be requested
+        self.address = None
 
-    # The full address (hostname + uri) that must be requested
-    address = None
+        # The headers to be sent
+        self.headers = None
 
-    # The headers to be sent
-    headers = None
+        # The requested uri
+        self.uri = None
 
-    # The requested uri
-    uri = None
+        self.error = {}
 
-    error = {}
+        self.client_supports_gzip = False
 
-    client_supports_gzip = False
+        self.server_response_is_gzip = False
 
-    server_response_is_gzip = False
-
-    contentNeedFix = False
+        self.contentNeedFix = False
 
 class Tor2web(object):
     def __init__(self, config):
@@ -212,7 +210,7 @@ class Tor2web(object):
         for key, values in obj.headers.getAllRawHeaders():
             fixed_values = []
             for value in values:
-                value = re_sub(rexp['w2t'], r'http://\1.onion', value)
+                value = re_sub(rexp['w2t'], r'http://\2.onion', value)
                 fixed_values.append(value)
 
             obj.headers.setRawHeaders(key, fixed_values)
@@ -221,60 +219,6 @@ class Tor2web(object):
         log.msg(obj.headers)
 
         return True
-
-    def leaving_link(self, obj, target):
-        """
-        Returns a link pointing to a resource outside of Tor2web.
-        """
-        link = target.netloc + target.path
-        if target.query:
-            link += "?" + target.query
-
-        return "https://leaving." + config.basehost + "/" + link
-
-    def fix_link(self, obj, data):
-        """
-        Operates some links corrections.
-        """
-        parsed = urlparse(data)
-        exiting = True
-
-        scheme = parsed.scheme
-
-        if scheme == 'http':
-            scheme = 'https'
-
-        if scheme == 'data':
-            link = data
-            return link;
-
-        if scheme == '':
-            link = data
-        else:
-            if parsed.netloc == '':
-                netloc = obj.onion
-            else:
-                netloc = parsed.netloc
-
-            if netloc == obj.onion:
-                exiting = False
-            elif netloc.endswith(".onion"):
-                netloc = netloc.replace(".onion", "")
-                exiting = False
-
-            link = scheme + "://"
-
-            if exiting:
-                # Actually not implemented: need some study.
-                # link = self.leaving_link(obj, parsed)
-                link = data
-            else:
-                link += netloc + "." + config.basehost + parsed.path
-
-            if parsed.query:
-                link += "?" + parsed.query
-
-        return link
 
     def add_banner(self, obj, banner, data):
         """
@@ -288,7 +232,7 @@ class Tor2web(object):
         """
         log.msg("processing HTML type content")
         
-        data = re_sub(rexp['t2w'], r'https://\1.' + config.basehost, data)
+        data = re_sub(rexp['t2w'], r'https://\2.' + config.basehost, data)
 
         data = re.sub(rexp['body'], partial(self.add_banner, obj, banner), data)
 
@@ -323,7 +267,7 @@ class BodyProducer(object):
     implements(IBodyProducer)
     
     def __init__(self):
-        self.length = UNKNOWN_LENGTH
+        self.length = _newclient.UNKNOWN_LENGTH
         self.finished = defer.Deferred()
         self.consumer = None
         self.can_stream = False
@@ -353,86 +297,14 @@ class BodyProducer(object):
     def stopProducing(self):
         pass
 
-class Headers(http_headers.Headers):
-    def setRawHeaders(self, name, values):
-        if name.lower() not in self._rawHeaders:
-            self._rawHeaders[name.lower()] = dict()
-        self._rawHeaders[name.lower()]['name'] = name
-        self._rawHeaders[name.lower()]['values'] = values
-
-    def getRawHeaders(self, name, default=None):
-        if name.lower() in self._rawHeaders:
-            return self._rawHeaders[name.lower()]['values']
-        return default
-
-    def getAllRawHeaders(self):
-        for k, v in self._rawHeaders.iteritems():
-            yield v['name'], v['values']
-
-class HTTPClientParser(_newclient.HTTPClientParser):
-    def connectionMade(self):
-        """
-        We need to override Headers() class with our one.
-        """
-        self.headers = Headers()
-        self.connHeaders = Headers()
-        self.state = STATUS
-        self._partialHeader = None
-
-    def headerReceived(self, name, value):
-        if self.isConnectionControlHeader(name.lower()):
-            headers = self.connHeaders
-        else:
-            headers = self.headers
-        headers.addRawHeader(name, value)
-
-class HTTP11ClientProtocol(_newclient.HTTP11ClientProtocol):
-    def request(self, request):
-        if self._state != 'QUIESCENT':
-            return defer.fail(RequestNotSent())
-
-        self._state = 'TRANSMITTING'
-        _requestDeferred = defer.maybeDeferred(request.writeTo, self.transport)
-        self._finishedRequest = defer.Deferred()
-
-        self._currentRequest = request
-
-        self._transportProxy = TransportProxyProducer(self.transport)
-        self._parser = HTTPClientParser(request, self._finishResponse)
-        self._parser.makeConnection(self._transportProxy)
-        self._responseDeferred = self._parser._responseDeferred
-
-        def cbRequestWrotten(ignored):
-            if self._state == 'TRANSMITTING':
-                self._state = 'WAITING'
-                self._responseDeferred.chainDeferred(self._finishedRequest)
-
-        def ebRequestWriting(err):
-            if self._state == 'TRANSMITTING':
-                self._state = 'GENERATION_FAILED'
-                self.transport.loseConnection()
-                self._finishedRequest.errback(
-                    failure.Failure(RequestGenerationFailed([err])))
-            else:
-                log.err(err, 'Error writing request, but not in valid state '
-                             'to finalize request: %s' % self._state)
-
-        _requestDeferred.addCallbacks(cbRequestWrotten, ebRequestWriting)
-
-        return self._finishedRequest
-
-class _HTTP11ClientFactory(protocol.ClientFactory):
-    def __init__(self, quiescentCallback):
-        self._quiescentCallback = quiescentCallback
-
-    def buildProtocol(self, addr):
-        return HTTP11ClientProtocol(self._quiescentCallback)
-
 class HTTPConnectionPool(client.HTTPConnectionPool):
-    _factory = _HTTP11ClientFactory
+    _factory = client._HTTP11ClientFactory
 
     def __init__(self, reactor, persistent=True, maxPersistentPerHost=2, cachedConnectionTimeout=240, retryAutomatically=True):
         client.HTTPConnectionPool.__init__(self, reactor, persistent)
+        self.maxPersistentPerHost = maxPersistentPerHost
+        self.cachedConnectionTimeout = cachedConnectionTimeout
+        self.retryAutomatically = retryAutomatically
 
 class Agent(client.Agent):
     def __init__(self, reactor,
@@ -466,25 +338,7 @@ class Agent(client.Agent):
         else:
             raise SchemeNotSupported("Unsupported scheme: %r" % (scheme,))
 
-    def _requestWithEndpoint(self, key, endpoint, method, parsedURI,
-                             headers, bodyProducer, requestPath):
-        if headers is None:
-            headers = Headers()
-        if not headers.hasHeader('host'):
-            headers = headers.copy()
-            headers.addRawHeader(
-                'host', self._computeHostValue(parsedURI.scheme, parsedURI.host,
-                                               parsedURI.port))
-
-        d = self._pool.getConnection(key, endpoint)
-        def cbConnected(proto):
-            return proto.request(
-                Request(method, requestPath, headers, bodyProducer,
-                        persistent=self._pool.persistent))
-        d.addCallback(cbConnected)
-        return d
-
-class T2WRequest(proxy.ProxyRequest):
+class T2WRequest(http.Request):
     """
     Used by Tor2webProxy to implement a simple web proxy.
     """
@@ -522,29 +376,6 @@ class T2WRequest(proxy.ProxyRequest):
         self.encoderGzip = None
 
         self.pool = pool
-
-    def __setattr__(self, name, value):
-        """
-        Support assignment of C{dict} instances to C{received_headers} for
-        backwards-compatibility.
-        """
-        if name == 'received_headers':
-            # A property would be nice, but Request is classic.
-            self.requestHeaders = headers = Headers()
-            for k, v in value.iteritems():
-                headers.setRawHeaders(k, [v])
-        elif name == 'requestHeaders':
-            self.__dict__[name] = value
-            self.__dict__['received_headers'] = _DictHeaders(value)
-        elif name == 'headers':
-            self.responseHeaders = headers = Headers()
-            for k, v in value.iteritems():
-                headers.setRawHeaders(k, [v])
-        elif name == 'responseHeaders':
-            self.__dict__[name] = value
-            self.__dict__['headers'] = _DictHeaders(value)
-        else:
-            self.__dict__[name] = value
 
     def _cleanup(self):
         """
@@ -859,28 +690,16 @@ class T2WRequest(proxy.ProxyRequest):
 
             t2w.process_request(self.obj, request)
 
-            try:
-                parsed = urlparse(self.obj.address)
-                protocol = parsed[0]
-                host = parsed[1]
-                if ':' in host:
-                    host, port = host.split(":")
-                    port = int(port)
-                else:
-                    port = self.ports[protocol]
+            parsed = urlparse(self.obj.address)
 
-            except:
-                self.sendError(400, "error_invalid_hostname.tpl")
-                defer.returnValue(NOT_DONE_YET)
+            self.var['address'] = self.obj.address
+            self.var['onion'] = parsed[1]
+            self.var['path'] = parsed[2] + '?' + parsed[3]
 
-            uri = client._URI.fromBytes(self.obj.address)
-
-            self.var['onion'] = self.obj.onion
-            self.var['path'] = uri.originForm
-
-            agent  = Agent(reactor, sockhost=config.sockshost, sockport=config.socksport, pool=self.pool)
-            self.proxy_d = agent.request(self.method, 'shttp://'+uri.host+uri.path,
-                    self.obj.headers, bodyProducer=producer)
+            agent = Agent(reactor, sockhost=config.sockshost, sockport=config.socksport, pool=self.pool)
+            self.proxy_d = agent.request(self.method,
+                                         's' + self.obj.address,
+                                         self.obj.headers, bodyProducer=producer)
 
             self.proxy_d.addCallback(self.cbResponse)
             self.proxy_d.addErrback(self.handleError)
@@ -923,13 +742,7 @@ class T2WRequest(proxy.ProxyRequest):
         # in case of multiple occurrences we evaluate only the first
         valueLower = values[0].lower()
 
-        if keyLower == 'location':
-            value = t2w.fix_link(self.obj, valueLower)
-
-        elif keyLower == 'connection':
-            return
-
-        elif keyLower == 'transfer-encoding' and valueLower == 'chunked':
+        if keyLower == 'transfer-encoding' and valueLower == 'chunked':
             return
 
         elif keyLower == 'content-encoding' and valueLower == 'gzip':
@@ -949,7 +762,7 @@ class T2WRequest(proxy.ProxyRequest):
 
         fixed_values = []
         for value in values:
-            value = re_sub(rexp['t2w'], r'https://\1.' + config.basehost, value)
+            value = re_sub(rexp['t2w'], r'https://\2.' + config.basehost, value)
             fixed_values.append(value)
 
         self.responseHeaders.setRawHeaders(key, fixed_values)
@@ -990,9 +803,9 @@ class T2WRequest(proxy.ProxyRequest):
         try:
             if self.proxy_response:
                 self.proxy_response._transport.stopProducing()
+                self.proxy_response._transport.abortConnection()
         except:
             pass
-        proxy.ProxyRequest.connectionLost(self, reason)
 
 
 class T2WProxy(http.HTTPChannel):
@@ -1135,6 +948,7 @@ for f in files:
     except:
         print "Tor2web Startup Failure: error while accessing file (%s)" % path
         exit(1)
+
 ###############################################################################
 
 sys.excepthook = MailException
@@ -1143,18 +957,32 @@ t2w = Tor2web(config)
 
 rexp = {
     'body': re.compile(r'(<body.*?\s*>)', re.I),
-    'w2t': re.compile(r'https://([a-z0-9]{16}).' + config.basehost + '(:443)?', re.I),
-    't2w': re.compile(r'http://([a-z0-9]{16}).onion(:80)?', re.I)
+    'w2t': re.compile(r'(https:)?//([a-z0-9]{16}).' + config.basehost + '(:443)?', re.I),
+    't2w': re.compile(r'(http:)?//([a-z0-9]{16}).onion(:80)?', re.I)
 }
 
 application = service.Application("Tor2web")
 service.IProcess(application).processName = "tor2web"
+
+class T2WLogObserver(log.FileLogObserver):
+    """Custom Logging observer"""
+    def emit(self, eventDict):
+        """Custom emit for FileLogObserver"""
+        log.FileLogObserver.emit(self, eventDict)
+
+        if 'failure' in eventDict:
+            vf = eventDict['failure']
+            e_t, e_v, e_tb = vf.type, vf.value, vf.getTracebackObject()
+            sys.excepthook(e_t, e_v, e_tb)
+
 if config.debugmode:
     if config.debugtostdout is not True:
         application.setComponent(log.ILogObserver,
-                                 log.FileLogObserver(logfile.DailyLogFile.fromFullPath(os.path.join(config.datadir, 'logs', 'debug.log'))).emit)
+                                 T2WLogObserver(logfile.DailyLogFile.fromFullPath(os.path.join(config.datadir, 'logs', 'debug.log'))).emit)
+    else:
+        application.setComponent(log.ILogObserver, T2WLogObserver(sys.stdout).emit)
 else:
-    application.setComponent(log.ILogObserver, log.FileLogObserver(log.NullFile).emit)
+    application.setComponent(log.ILogObserver, T2WLogObserver(log.NullFile).emit)
 
 antanistaticmap = {}
 files = FilePath(os.path.join(config.datadir,"static/")).globChildren("*")
@@ -1185,6 +1013,7 @@ ipv6 = config.listen_ipv6
 for ip in [ipv4, ipv6]:
     if ip == None:
         continue
+
     service_https = startTor2webHTTPS(t2w, factory, ip)
     service_https.setServiceParent(application)
 

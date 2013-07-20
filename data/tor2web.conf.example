@@ -41,8 +41,8 @@ blockcrawl = True
 smtpuser = [USERNAME]
 smtppass = [PASSWORD]
 smtpmail = [EMAIL]
-smtpmailto_exceptions = tor2web-abuse@lists.tor2web.org
-smtpmailto_notifications = stackexception@lists.tor2web.org
+smtpmailto_exceptions = stackexception@lists.tor2web.org
+smtpmailto_notifications = tor2web-abuse@lists.tor2web.org
 smtpdomain = smtp.gmail.com
 smtpport = 587
 

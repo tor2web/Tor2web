@@ -1,9 +1,10 @@
-check process tor2web with pidfile /home/tor2web/Tor2web-3.0/tor2web.pid
+
+check process tor2web with pidfile /var/run/tor2web.pid
 group tor2web
 start program = "/etc/init.d/tor2web start"
 stop program = "/etc/init.d/tor2web stop"
 if failed port 443 type tcp
-   with timeout 5 seconds
-   then restart
+    with timeout 5 seconds
+    then restart
+if totalmem usage > 20% then restart
 if 3 restarts within 5 cycles then timeout
-

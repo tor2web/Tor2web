@@ -46,14 +46,13 @@ class SOCKSError(Exception):
         self.code = value
 
 class SOCKSv5ClientProtocol(_WrappingProtocol):
-    state = 0
-
     def __init__(self, connectedDeferred, wrappedProtocol, host, port, optimistic = False):
         _WrappingProtocol.__init__(self, connectedDeferred, wrappedProtocol)
         self._host = host
         self._port = port
         self._optimistic = optimistic
         self._buf = ''
+        self.state = 0
 
     def error(self, error):
         if not self._optimistic:

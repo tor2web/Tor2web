@@ -73,8 +73,6 @@ def sendmail(authenticationUsername, authenticationSecret, fromAddress, toAddres
 
     return resultDeferred
 
-
-
 def MailException(etype, value, tb):
     """
     Formats traceback and exception data and emails the error
@@ -98,7 +96,7 @@ def MailException(etype, value, tb):
     error_message = "%s %s" % (exc_type.strip(), etype.__doc__)
     tmp.append(error_message)
 
-    traceinfo = '\n'.join(traceback.format_exception(etype, value, tback))
+    traceinfo = '\n'.join(traceback.format_exception(etype, value, tb))
     tmp.append(traceinfo)
 
     info_string = ''.join(tmp)
