@@ -24,7 +24,7 @@ basehost = tor2web.org
 # This is the SOCKS host and port on which Tor is listening
 sockshost = 127.0.0.1
 socksport = 9050
-sockoptimisticdata = True
+socksoptimisticdata = True
 sockmaxpersistentperhost = 5
 sockcachedconnectiontimeout = 240
 sockretryautomatically = True
@@ -50,4 +50,4 @@ smtpport = 587
 exit_node_list_refresh = 600
 
 # List of mirrors showed in Tor2web banner
-mirror = [tor2web.fi, tor2web.blutmagie.de, onion.sh]
+mirror = [tor2web.org, tor2web.fi, tor2web.blutmagie.de, onion.sh]

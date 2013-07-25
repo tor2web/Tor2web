@@ -33,21 +33,27 @@
 
 import struct
 
-from zope.interface import implements
-from twisted.internet import defer
+from zope.interface import implements, implementer
+from twisted.internet import defer, interfaces
 from twisted.internet.interfaces import IStreamClientEndpoint
-from twisted.internet.endpoints import _WrappingProtocol, _WrappingFactory
 from twisted.protocols import policies
+from twisted.protocols.policies import ProtocolWrapper, WrappingFactory
 from twisted.python.failure import Failure
+
+from twisted.internet.protocol import Protocol
+
+from zope.interface import directlyProvides, providedBy
+
 
 class SOCKSError(Exception):
     def __init__(self, value):
         Exception.__init__(self)
         self.code = value
 
-class SOCKSv5ClientProtocol(_WrappingProtocol):
-    def __init__(self, connectedDeferred, wrappedProtocol, host, port, optimistic = False):
-        _WrappingProtocol.__init__(self, connectedDeferred, wrappedProtocol)
+class SOCKSv5ClientProtocol(ProtocolWrapper):
+    def __init__(self, factory, wrappedProtocol, connectedDeferred, host, port, optimistic = False):
+        ProtocolWrapper.__init__(self, factory, wrappedProtocol)
+        self._connectedDeferred = connectedDeferred
         self._host = host
         self._port = port
         self._optimistic = optimistic
@@ -59,8 +65,10 @@ class SOCKSv5ClientProtocol(_WrappingProtocol):
             self._connectedDeferred.errback(error)
         else:
             errorcode = 600 + error.value.code
-            self._wrappedProtocol.dataReceived("HTTP/1.1 "+str(errorcode)+" ANTANI\r\n\r\n")
-            self.transport.loseConnection()
+            self.wrappedProtocol.dataReceived("HTTP/1.1 "+str(errorcode)+" ANTANI\r\n\r\n")
+
+        self.transport.abortConnection()
+        self.transport = None
 
     def socks_state_0(self):
         # error state
@@ -94,23 +102,35 @@ class SOCKSv5ClientProtocol(_WrappingProtocol):
         self._buf = self._buf[10:]
 
         if not self._optimistic:
-            self._wrappedProtocol.makeConnection(self.transport)
+            self.wrappedProtocol.makeConnection(self)
             try:
-                self._connectedDeferred.callback(self._wrappedProtocol)
+                self._connectedDeferred.callback(self.wrappedProtocol)
             except:
                 pass
 
+        self.wrappedProtocol.dataReceived(self._buf)
+        self._buf = ''
+
         self.state = self.state + 1
 
-    def connectionMade(self):
+    def makeConnection(self, transport):
+        """
+        When a connection is made, register this wrapper with its factory,
+        save the real transport, and connect the wrapped protocol to this
+        L{ProtocolWrapper} to intercept any transport calls it makes.
+        """
+        directlyProvides(self, providedBy(transport))
+        Protocol.makeConnection(self, transport)
+        self.factory.registerProtocol(self)
+
         # We implement only Anonymous access
         self.transport.write(struct.pack("!BB", 5, len("\x00")) + "\x00")
 
         if self._optimistic:
             self.transport.write(struct.pack("!BBBBB", 5, 1, 0, 3, len(self._host)) + self._host + struct.pack("!H", self._port))
-            self._wrappedProtocol.makeConnection(self.transport)
+            self.wrappedProtocol.makeConnection(self)
             try:
-                self._connectedDeferred.callback(self._wrappedProtocol)
+                self._connectedDeferred.callback(self.wrappedProtocol)
             except:
                 pass
 
@@ -118,35 +138,52 @@ class SOCKSv5ClientProtocol(_WrappingProtocol):
 
     def dataReceived(self, data):
         if self.state != 3:
-            self._buf = self._buf.join(data)
+            self._buf = ''.join([self._buf, data])
             getattr(self, 'socks_state_%s' % (self.state), self.socks_state_0)()
         else:
-            self._wrappedProtocol.dataReceived(data)
+            self.wrappedProtocol.dataReceived(data)
 
-class SOCKSv5ClientFactory(_WrappingFactory):
+
+class SOCKSv5ClientFactory(WrappingFactory):
     protocol = SOCKSv5ClientProtocol
 
     def __init__(self, wrappedFactory, host, port, optimistic):
-        _WrappingFactory.__init__(self, wrappedFactory)
+        WrappingFactory.__init__(self, wrappedFactory)
         self._host = host
         self._port = port
         self._optimistic = optimistic
+        self._onConnection = defer.Deferred()
 
     def buildProtocol(self, addr):
         try:
-            proto = self._wrappedFactory.buildProtocol(addr)
+            proto = self.wrappedFactory.buildProtocol(addr)
         except:
             self._onConnection.errback()
         else:
-            return self.protocol(self._onConnection, proto,
+            return self.protocol(self, proto, self._onConnection,
                                  self._host, self._port, self._optimistic)
 
+    def clientConnectionFailed(self, connector, reason):
+        self._onConnection.errback(reason)
+
+    def clientConnectionLost(self, connector, reason):
+        pass
+
+    def unregisterProtocol(self, p):
+        """
+        Called by protocols when they go away.
+        """
+        try:
+            del self.protocols[p]
+        except:
+            pass
+
+
+@implementer(interfaces.IStreamClientEndpoint)
 class SOCKS5ClientEndpoint(object):
     """
     SOCKS5 TCP client endpoint with an IPv4 configuration.
     """
-    implements(IStreamClientEndpoint)
-
     def __init__(self, reactor, sockhost, sockport,
                  host, port, optimistic, timeout=30, bindAddress=None):
         self._reactor = reactor

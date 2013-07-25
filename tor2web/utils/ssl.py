@@ -33,12 +33,15 @@
 
 from OpenSSL import SSL
 
-from twisted.internet.ssl import DefaultOpenSSLContextFactory
+from twisted.internet.ssl import ContextFactory
 
-class T2WSSLContextFactory(DefaultOpenSSLContextFactory):
+class T2WSSLContextFactory(ContextFactory):
     """
     """
     _context = None
+
+    _context_reuse_count = 0
+    _max_context_reuse = 50
 
     def __init__(self, privateKeyFileName, certificateChainFileName, dhFileName, cipherList):
         """
@@ -56,21 +59,34 @@ class T2WSSLContextFactory(DefaultOpenSSLContextFactory):
         # Create a context object right now.  This is to force validation of
         # the given parameters so that errors are detected earlier rather
         # than later.
-        self.cacheContext()
+        self._context = self.getContext()
 
-    def cacheContext(self):
-        if self._context is None:
-            ctx = SSL.Context(self.sslmethod)
-            # Disallow SSLv2! It's insecure!
-            ctx.set_options(SSL.OP_NO_SSLv2)
-            # https://twistedmatrix.com/trac/ticket/5487
-            # SSL_OP_NO_COMPRESSION = 0x00020000L
-            ctx.set_options(0x00020000)
-            # SSL_MODE_RELEASE_BUFFERS = 0x00000010L
-            ctx.set_options(0x00000010L)
-            ctx.use_certificate_chain_file(self.certificateChainFileName)
-            ctx.use_privatekey_file(self.privateKeyFileName)
-            ctx.set_cipher_list(self.cipherList)
-            ctx.load_tmp_dh(self.dhFileName)
-            self._context = ctx
+    def getContext(self):
+        """
+        Return an SSL context.
+        """
+        if self._context is None or self._context_reuse_count >= self._max_context_reuse:
 
+           ctx = SSL.Context(self.sslmethod)
+           # Disallow SSLv2! It's insecure!
+           ctx.set_options(SSL.OP_NO_SSLv2)
+           # https://twistedmatrix.com/trac/ticket/5487
+           # SSL_OP_NO_COMPRESSION = 0x00020000L
+           ctx.set_options(0x00020000)
+           # SSL_MODE_RELEASE_BUFFERS = 0x00000010L
+           ctx.set_options(0x00000010L)
+           ctx.use_certificate_chain_file(self.certificateChainFileName)
+           ctx.use_privatekey_file(self.privateKeyFileName)
+           ctx.set_cipher_list(self.cipherList)
+           ctx.load_tmp_dh(self.dhFileName)
+
+           # we renew here the context; old reference is lose and the
+           # object will be automagically deleted when the last
+           # connection that uses it will die.
+
+           self._context = ctx
+           self._context_reuse_count = 0
+
+        self._context_reuse_count += 1
+
+        return self._context
