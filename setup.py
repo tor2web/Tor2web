@@ -33,12 +33,14 @@ data_files = [
     ('/opt/tor2web/logs', [
     ]),
     ('/opt/tor2web/static', [
+    os.path.join('data', 'static', 'robots.txt'),
     os.path.join('data', 'static', 'index.html'),
     os.path.join('data', 'static', 'tor2web.css'),
     os.path.join('data', 'static', 'tor2web.js'),
     os.path.join('data', 'static', 'tor2web.png'),
     os.path.join('data', 'static', 'tor2web-big.png'),
     os.path.join('data', 'static', 'tor2web-small.png'),
+    os.path.join('data', 'static', 'tos.html'),
     ]),
     ('/opt/tor2web/templates', [
     os.path.join('data', 'templates', 'banner.tpl'),
@@ -50,7 +52,6 @@ data_files = [
     os.path.join('data', 'templates', 'error_sock_generic.tpl'),
     os.path.join('data', 'templates', 'error_sock_hs_not_found.tpl'),
     os.path.join('data', 'templates', 'error_sock_hs_not_reachable.tpl'),
-    os.path.join('data', 'templates', 'tos.tpl'),
     ]),
 ]
 

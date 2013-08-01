@@ -1,12 +1,15 @@
-<<<<<<< HEAD
+tor2web (3.0.5-2) unstable; urgency=low
+
+  * Tor2web 3.0 - Minor fixes
+
+ -- Tor2web software signing key <info@globaleaks.org>  Thu, 1 Aug 2013 11:02:02 +0002
+
 tor2web (3.0.4-2) unstable; urgency=low
 
   * Tor2web 3.0 - Minor fixes
 
  -- Tor2web software signing key <info@globaleaks.org>  Fri, 25 Jul 2013 20:16:02 +0002
 
-=======
->>>>>>> 21e59a3... fixed some bugs that could lead to memory leaks
 tor2web (3.0.3-2) unstable; urgency=low
 
   * Tor2web 3.0 - Minor fixes

@@ -112,9 +112,6 @@ def verify_onion(address):
 
     return False
     
-def verify_resource_is_local(host, uri, path):
-    return isIPAddress(host) or isIPv6Address(host) or uri.startswith(path)
-
 class Tor2webObj():
     def __init__(self):
         # The destination hidden service identifier
@@ -122,7 +119,6 @@ class Tor2webObj():
 
         # The path portion of the URI
         self.path = None
-<<<<<<< HEAD
 
         # The full address (hostname + uri) that must be requested
         self.address = None
@@ -141,25 +137,6 @@ class Tor2webObj():
 
         # A boolean that keeps track of document content type
         self.html = False
-=======
-
-        # The full address (hostname + uri) that must be requested
-        self.address = None
-
-        # The headers to be sent
-        self.headers = None
-
-        # The requested uri
-        self.uri = None
-
-        self.error = {}
-
-        self.client_supports_gzip = False
-
-        self.server_response_is_gzip = False
-
-        self.contentNeedFix = False
->>>>>>> 21e59a3... fixed some bugs that could lead to memory leaks
 
 class Tor2web(object):
     def __init__(self, config):
@@ -210,17 +187,6 @@ class Tor2web(object):
         """
         return str(data.group(1)) + str(banner)
 
-    def process_html(self, obj, banner, data):
-        """
-        Process the result from the Hidden Services HTML
-        """
-        log.msg("processing HTML type content")
-       
-        data = re_sub(rexp['t2w'], r'https://\2.' + config.basehost, data)
-        data = re.sub(rexp['body'], partial(self.add_banner, obj, banner), data)
-
-        return data
-
     def process_request(self, obj, req):
         """
         This function:
@@ -258,26 +224,6 @@ class Tor2web(object):
 
         return True
 
-<<<<<<< HEAD
-=======
-    def add_banner(self, obj, banner, data):
-        """
-        Inject tor2web banner inside the returned page
-        """
-        return str(data.group(1)) + str(banner)
-
-    def process_html(self, obj, banner, data):
-        """
-        Process the result from the Hidden Services HTML
-        """
-        log.msg("processing HTML type content")
-        
-        data = re_sub(rexp['t2w'], r'https://\2.' + config.basehost, data)
-
-        data = re.sub(rexp['body'], partial(self.add_banner, obj, banner), data)
-
-        return data
->>>>>>> 21e59a3... fixed some bugs that could lead to memory leaks
 
 class BodyReceiver(protocol.Protocol):
     def __init__(self, finished):
@@ -340,7 +286,6 @@ class BodyProducer(object):
     def stopProducing(self):
         pass
 
-<<<<<<< HEAD
 
 class HTTPConnectionPool(client.HTTPConnectionPool):
     _factory = client._HTTP11ClientFactory
@@ -349,20 +294,13 @@ class HTTPConnectionPool(client.HTTPConnectionPool):
         pass
 
     _factory.startedConnecting = startedConnecting
-=======
-class HTTPConnectionPool(client.HTTPConnectionPool):
-    _factory = client._HTTP11ClientFactory
->>>>>>> 21e59a3... fixed some bugs that could lead to memory leaks
 
     def __init__(self, reactor, persistent=True, maxPersistentPerHost=2, cachedConnectionTimeout=240, retryAutomatically=True):
         client.HTTPConnectionPool.__init__(self, reactor, persistent)
         self.maxPersistentPerHost = maxPersistentPerHost
         self.cachedConnectionTimeout = cachedConnectionTimeout
         self.retryAutomatically = retryAutomatically
-<<<<<<< HEAD
 
-=======
->>>>>>> 21e59a3... fixed some bugs that could lead to memory leaks
 
 class Agent(client.Agent):
     def __init__(self, reactor,
@@ -396,18 +334,11 @@ class Agent(client.Agent):
         else:
             raise SchemeNotSupported("Unsupported scheme: %r" % (scheme,))
 
-<<<<<<< HEAD
 
-=======
->>>>>>> 21e59a3... fixed some bugs that could lead to memory leaks
 class T2WRequest(http.Request):
     """
     Used by Tor2webProxy to implement a simple web proxy.
     """
-    staticmap = "/antanistaticmap/"
-
-    inj = '<script type="text/javascript" src="/antanistaticmap/tor2web.js"></script>' \
-          '<style type="text/css">@import url(/antanistaticmap/tor2web.css); </style>'
 
     def __init__(self, channel, queued, reactor=reactor):
         """
@@ -499,6 +430,13 @@ class T2WRequest(http.Request):
 
         self.process()
 
+    def add_banner(self, banner, data):
+        """
+        Inject tor2web banner inside the returned page
+        """
+        return str(data.group(1)) + str(banner)
+
+    @defer.inlineCallbacks
     def handleFixPart(self, data):
         if self.obj.server_response_is_gzip:
             data = self.unzip(data)
@@ -506,8 +444,9 @@ class T2WRequest(http.Request):
         data = self.stream + data
 
         if len(data) >= 1000:
-            if not self.header_injected and data.find("</head>") != -1:
-                data = data.replace("</head>", self.inj + "</head>")
+            if not self.header_injected and data.find("<body") != -1:
+                banner = yield flattenString(self, templates['banner.tpl'])
+                data = re.sub(rexp['body'], partial(self.add_banner, banner), data)
                 self.header_injected = True
 
             data = re_sub(rexp['t2w'], r'https://\2.' + config.basehost, data)
@@ -517,14 +456,16 @@ class T2WRequest(http.Request):
         else:
             self.stream = data
 
+    @defer.inlineCallbacks
     def handleFixEnd(self, data):
         if self.obj.server_response_is_gzip:
             data = self.unzip(data, True)
 
         data = self.stream + data
 
-        if not self.header_injected and data.find("</head>") != -1:
-            data = data.replace("</head>", self.inj + "</head>")
+        if not self.header_injected and data.find("<body") != -1:
+            banner = yield flattenString(self, templates['banner.tpl'])
+            data = re.sub(rexp['body'], partial(self.add_banner, banner), data)
             self.header_injected = True
                 
         data = re_sub(rexp['t2w'], r'https://\2.' + config.basehost, data)
@@ -629,7 +570,7 @@ class T2WRequest(http.Request):
                 data1 = self.encoderGzip.compress(data)
 
             if end:
-                data2 = self.encoderGzip.flush()        
+                data2 = self.encoderGzip.flush()
         except:
             pass
 
@@ -647,6 +588,16 @@ class T2WRequest(http.Request):
         content_length = self.getHeader(b'content-length')
         transfer_encoding = self.getHeader(b'transfer-encoding')
 
+        staticpath = request.uri
+        staticpath = re.sub('\/$', '/index.html', staticpath)
+        staticpath = re.sub('^(/antanistaticmap/)?', '', staticpath)
+        staticpath = re.sub('^/', '', staticpath)
+
+        resource_is_local = isIPAddress(request.host) or \
+                            isIPv6Address(request.host) or \
+                            request.uri == '/robots.txt' or \
+                            request.uri.startswith('/antanistaticmap/')
+
         if content_length is not None:
             self.bodyProducer.length = int(content_length)
             producer = self.bodyProducer
@@ -657,8 +608,9 @@ class T2WRequest(http.Request):
         else:
             producer = None
 
-        if config.mirror is not None and config.basehost in config.mirror:
-            config.mirror.remove(config.basehost)
+        if config.mirror is not None:
+            if config.basehost in config.mirror:
+                config.mirror.remove(config.basehost)
             self.var['mirror'] = choice(config.mirror)
 
         # we serve contents only over https
@@ -668,98 +620,28 @@ class T2WRequest(http.Request):
             return
 
         # 0: Request admission control stage
-        # firstly we try to instruct spiders that honour robots.txt that we don't want to get indexed
-        if request.uri == "/robots.txt" and config.blockcrawl:
-            try:
-                self.write("User-Agent: *\nDisallow: /\n")
-                self.finish()
-            except:
-                pass
-    
-            return
-
-        # secondly we try to deny some ua/crawlers regardless the request is (valid or not) / (local or not)
+        # we try to deny some ua/crawlers regardless the request is (valid or not) / (local or not)
         # we deny EVERY request to known user agents reconized with pattern matching
-        if request.headers.getRawHeaders(b'user-agent') != None:
+        if config.blockcrawl and request.headers.getRawHeaders(b'user-agent') != None:
             for ua in t2w.blocked_ua:
                 check = request.headers.getRawHeaders(b'user-agent')[0].lower()
                 if re.match(ua, check):
                     self.sendError(403, "error_blocked_ua.tpl")
                     defer.returnValue(NOT_DONE_YET)
 
-        # we need to verify if the requested resource is local (/antanistaticmap/*) or remote
-        # because some checks must be done only for remote requests;
-        # in fact local content is always served (css, js, and png in fact are used in errors)
-
-        if not verify_resource_is_local(request.host, request.uri, self.staticmap):
-            if not request.host:
-                self.sendError(406, 'error_invalid_hostname.tpl')
-                defer.returnValue(NOT_DONE_YET)
-
-            if config.mode == "TRANSLATION":
-                self.obj.onion = config.onion
-            else:
-                self.obj.onion = request.host.split(".")[0] + ".onion"
-                log.msg("detected <onion_url>.tor2web Hostname: %s" % self.obj.onion)
-                if not verify_onion(self.obj.onion):
-                    self.sendError(406, 'error_invalid_hostname.tpl')
-                    defer.returnValue(NOT_DONE_YET)
-
-                if config.mode == "ACCESSLIST":
-                    if self.obj.onion not in self.accesslist:
-                        self.sendError(403, 'error_hs_completely_blocked.tpl')
-                        defer.returnValue(NOT_DONE_YET)
-
-                elif config.mode == "BLOCKLIST":
-                    if hashlib.md5(self.obj.onion).hexdigest() in self.accesslist:
-                        self.sendError(403, 'error_hs_completely_blocked.tpl')
-                        defer.returnValue(NOT_DONE_YET)
-
-                    if hashlib.md5(self.obj.onion + self.obj.uri).hexdigest() in accesslist:
-                        self.sendError(403, 'error_hs_specific_page_blocked.tpl')
-                        defer.returnValue(NOT_DONE_YET)
-            
-            self.obj.uri = request.uri
-
-            # we need to verify if the user is using tor;
-            # on this condition it's better to redirect on the .onion
-            if self.getClientIP() in t2w.TorExitNodes:
-                self.redirect("http://" + self.obj.onion + request.uri)
-
-                try:
-                    self.finish()
-                except:
-                    pass
-
-                return
-
-            # Avoid image hotlinking
-            if request.uri.lower().endswith(('gif','jpg','png')):
-                if request.headers.getRawHeaders(b'referer') != None and not config.basehost in request.headers.getRawHeaders(b'referer')[0].lower():
-                    self.sendError(403)
-                    defer.returnValue(NOT_DONE_YET)
-
-        # 1: Client capability assesment stage
+        # 1: Client capability assessment stage
         if request.headers.getRawHeaders(b'accept-encoding') != None:
             if re.search('gzip', request.headers.getRawHeaders(b'accept-encoding')[0]):
                 self.obj.client_supports_gzip = True
 
         # 2: Content delivery stage
-        if verify_resource_is_local(request.host, request.uri, self.staticmap):
+        # we need to verify if the requested resource is local (/antanistaticmap/*) or remote
+        # because some checks must be done only for remote requests;
+        # in fact local content is always served (css, js, and png in fact are used in errors)
+        if resource_is_local:
             # the requested resource is local, we deliver it directly
             try:
-                staticpath = request.uri
-                staticpath = re.sub('\/$', '/index.html', staticpath)
-                staticpath = re.sub('^('+self.staticmap+')?', '', staticpath)
-                staticpath = re.sub('^/', '', staticpath)
-                if staticpath in antanistaticmap:
-                    if type(antanistaticmap[staticpath]) == str:
-                        filename, ext = os.path.splitext(staticpath)
-                        self.setHeader(b'content-type', mimetypes.types_map[ext])
-                        content = antanistaticmap[staticpath]
-                    elif type(antanistaticmap[staticpath]) == PageTemplate:
-                        defer.returnValue(flattenString(self, antanistaticmap[staticpath]).addCallback(self.contentFinish))
-                elif staticpath == "notification":
+                if staticpath == "notification":
  
                     #################################################################
                     # Here we need to parse POST data in x-www-form-urlencoded format
@@ -797,35 +679,80 @@ class T2WRequest(http.Request):
                             sendmail(config.smtpuser, config.smtppass, config.smtpmail, config.smtpmailto_notifications, message, config.smtpdomain, config.smtpport)
                         except:
                             pass
-                    else:
-                        self.sendError(404)
-                        defer.returnValue(NOT_DONE_YET)
+                else:
+                    if type(antanistaticmap[staticpath]) == str:
+                        filename, ext = os.path.splitext(staticpath)
+                        self.setHeader(b'content-type', mimetypes.types_map[ext])
+                        content = antanistaticmap[staticpath]
+                        defer.returnValue(self.contentFinish(content))
+
+                    elif type(antanistaticmap[staticpath]) == PageTemplate:
+                        defer.returnValue(flattenString(self, antanistaticmap[staticpath]).addCallback(self.contentFinish))
 
             except:
-                self.sendError(404)
-                defer.returnValue(NOT_DONE_YET)
-
-            defer.returnValue(self.contentFinish(content))
+                pass
+            
+            self.sendError(404)
+            defer.returnValue(NOT_DONE_YET)
 
         else:
+            self.obj.uri = request.uri
+
+            if not request.host:
+                self.sendError(406, 'error_invalid_hostname.tpl')
+                defer.returnValue(NOT_DONE_YET)
+
+            if config.mode == "TRANSLATION":
+                self.obj.onion = config.onion
+            else:
+                self.obj.onion = request.host.split(".")[0] + ".onion"
+                log.msg("detected <onion_url>.tor2web Hostname: %s" % self.obj.onion)
+                if not verify_onion(self.obj.onion):
+                    self.sendError(406, 'error_invalid_hostname.tpl')
+                    defer.returnValue(NOT_DONE_YET)
+
+                if config.mode == "ACCESSLIST":
+                    if self.obj.onion not in t2w.accesslist:
+                        self.sendError(403, 'error_hs_completely_blocked.tpl')
+                        defer.returnValue(NOT_DONE_YET)
+
+                elif config.mode == "BLACKLIST":
+                    if hashlib.md5(self.obj.onion).hexdigest() in t2w.accesslist:
+                        self.sendError(403, 'error_hs_completely_blocked.tpl')
+                        defer.returnValue(NOT_DONE_YET)
+
+                    if hashlib.md5(self.obj.onion + self.obj.uri).hexdigest() in t2w.accesslist:
+                        self.sendError(403, 'error_hs_specific_page_blocked.tpl')
+                        defer.returnValue(NOT_DONE_YET)
+
+            # we need to verify if the user is using tor;
+            # on this condition it's better to redirect on the .onion
+            if self.getClientIP() in t2w.TorExitNodes:
+                self.redirect("http://" + self.obj.onion + request.uri)
+
+                try:
+                    self.finish()
+                except:
+                    pass
+
+                return
+
+            # Avoid image hotlinking
+            if request.uri.lower().endswith(('gif','jpg','png')):
+                if request.headers.getRawHeaders(b'referer') != None and not config.basehost in request.headers.getRawHeaders(b'referer')[0].lower():
+                    self.sendError(403)
+                    defer.returnValue(NOT_DONE_YET)
+
             # the requested resource is remote, we act as proxy
 
             t2w.process_request(self.obj, request)
 
             parsed = urlparse(self.obj.address)
-<<<<<<< HEAD
 
             self.var['address'] = self.obj.address
             self.var['onion'] = self.obj.onion.replace(".onion", "")
             self.var['path'] = parsed[2] + '?' + parsed[3]
 
-=======
-
-            self.var['address'] = self.obj.address
-            self.var['onion'] = parsed[1]
-            self.var['path'] = parsed[2] + '?' + parsed[3]
-
->>>>>>> 21e59a3... fixed some bugs that could lead to memory leaks
             agent = Agent(reactor, sockhost=config.sockshost, sockport=config.socksport, pool=self.pool)
             self.proxy_d = agent.request(self.method,
                                          's' + self.obj.address,
@@ -888,7 +815,6 @@ class T2WRequest(http.Request):
         elif keyLower == 'cache-control':
             return
 
-<<<<<<< HEAD
         if keyLower in ('location'):
             fixed_values = []
             for value in values:
@@ -897,14 +823,6 @@ class T2WRequest(http.Request):
             values = fixed_values
         
         self.responseHeaders.setRawHeaders(key, values)
-=======
-        fixed_values = []
-        for value in values:
-            value = re_sub(rexp['t2w'], r'https://\2.' + config.basehost, value)
-            fixed_values.append(value)
-
-        self.responseHeaders.setRawHeaders(key, fixed_values)
->>>>>>> 21e59a3... fixed some bugs that could lead to memory leaks
 
     def handleEndHeaders(self):
         self.setHeader(b'cache-control', b'no-cache')
@@ -925,7 +843,6 @@ class T2WRequest(http.Request):
         try:
             if self.proxy_response:
                 self.proxy_response._transport.stopProducing()
-                self.proxy_response._transport.abortConnection()
         except:
             pass
 
@@ -1103,16 +1020,15 @@ else:
     application.setComponent(log.ILogObserver, T2WLogObserver(log.NullFile).emit)
 
 antanistaticmap = {}
-files = FilePath(os.path.join(config.datadir,"static/")).globChildren("*")
+files = FilePath(os.path.join(config.datadir, "static/")).globChildren("*")
 for file in files:
     antanistaticmap[file.basename()] = file.getContent()
+    
 
 templates = {}
-files = FilePath(os.path.join(config.datadir, 'templates/')).globChildren("*.tpl")
+files = FilePath(os.path.join(config.datadir, "templates/")).globChildren("*.tpl")
 for file in files:
     templates[file.basename()] = PageTemplate(XMLString(file.getContent()))
-
-antanistaticmap['tos.html'] = templates['tos.tpl']
 
 pool = HTTPConnectionPool(reactor, True,
                           config.sockmaxpersistentperhost,

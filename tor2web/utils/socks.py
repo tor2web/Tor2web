@@ -50,16 +50,10 @@ class SOCKSError(Exception):
         Exception.__init__(self)
         self.code = value
 
-<<<<<<< HEAD
 class SOCKSv5ClientProtocol(ProtocolWrapper):
     def __init__(self, factory, wrappedProtocol, connectedDeferred, host, port, optimistic = False):
         ProtocolWrapper.__init__(self, factory, wrappedProtocol)
         self._connectedDeferred = connectedDeferred
-=======
-class SOCKSv5ClientProtocol(_WrappingProtocol):
-    def __init__(self, connectedDeferred, wrappedProtocol, host, port, optimistic = False):
-        _WrappingProtocol.__init__(self, connectedDeferred, wrappedProtocol)
->>>>>>> 21e59a3... fixed some bugs that could lead to memory leaks
         self._host = host
         self._port = port
         self._optimistic = optimistic
