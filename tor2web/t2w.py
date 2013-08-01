@@ -355,6 +355,9 @@ class T2WRequest(http.Request):
     """
     staticmap = "/antanistaticmap/"
 
+    inj = '<script type="text/javascript" src="/antanistaticmap/tor2web.js"></script>' \
+          '<style type="text/css">@import url(/antanistaticmap/tor2web.css); </style>'
+
     def __init__(self, channel, queued, reactor=reactor):
         """
         Method overridden to change some part of proxy.Request and of the base http.Request
@@ -370,6 +373,9 @@ class T2WRequest(http.Request):
         self.bodyProducer = BodyProducer()
         self.proxy_d = None
         self.proxy_response = None
+
+        self.stream = ''
+        self.header_injected = False
 
         if queued:
             self.transport = StringTransport()
@@ -441,6 +447,46 @@ class T2WRequest(http.Request):
         self.host = self.channel.transport.getHost()
 
         self.process()
+
+    def handleFixPart(self, data):
+        if self.obj.server_response_is_gzip:
+            data = self.unzip(data)
+
+        data = self.stream + data
+
+        if len(data) >= 1000:
+            if not self.header_injected and data.find("</head>") != -1:
+                data = data.replace("</head>", self.inj + "</head>")
+                self.header_injected = True
+
+            data = re_sub(rexp['t2w'], r'https://\2.' + config.basehost, data)
+
+            self.forwardData(self.handleCleartextForwardPart(data[:500]))
+            self.stream = data[500:]
+        else:
+            self.stream = data
+
+    def handleFixEnd(self, data):
+        if self.obj.server_response_is_gzip:
+            data = self.unzip(data, True)
+
+        data = self.stream + data
+
+        if not self.header_injected and data.find("</head>") != -1:
+            data = data.replace("</head>", self.inj + "</head>")
+            self.header_injected = True
+                
+        data = re_sub(rexp['t2w'], r'https://\2.' + config.basehost, data)
+
+        data = self.handleCleartextForwardPart(data, True)
+        self.forwardData(data, True)
+
+        self.stream = ''
+
+        try:
+            self.finish()
+        except:
+            pass
 
     def handleGzippedForwardPart(self, data, end=False):
         if not self.obj.client_supports_gzip:
@@ -748,8 +794,8 @@ class T2WRequest(http.Request):
         if(response.length is not 0):
             finished = defer.Deferred()
             if self.obj.html:
-                response.deliverBody(BodyReceiver(finished))
-                finished.addCallback(self.processResponseBody)
+                response.deliverBody(BodyStreamer(self.handleFixPart, finished))
+                finished.addCallback(self.handleFixEnd)
             else:
                 response.deliverBody(BodyStreamer(self.handleForwardPart, finished))
                 finished.addCallback(self.handleForwardEnd)
@@ -801,22 +847,6 @@ class T2WRequest(http.Request):
             self.handleHeader(key, values)
 
         self.handleEndHeaders()
-
-    def handleHTMLData(self, header, data):
-        data = t2w.process_html(self.obj, header, data)
-
-        self.contentFinish(data)
-
-    def processResponseBody(self, data):
-        if self.obj.server_response_is_gzip:
-            data = self.unzip(data, True)
-
-        if data and self.obj.html:
-            d = flattenString(self, templates['banner.tpl'])
-            d.addCallback(self.handleHTMLData, data)
-            return
-
-        self.contentFinish(data)
 
     def connectionLost(self, reason):
         try:
