@@ -122,6 +122,7 @@ class Tor2webObj():
 
         # The path portion of the URI
         self.path = None
+<<<<<<< HEAD
 
         # The full address (hostname + uri) that must be requested
         self.address = None
@@ -140,6 +141,25 @@ class Tor2webObj():
 
         # A boolean that keeps track of document content type
         self.html = False
+=======
+
+        # The full address (hostname + uri) that must be requested
+        self.address = None
+
+        # The headers to be sent
+        self.headers = None
+
+        # The requested uri
+        self.uri = None
+
+        self.error = {}
+
+        self.client_supports_gzip = False
+
+        self.server_response_is_gzip = False
+
+        self.contentNeedFix = False
+>>>>>>> 21e59a3... fixed some bugs that could lead to memory leaks
 
 class Tor2web(object):
     def __init__(self, config):
@@ -238,6 +258,26 @@ class Tor2web(object):
 
         return True
 
+<<<<<<< HEAD
+=======
+    def add_banner(self, obj, banner, data):
+        """
+        Inject tor2web banner inside the returned page
+        """
+        return str(data.group(1)) + str(banner)
+
+    def process_html(self, obj, banner, data):
+        """
+        Process the result from the Hidden Services HTML
+        """
+        log.msg("processing HTML type content")
+        
+        data = re_sub(rexp['t2w'], r'https://\2.' + config.basehost, data)
+
+        data = re.sub(rexp['body'], partial(self.add_banner, obj, banner), data)
+
+        return data
+>>>>>>> 21e59a3... fixed some bugs that could lead to memory leaks
 
 class BodyReceiver(protocol.Protocol):
     def __init__(self, finished):
@@ -300,6 +340,7 @@ class BodyProducer(object):
     def stopProducing(self):
         pass
 
+<<<<<<< HEAD
 
 class HTTPConnectionPool(client.HTTPConnectionPool):
     _factory = client._HTTP11ClientFactory
@@ -308,13 +349,20 @@ class HTTPConnectionPool(client.HTTPConnectionPool):
         pass
 
     _factory.startedConnecting = startedConnecting
+=======
+class HTTPConnectionPool(client.HTTPConnectionPool):
+    _factory = client._HTTP11ClientFactory
+>>>>>>> 21e59a3... fixed some bugs that could lead to memory leaks
 
     def __init__(self, reactor, persistent=True, maxPersistentPerHost=2, cachedConnectionTimeout=240, retryAutomatically=True):
         client.HTTPConnectionPool.__init__(self, reactor, persistent)
         self.maxPersistentPerHost = maxPersistentPerHost
         self.cachedConnectionTimeout = cachedConnectionTimeout
         self.retryAutomatically = retryAutomatically
+<<<<<<< HEAD
 
+=======
+>>>>>>> 21e59a3... fixed some bugs that could lead to memory leaks
 
 class Agent(client.Agent):
     def __init__(self, reactor,
@@ -348,7 +396,10 @@ class Agent(client.Agent):
         else:
             raise SchemeNotSupported("Unsupported scheme: %r" % (scheme,))
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 21e59a3... fixed some bugs that could lead to memory leaks
 class T2WRequest(http.Request):
     """
     Used by Tor2webProxy to implement a simple web proxy.
@@ -762,11 +813,19 @@ class T2WRequest(http.Request):
             t2w.process_request(self.obj, request)
 
             parsed = urlparse(self.obj.address)
+<<<<<<< HEAD
 
             self.var['address'] = self.obj.address
             self.var['onion'] = self.obj.onion.replace(".onion", "")
             self.var['path'] = parsed[2] + '?' + parsed[3]
 
+=======
+
+            self.var['address'] = self.obj.address
+            self.var['onion'] = parsed[1]
+            self.var['path'] = parsed[2] + '?' + parsed[3]
+
+>>>>>>> 21e59a3... fixed some bugs that could lead to memory leaks
             agent = Agent(reactor, sockhost=config.sockshost, sockport=config.socksport, pool=self.pool)
             self.proxy_d = agent.request(self.method,
                                          's' + self.obj.address,
@@ -829,6 +888,7 @@ class T2WRequest(http.Request):
         elif keyLower == 'cache-control':
             return
 
+<<<<<<< HEAD
         if keyLower in ('location'):
             fixed_values = []
             for value in values:
@@ -837,6 +897,14 @@ class T2WRequest(http.Request):
             values = fixed_values
         
         self.responseHeaders.setRawHeaders(key, values)
+=======
+        fixed_values = []
+        for value in values:
+            value = re_sub(rexp['t2w'], r'https://\2.' + config.basehost, value)
+            fixed_values.append(value)
+
+        self.responseHeaders.setRawHeaders(key, fixed_values)
+>>>>>>> 21e59a3... fixed some bugs that could lead to memory leaks
 
     def handleEndHeaders(self):
         self.setHeader(b'cache-control', b'no-cache')
@@ -857,6 +925,7 @@ class T2WRequest(http.Request):
         try:
             if self.proxy_response:
                 self.proxy_response._transport.stopProducing()
+                self.proxy_response._transport.abortConnection()
         except:
             pass
 
