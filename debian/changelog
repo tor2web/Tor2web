@@ -1,3 +1,9 @@
+tor2web (3.0.6-2) unstable; urgency=low
+
+  * Tor2web 3.0 - Init Script updated / Cron Mem Check Script added
+
+ -- Tor2web software signing key <info@globaleaks.org>  Thu, 6 Aug 2013 15:01:02 +0002
+
 tor2web (3.0.5-2) unstable; urgency=low
 
   * Tor2web 3.0 - Minor fixes

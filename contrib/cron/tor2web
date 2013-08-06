@@ -1,0 +1,12 @@
+#!/bin/bash
+
+set -e
+
+MAX_MEM=1000000
+
+PIDFile="/var/run/tor2web.pid"
+PID=$(<"$PIDFile")
+MEM=`ps -p $PID -o pid,vsize | grep $PID | awk {'print$2'}`
+if [ $MEM -gt $MAX_MEM ]; then
+    /etc/init.d/tor2web restart
+fi

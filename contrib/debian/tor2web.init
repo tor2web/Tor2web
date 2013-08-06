@@ -140,7 +140,7 @@ do_stop()
 #
 do_restart() {
     do_t2w_stop
-    /etc/init.d/tor restart
+    /etc/init.d/tor start # we avoid restarting tor
     do_t2w_start
 }
 

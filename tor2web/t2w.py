@@ -451,8 +451,8 @@ class T2WRequest(http.Request):
 
             data = re_sub(rexp['t2w'], r'https://\2.' + config.basehost, data)
 
-            self.forwardData(self.handleCleartextForwardPart(data[:500]))
-            self.stream = data[500:]
+            self.forwardData(self.handleCleartextForwardPart(data[:-500]))
+            self.stream = data[-500:]
         else:
             self.stream = data
 
