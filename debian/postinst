@@ -13,3 +13,5 @@ cp /opt/tor2web/* /home/tor2web -rf
 touch /home/tor2web/logs/debug.log /home/tor2web/logs/access.log 
 
 chown tor2web:tor2web /home/tor2web -R
+
+#DEBHELPER#
