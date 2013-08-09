@@ -75,7 +75,10 @@ class T2WSSLContextFactory(ContextFactory):
            ctx.set_options(0x00020000)
            # SSL_MODE_RELEASE_BUFFERS = 0x00000010L
            ctx.set_options(0x00000010L)
-           ctx.use_certificate_chain_file(self.certificateChainFileName)
+
+           if self.certificateChainFileName is not None:
+               ctx.use_certificate_chain_file(self.certificateChainFileName)
+
            ctx.use_privatekey_file(self.privateKeyFileName)
            ctx.set_cipher_list(self.cipherList)
            ctx.load_tmp_dh(self.dhFileName)

@@ -7,6 +7,11 @@ nodename = [UNIQUE_IDENTIFIER]
 # path to Tor2web data directory
 datadir = /home/tor2web
 
+# Certificates and key files path relative to datadir path
+tor2web_key_file = certs/tor2web-key.pem
+tor2web_intermediate_file = certs/tor2web-intermediate.pem
+tor2web_dh_file = certs/tor2web-dh.pem
+
 # debug and logging
 debugtostdout = False
 debugmode = False
