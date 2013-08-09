@@ -7,7 +7,7 @@ KEYID="24045008"
 cd ${T2W_BUILD}/deb_dist
 
 echo "[+] Adding deb package to the local repository"
-dput local globaleaks*changes
+dput local tor2web*changes
 
 # XXX why are we doing this? This seems quite hackish and it seems to be due to
 # a bug inside of debuild. Are we sure we are using debuild properly?
