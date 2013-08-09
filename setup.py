@@ -57,7 +57,7 @@ data_files = [
 
 setup(
     name="tor2web",
-    version="3.0.8",
+    version="3.0.9",
     author="Random GlobaLeaks developers",
     author_email = "info@globaleaks.org",
     url="https://tor2web.org/",
