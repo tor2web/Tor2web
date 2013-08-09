@@ -938,9 +938,9 @@ def startTor2webHTTP(t2w, f, ip):
 
 def startTor2webHTTPS(t2w, f, ip):
     return internet.SSLServer(int(t2w.config.listen_port_https), f,
-                              T2WSSLContextFactory(os.path.join(key),
-                                                   os.path.join(intermediate),
-                                                   os.path.join(dh),
+                              T2WSSLContextFactory(os.path.join(config.datadir, "certs/tor2web-key.pem"),
+                                                   os.path.join(config.datadir, "certs/tor2web-intermediate.pem"),
+                                                   os.path.join(config.datadir, "certs/tor2web-dh.pem"),
                                                    t2w.config.cipher_list),
                               interface=ip)
 
@@ -995,13 +995,6 @@ rexp = {
     'w2t': re.compile(r'(https:)?//([a-z0-9]{16}).' + config.basehost + '(:443)?', re.I),
     't2w': re.compile(r'(http:)?//([a-z0-9]{16}).onion(:80)?', re.I)
 }
-
-key = os.path.join(config.datadir, config.tor2web_key_file)
-if config.tor2web_intermediate_file is not None:
-    intermediate = os.path.join(config.datadir, config.tor2web_intermediate_file)
-else:
-    intermediate = None
-dh = os.path.join(config.datadir, config.tor2web_dh_file)
 
 application = service.Application("Tor2web")
 service.IProcess(application).processName = "tor2web"
