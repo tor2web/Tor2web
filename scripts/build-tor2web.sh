@@ -111,7 +111,9 @@ build_T2W()
 
   echo "Revision used: ${T2W_REVISION}"
 
-  sudo pip install -r requirements.txt
+  if [ "${TRAVIS}" == "true" ]; then
+    sudo pip install -r requirements.txt
+  fi
 
   echo "[+] Building T2W"
   POSTINST=debian/postinst
