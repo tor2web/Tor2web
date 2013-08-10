@@ -357,7 +357,12 @@ class T2WRequest(http.Request):
         self.proxy_response = None
 
         self.stream = ''
+
         self.header_injected = False
+        # If we should disable the banner, say that we have already injected
+        # it.
+        if config.disable_banner:
+            self.header_injected = True
 
         if queued:
             self.transport = StringTransport()
