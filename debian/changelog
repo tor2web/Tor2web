@@ -1,8 +1,14 @@
+tor2web (3.0.12-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.12 Fixed Twisted Leak (nukraxe edition)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 12 Aug 2013 11:45:42 +0002
+
 tor2web (3.0.11-2) unstable; urgency=low
 
   * Tor2web 3.0 - 3.0.11 Added possibility to disable banner
 
- -- GlobaLeaks software signing key <info@globaleaks.org>  Sta, 10 Aug 2013 20:36:42 +0002
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sat, 10 Aug 2013 20:36:42 +0002
 
 tor2web (3.0.10-2) unstable; urgency=low
 
