@@ -35,6 +35,7 @@ import os
 import re
 import sys
 import mimetypes
+import random
 import zlib
 import hashlib
 from StringIO import StringIO
@@ -646,7 +647,14 @@ class T2WRequest(http.Request):
         if resource_is_local:
             # the requested resource is local, we deliver it directly
             try:
-                if staticpath == "notification":
+                print staticpath
+                if staticpath == "dev/null":
+                    content = "A" * random.randint(20, 1024)
+                    defer.returnValue(self.contentFinish(content))
+                    print content
+                    return
+
+                elif staticpath == "notification":
  
                     #################################################################
                     # Here we need to parse POST data in x-www-form-urlencoded format
