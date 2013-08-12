@@ -34,6 +34,14 @@
 from OpenSSL import SSL
 
 from twisted.internet.ssl import ContextFactory
+from twisted.protocols import tls
+
+class TLSMemoryBIOProtocolLessLeaky(tls.TLSMemoryBIOProtocol):
+    def connectionLost(self, reason):
+        super(tls.TLSMemoryBIOProtocol).connectionLost(reason)
+        del self._tlsConnection
+
+tls.TLSMemoryBIOProtocol = TLSMemoryBIOProtocolLessLeaky
 
 class T2WSSLContextFactory(ContextFactory):
     """
