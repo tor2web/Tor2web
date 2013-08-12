@@ -34,6 +34,30 @@
 from OpenSSL import SSL
 
 from twisted.internet.ssl import ContextFactory
+from twisted.protocols import tls
+
+def connectionLost(self, reason):
+    """
+    This is ripped out of Twisted 12.3.0.
+
+    Handle the possible repetition of calls to this method (due to either
+    the underlying transport going away or due to an error at the TLS
+    layer) and make sure the base implementation only gets invoked once.
+    """
+    from twisted.protocols.policies import ProtocolWrapper
+    if not self._lostTLSConnection:
+        # Tell the TLS connection that it's not going to get any more data
+        # and give it a chance to finish reading.
+        self._tlsConnection.bio_shutdown()
+        self._flushReceiveBIO()
+        self._lostTLSConnection = True
+    reason = self._reason or reason
+    self._reason = None
+    # This is the fix of the memory leak.
+    del self._tlsConnection
+    ProtocolWrapper.connectionLost(self, reason)
+
+tls.TLSMemoryBIOProtocol.connectionLost = connectionLost
 
 class T2WSSLContextFactory(ContextFactory):
     """
