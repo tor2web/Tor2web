@@ -4,6 +4,5 @@
 	dh $@ --with python2 --buildsystem=python_distutils
 
 override_dh_install:
-	mkdir debian/tor2web/etc
 	dh_install --fail-missing
 
