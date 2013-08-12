@@ -37,6 +37,9 @@ mode = BLACKLIST
 onion = None
 blockcrawl = True
 
+# If set to True will disable the tor2web banner
+disable_banner = False
+
 # Mail configuration for automatic exceptions notification and user abuse notice
 smtpuser = [USERNAME]
 smtppass = [PASSWORD]

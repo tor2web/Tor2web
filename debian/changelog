@@ -1,3 +1,27 @@
+tor2web (3.0.14-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.14 Added Decoy Traffic API (ringobongo security edition)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Tue, 13 Aug 2013 01:07:42 +0002
+
+tor2web (3.0.13-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.13 Packaging fixed (but we like to continue calling it nukraxe edition)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Tue, 13 Aug 2013 00:17:42 +0002
+
+tor2web (3.0.12-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.12 Fixed Twisted Leak (nukraxe edition)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 12 Aug 2013 11:45:42 +0002
+
+tor2web (3.0.11-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.11 Added possibility to disable banner
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sat, 10 Aug 2013 20:36:42 +0002
+
 tor2web (3.0.10-2) unstable; urgency=low
 
   * Tor2web 3.0 - 3.0.10 Packaging Fixes
