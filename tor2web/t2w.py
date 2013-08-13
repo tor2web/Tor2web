@@ -620,7 +620,7 @@ class T2WRequest(http.Request):
             self.var['mirror'] = choice(config.mirror)
 
         # we serve contents only over https
-        if not self.isSecure():
+        if not self.isSecure() and (config.transport != 'HTTP'):
             self.redirect("https://" + request.host + request.uri)
             self.finish()
             return
@@ -647,11 +647,9 @@ class T2WRequest(http.Request):
         if resource_is_local:
             # the requested resource is local, we deliver it directly
             try:
-                print staticpath
                 if staticpath == "dev/null":
                     content = "A" * random.randint(20, 1024)
                     defer.returnValue(self.contentFinish(content))
-                    print content
                     return
 
                 elif staticpath == "notification":
@@ -997,6 +995,9 @@ for f in files:
         print "Tor2web Startup Failure: error while accessing file (%s)" % path
         exit(1)
 
+if config.transport is None:
+    config.transport = 'BOTH'
+
 ###############################################################################
 
 sys.excepthook = MailException
@@ -1061,8 +1062,10 @@ for ip in [ipv4, ipv6]:
     if ip == None:
         continue
 
-    service_https = startTor2webHTTPS(t2w, factory, ip)
-    service_https.setServiceParent(application)
+    if config.transport in ('HTTPS', 'BOTH'):
+        service_https = startTor2webHTTPS(t2w, factory, ip)
+        service_https.setServiceParent(application)
 
-    service_http = startTor2webHTTP(t2w, factory, ip)
-    service_http.setServiceParent(application)
+    if config.transport in ('HTTP', 'BOTH'):
+        service_http = startTor2webHTTP(t2w, factory, ip)
+        service_http.setServiceParent(application)
