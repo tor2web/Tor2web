@@ -1,3 +1,9 @@
+tor2web (3.0.15-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.15 Added possibility to enable HTTP/HTTPS/BOTH (Schiphol Airport Edition)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Tue, 13 Aug 2013 12:40:42 +0002
+
 tor2web (3.0.14-2) unstable; urgency=low
 
   * Tor2web 3.0 - 3.0.14 Added Decoy Traffic API (ringobongo security edition)
