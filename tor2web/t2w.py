@@ -41,7 +41,7 @@ import hashlib
 from StringIO import StringIO
 from random import choice
 from functools import partial
-from urlparse import urlparse
+from urlparse import urlparse, urlunparse
 
 from cgi import parse_header
 
@@ -764,7 +764,7 @@ class T2WRequest(http.Request):
             self.var['onion'] = self.obj.onion.replace(".onion", "")
             self.var['path'] = parsed[2]
             if parsed[3] is not None and parsed[3] != '':
-                self.var['path']  + '?' + parsed[3]
+                self.var['path'] += '?' + parsed[3]
 
             agent = Agent(reactor, sockhost=config.sockshost, sockport=config.socksport, pool=self.pool)
             self.proxy_d = agent.request(self.method,
