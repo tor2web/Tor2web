@@ -13,6 +13,7 @@ debugmode = False
 logreqs = False
 
 # ip addresses and ports
+transport = BOTH
 listen_ipv4 = [LISTENING_IPV4_ADDRESS]
 listen_ipv6 = [LISTENING_IPV6_ADDRESS]
 listen_port_http = 80
