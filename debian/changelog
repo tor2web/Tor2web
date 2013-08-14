@@ -1,3 +1,15 @@
+tor2web (3.0.19-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.19 Fixed Packaging issues
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Wed, 14 Aug 2013 23:30:42 +0002
+
+tor2web (3.0.16-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.16 Simple Stats API added
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Wed, 14 Aug 2013 22:30:42 +0002
+
 tor2web (3.0.15-2) unstable; urgency=low
 
   * Tor2web 3.0 - 3.0.15 Added possibility to enable HTTP/HTTPS/BOTH (Schiphol Airport Edition)
