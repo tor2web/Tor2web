@@ -68,6 +68,7 @@ from tor2web.utils.socks import SOCKS5ClientEndpoint, SOCKSError
 from tor2web.utils.ssl import T2WSSLContextFactory
 from tor2web.utils.storage import Storage
 from tor2web.utils.templating import PageTemplate
+from tor2web.utils.stats import T2WStats
 
 SOCKS_errors = {\
     0x00: "error_sock_generic.tpl",
@@ -181,6 +182,8 @@ class Tor2web(object):
         self.TorExitNodes = torExitNodeList(os.path.join(config.datadir, 'lists', 'exitnodelist.txt'),
                                             "https://onionoo.torproject.org/summary?type=relay",
                                             config.exit_node_list_refresh)
+        
+        self.stats = T2WStats()
 
     def add_banner(self, obj, banner, data):
         """
@@ -651,6 +654,11 @@ class T2WRequest(http.Request):
                     content = "A" * random.randint(20, 1024)
                     defer.returnValue(self.contentFinish(content))
                     return
+                
+                elif staticpath == "stats/yesterday":
+                    content = t2w.stats.yesterday_stats
+                    defer.returnValue(self.contentFinish(content))
+                    return
 
                 elif staticpath == "notification":
  
@@ -842,6 +850,9 @@ class T2WRequest(http.Request):
         self.setHeader(b'strict-transport-security', b'max-age=31536000')
 
     def processResponseHeaders(self, headers):
+        # currently we track only responding hidden services
+        t2w.stats.update(self.obj.onion.replace(".onion", ""))
+
         for key, values in headers.getAllRawHeaders():
             self.handleHeader(key, values)
 
