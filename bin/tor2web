@@ -9,7 +9,7 @@ from subprocess import call
 
 t2w = os.path.abspath(os.path.join(os.path.dirname(tor2web.__file__), 't2w.py'))
 
-args = ["twistd", "-y", t2w]
+args = ["python", t2w]
 args += sys.argv[1:]
 
 try:

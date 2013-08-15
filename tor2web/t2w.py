@@ -36,6 +36,7 @@ import re
 import sys
 import mimetypes
 import random
+import signal
 import zlib
 import hashlib
 from StringIO import StringIO
@@ -61,6 +62,7 @@ from twisted.python import log, logfile, failure
 from twisted.python.compat import networkString, intToBytes
 from twisted.python.filepath import FilePath
 
+from tor2web.utils.daemon import T2WDaemon
 from tor2web.utils.config import VERSION, config
 from tor2web.utils.lists import List, torExitNodeList
 from tor2web.utils.mail import sendmail, MailException
@@ -150,7 +152,12 @@ class Tor2web(object):
         :config a config object
         """
         self.config = config
-
+        
+        self.load_lists()
+        
+        self.stats = T2WStats()
+    
+    def load_lists(self):
         self.accesslist = []
         if config.mode == "TRANSLATION":
             pass
@@ -182,8 +189,6 @@ class Tor2web(object):
         self.TorExitNodes = torExitNodeList(os.path.join(config.datadir, 'lists', 'exitnodelist.txt'),
                                             "https://onionoo.torproject.org/summary?type=relay",
                                             config.exit_node_list_refresh)
-        
-        self.stats = T2WStats()
 
     def add_banner(self, obj, banner, data):
         """
@@ -955,18 +960,16 @@ class T2WProxyFactory(http.HTTPFactory):
                 self._escape(request.getHeader(b'user-agent') or "-"))
             self.logFile.write(line)
 
+class T2WLogObserver(log.FileLogObserver):
+    """Custom Logging observer"""
+    def emit(self, eventDict):
+        """Custom emit for FileLogObserver"""
+        log.FileLogObserver.emit(self, eventDict)
 
-def startTor2webHTTP(t2w, f, ip):
-    return internet.TCPServer(int(t2w.config.listen_port_http), f, interface=ip)
-
-
-def startTor2webHTTPS(t2w, f, ip):
-    return internet.SSLServer(int(t2w.config.listen_port_https), f,
-                              T2WSSLContextFactory(os.path.join(config.datadir, "certs/tor2web-key.pem"),
-                                                   os.path.join(config.datadir, "certs/tor2web-intermediate.pem"),
-                                                   os.path.join(config.datadir, "certs/tor2web-dh.pem"),
-                                                   t2w.config.cipher_list),
-                              interface=ip)
+        if 'failure' in eventDict:
+            vf = eventDict['failure']
+            e_t, e_v, e_tb = vf.type, vf.value, vf.getTracebackObject()
+            sys.excepthook(e_t, e_v, e_tb)
 
 ###############################################################################
 # Basic Safety Checks
@@ -1023,34 +1026,10 @@ rexp = {
     't2w': re.compile(r'(http:)?//([a-z0-9]{16}).onion(:80)?', re.I)
 }
 
-application = service.Application("Tor2web")
-service.IProcess(application).processName = "tor2web"
-
-class T2WLogObserver(log.FileLogObserver):
-    """Custom Logging observer"""
-    def emit(self, eventDict):
-        """Custom emit for FileLogObserver"""
-        log.FileLogObserver.emit(self, eventDict)
-
-        if 'failure' in eventDict:
-            vf = eventDict['failure']
-            e_t, e_v, e_tb = vf.type, vf.value, vf.getTracebackObject()
-            sys.excepthook(e_t, e_v, e_tb)
-
-if config.debugmode:
-    if config.debugtostdout is not True:
-        application.setComponent(log.ILogObserver,
-                                 T2WLogObserver(logfile.DailyLogFile.fromFullPath(os.path.join(config.datadir, 'logs', 'debug.log'))).emit)
-    else:
-        application.setComponent(log.ILogObserver, T2WLogObserver(sys.stdout).emit)
-else:
-    application.setComponent(log.ILogObserver, T2WLogObserver(log.NullFile).emit)
-
 antanistaticmap = {}
 files = FilePath(os.path.join(config.datadir, "static/")).globChildren("*")
 for file in files:
     antanistaticmap[file.basename()] = file.getContent()
-    
 
 templates = {}
 files = FilePath(os.path.join(config.datadir, "templates/")).globChildren("*.tpl")
@@ -1064,6 +1043,11 @@ pool = HTTPConnectionPool(reactor, True,
 
 factory = T2WProxyFactory(os.path.join(config.datadir, 'logs', 'access.log'))
 
+context_factory = T2WSSLContextFactory(os.path.join(config.datadir, "certs/tor2web-key.pem"),
+                                                   os.path.join(config.datadir, "certs/tor2web-intermediate.pem"),
+                                                   os.path.join(config.datadir, "certs/tor2web-dh.pem"),
+                                                   t2w.config.cipher_list)
+
 if config.listen_ipv6 == "::" or config.listen_ipv4 == config.listen_ipv6:
     # fix for incorrect configurations
     ipv4 = None
@@ -1071,14 +1055,41 @@ else:
     ipv4 = config.listen_ipv4
 ipv6 = config.listen_ipv6
 
-for ip in [ipv4, ipv6]:
-    if ip == None:
-        continue
+t2w_daemon = T2WDaemon()
 
-    if config.transport in ('HTTPS', 'BOTH'):
-        service_https = startTor2webHTTPS(t2w, factory, ip)
-        service_https.setServiceParent(application)
+def daemon_init():
+    for ip in [ipv4, ipv6]:
+         if ip == None:
+             continue
+             
+         if config.transport in ('HTTPS', 'BOTH'):
+             service_https = reactor.listenSSL(port=int(t2w.config.listen_port_https),
+                                               factory=factory,
+                                               contextFactory=context_factory,
+                                               interface=ip)
 
-    if config.transport in ('HTTP', 'BOTH'):
-        service_http = startTor2webHTTP(t2w, factory, ip)
-        service_http.setServiceParent(application)
+
+         if config.transport in ('HTTP', 'BOTH'):
+             service_http = reactor.listenTCP(port=int(t2w.config.listen_port_http),
+                                              factory=factory,
+                                              interface=ip)
+
+def daemon_main():
+    if config.debugmode:
+        if config.debugtostdout is True:
+            log.startLogging(sys.stdout)
+        else:
+            log.startLogging(logfile.DailyLogFile.fromFullPath(os.path.join(config.datadir, 'logs', 'debug.log')))
+    else:
+        log.startLogging(log.NullFile)
+
+    reactor.run()
+
+def daemon_reload():
+    t2w.load_lists()
+
+t2w_daemon.daemon_init = daemon_init
+t2w_daemon.daemon_main = daemon_main
+t2w_daemon.daemon_reload = daemon_reload
+
+t2w_daemon.run(config.datadir)
