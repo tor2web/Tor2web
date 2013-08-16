@@ -78,16 +78,16 @@ fi
 
 # Let's try to figure our some sane defaults:
 if [ -r /proc/sys/fs/file-max ]; then
-        system_max=`cat /proc/sys/fs/file-max`
-        if [ "$system_max" -gt "80000" ] ; then
-                MAX_FILEDESCRIPTORS=32768
-        elif [ "$system_max" -gt "40000" ] ; then
-                MAX_FILEDESCRIPTORS=16384
-        elif [ "$system_max" -gt "10000" ] ; then
-                MAX_FILEDESCRIPTORS=8192
-        else
-                MAX_FILEDESCRIPTORS=1024
-                cat << EOF
+    system_max=`cat /proc/sys/fs/file-max`
+    if [ "$system_max" -gt "80000" ] ; then
+        MAX_FILEDESCRIPTORS=32768
+    elif [ "$system_max" -gt "40000" ] ; then
+        MAX_FILEDESCRIPTORS=16384
+    elif [ "$system_max" -gt "10000" ] ; then
+        MAX_FILEDESCRIPTORS=8192
+    else
+        MAX_FILEDESCRIPTORS=1024
+        cat << EOF
 
 Warning: Your system has very few filedescriptors available in total.
 
@@ -128,6 +128,12 @@ do_t2w_stop()
     start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --pidfile ${DAEMON_PIDFILE}
 }
 
+do_t2w_reload()
+{
+    start-stop-daemon --start --quiet --pidfile ${DAEMON_PIDFILE} \
+        --exec $DAEMON -- $DAEMON_ARGS --command=reload    
+}
+
 do_start()
 {
     /etc/init.d/tor start
@@ -140,9 +146,11 @@ do_stop()
     /etc/init.d/tor stop
 }
 
-#
-# Function that restart tor2web
-#
+do_reload()
+{
+    do_t2w_reload
+}
+
 do_restart() {
     do_t2w_stop
     /etc/init.d/tor start
@@ -155,16 +163,16 @@ do_restart() {
 
 case "$1" in
   start)
-  	log_action_begin_msg "Starting Tor2web" "tor2web"
-	[ "$VERBOSE" != no ] && log_daemon_msg "Starting $DESC" "$NAME"
-	do_start
+    log_action_begin_msg "Starting Tor2web" "tor2web"
+    [ "$VERBOSE" != no ] && log_daemon_msg "Starting $DESC" "$NAME"
+    do_start
     log_action_end_msg 0
     exit 0
-	;;
+    ;;
   stop)
-  	log_action_begin_msg "Stopping Tor2web" "tor2web"
-	[ "$VERBOSE" != no ] && log_daemon_msg "Stopping $DESC" "$NAME"
-	do_stop
+    log_action_begin_msg "Stopping Tor2web" "tor2web"
+    [ "$VERBOSE" != no ] && log_daemon_msg "Stopping $DESC" "$NAME"
+    do_stop
     log_action_end_msg 0
     exit 0
     ;;
@@ -186,20 +194,22 @@ case "$1" in
         exit 1
     fi
     ;;
-  restart|force-reload)
-	#
-	# If the "reload" option is implemented then remove the
-	# 'force-reload' alias
-	#
-	log_action_begin_msg "Restarting Tor2web" "tor2web"
-	do_restart
+  reload)
+    log_action_begin_msg "Reloading Tor2web" "tor2web"
+    do_reload
     log_action_end_msg 0
     exit 0
-	;;
+    ;;
+  restart)
+    log_action_begin_msg "Restarting Tor2web" "tor2web"
+    do_restart
+    log_action_end_msg 0
+    exit 0
+    ;;
   *)
-	echo "Usage: $SCRIPTNAME {start|stop|status|restart|force-reload}" >&2
-	exit 3
-	;;
+    echo "Usage: $SCRIPTNAME {start|stop|status|restart|force-reload}" >&2
+    exit 3
+    ;;
 esac
 
 :
