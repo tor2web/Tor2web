@@ -42,18 +42,55 @@ from twisted.internet.task import LoopingCall
 from twisted.internet.defer import Deferred
 from twisted.web.client import HTTPPageGetter, HTTPClientFactory, _URI
 
+import os
+import glob
+from OpenSSL.SSL import Context, TLSv1_METHOD, VERIFY_PEER, VERIFY_FAIL_IF_NO_PEER_CERT, OP_NO_SSLv2
+from OpenSSL.crypto import load_certificate, FILETYPE_PEM
+from twisted.python.urlpath import URLPath
+from twisted.internet.ssl import ContextFactory
+from twisted.internet import reactor
+from twisted.web.client import getPage
 
-class ClientContextFactory(ssl.ClientContextFactory):
+from tor2web.utils.ssl import T2WSSLContextFactory
+
+certificateAuthorityMap = {}
+
+for certFileName in glob.glob("/etc/ssl/certs/*.pem"):
+    # There might be some dead symlinks in there, so let's make sure it's real.
+    if os.path.exists(certFileName):
+        data = open(certFileName).read()
+        x509 = load_certificate(FILETYPE_PEM, data)
+        digest = x509.digest('sha1')
+        # Now, de-duplicate in case the same cert has multiple names.
+        certificateAuthorityMap[digest] = x509
+
+class HTTPSVerifyingContextFactory(T2WSSLContextFactory):
+    def __init__(self, hostname):
+        self.hostname = hostname
+
     def getContext(self):
-        ctx = self._contextFactory(self.method)
-        # Disallow SSLv2! It's insecure!
-        ctx.set_options(SSL.OP_NO_SSLv2)
-        # https://twistedmatrix.com/trac/ticket/5487
-        # SSL_OP_NO_COMPRESSION = 0x00020000L
-        ctx.set_options(0x00020000)
-        # SSL_MODE_RELEASE_BUFFERS = 0x00000010L
-        ctx.set_options(0x00000010L)
+        ctx = T2WSSLContextFactory()
+
+        store = ctx.get_cert_store()
+        for value in certificateAuthorityMap.values():
+            store.add_cert(value)
+        ctx.set_verify(VERIFY_PEER | VERIFY_FAIL_IF_NO_PEER_CERT, self.verifyHostname)
+
         return ctx
+    
+    def verifyHostname(self, connection, x509, errno, depth, preverifyOK):
+        if  depth == 0 and preverifyOK:
+            cn = x509.get_subject().commonName
+
+            if cn.startswith(b"*.") and self.hostname.split(b".")[1:] == cn.split(b".")[1:]:
+                return True
+
+            elif self.hostname == cn:
+                return True
+
+            return False
+
+        return preverifyOK
 
 def getPageCached(url, contextFactory=None, *args, **kwargs):
     """download a web page as a string, keep a cache of already downloaded pages
@@ -73,7 +110,7 @@ def getPageCached(url, contextFactory=None, *args, **kwargs):
 
     if scheme == 'https':
         if contextFactory is None:
-            contextFactory = ClientContextFactory()
+            contextFactory = HTTPSVerifyingContextFactory(host)
         reactor.connectSSL(host, port, factory, contextFactory)
     else:
         reactor.connectTCP(host, port, factory)

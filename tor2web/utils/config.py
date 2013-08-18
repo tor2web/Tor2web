@@ -81,9 +81,9 @@ class Config(Storage):
         self.__dict__['smtpmailto_notifications'] = ''
         self.__dict__['smtpdomain'] = ''
         self.__dict__['smtpport'] = 587
-        self.__dict__['exit_node_list_refresh'] = ''
+        self.__dict__['exit_node_list_refresh'] = 600
         self.__dict__['automatic_blocklist_updates_source'] = ''
-        self.__dict__['automatic_blocklist_updates_refresh'] = ''
+        self.__dict__['automatic_blocklist_updates_refresh'] = 600
         self.__dict__['mirrors'] = ['tor2web.org, tor2web.fi',
                                     'tor2web.blutmagie.de',
                                     'onion.sh',
