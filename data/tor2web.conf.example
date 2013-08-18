@@ -8,9 +8,9 @@ nodename = [UNIQUE_IDENTIFIER]
 datadir = /home/tor2web
 
 # debug and logging
-debugtostdout = False
-debugmode = False
 logreqs = False
+debugmode = False
+debugtostdout = False
 
 # ip addresses and ports
 transport = BOTH
@@ -37,6 +37,7 @@ cipher_list = DHE-RSA-AES256-SHA:DHE-DSS-AES256-SHA:RC4-SHA
 mode = BLACKLIST
 onion = None
 blockcrawl = True
+overriderobotstxt = True
 
 # If set to True will disable the tor2web banner
 disable_banner = False
@@ -53,5 +54,9 @@ smtpport = 587
 # Exit nodes list refresh period (in seconds)
 exit_node_list_refresh = 600
 
+# The following configurations parametes permits to enable automatic fetching of blocklists
+# automatic_blocklist_updates_source = https://ahmia.fi/bannedMD5.txt
+# automatic_blocklist_updates_refresh = 600
+
 # List of mirrors showed in Tor2web banner
-mirror = [tor2web.org, tor2web.fi, tor2web.blutmagie.de, onion.sh]
+mirror = [tor2web.org, tor2web.fi, tor2web.blutmagie.de, onion.sh, onion.to]

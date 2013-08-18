@@ -238,7 +238,7 @@ class List(set):
         pageFetchedDeferred.addCallback(self.processData)
         return pageFetchedDeferred
 
-class torExitNodeList(List):
+class TorExitNodeList(List):
     def handleData(self, data):
         self.clear()
         data = json.loads(data)

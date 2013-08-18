@@ -194,7 +194,7 @@ case "$1" in
         exit 1
     fi
     ;;
-  reload)
+  reload|force-reload)
     log_action_begin_msg "Reloading Tor2web" "tor2web"
     do_reload
     log_action_end_msg 0
@@ -207,7 +207,7 @@ case "$1" in
     exit 0
     ;;
   *)
-    echo "Usage: $SCRIPTNAME {start|stop|status|restart|force-reload}" >&2
+    echo "Usage: $SCRIPTNAME {start|stop|status|restart|reload}" >&2
     exit 3
     ;;
 esac

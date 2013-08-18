@@ -64,7 +64,7 @@ from twisted.python.filepath import FilePath
 
 from tor2web.utils.daemon import T2WDaemon
 from tor2web.utils.config import VERSION, config
-from tor2web.utils.lists import List, torExitNodeList
+from tor2web.utils.lists import List, TorExitNodeList
 from tor2web.utils.mail import sendmail, MailException
 from tor2web.utils.socks import SOCKS5ClientEndpoint, SOCKSError
 from tor2web.utils.ssl import T2WSSLContextFactory
@@ -166,7 +166,9 @@ class Tor2web(object):
             self.accesslist = List(os.path.join(config.datadir, 'lists', 'whitelist.txt'))
         
         elif config.mode == "BLACKLIST":
-            self.accesslist = List(os.path.join(config.datadir, 'lists', 'blocklist_hashed.txt'))
+            self.accesslist = List(os.path.join(config.datadir, 'lists', 'blocklist_hashed.txt'),
+                                   config.automatic_blocklist_updates_source,
+                                   config.automatic_blocklist_updates_refresh)
 
             # clear local cleartext list
             # (load -> hash -> clear feature; for security reasons)
@@ -186,7 +188,7 @@ class Tor2web(object):
                 self.blocked_ua.append(ua.lower())
 
         # Load Exit Nodes list with the refresh rate configured  in config file
-        self.TorExitNodes = torExitNodeList(os.path.join(config.datadir, 'lists', 'exitnodelist.txt'),
+        self.TorExitNodes = TorExitNodeList(os.path.join(config.datadir, 'lists', 'exitnodelist.txt'),
                                             "https://onionoo.torproject.org/summary?type=relay",
                                             config.exit_node_list_refresh)
 
@@ -609,7 +611,7 @@ class T2WRequest(http.Request):
 
         resource_is_local = isIPAddress(request.host) or \
                             isIPv6Address(request.host) or \
-                            request.uri == '/robots.txt' or \
+                            (config.overriderobotstxt and request.uri == '/robots.txt') or \
                             request.uri.startswith('/antanistaticmap/')
 
         if content_length is not None:
@@ -976,6 +978,18 @@ class T2WLogObserver(log.FileLogObserver):
 ###############################################################################
 config.load()
 
+if config.transport is None:
+    config.transport = 'BOTH'
+    
+if config.automatic_blocklist_updates_source is None:
+    config.automatic_blocklist_updates_source = ''
+
+if config.automatic_blocklist_updates_refresh is None:
+    config.automatic_blocklist_updates_refresh = 600
+    
+if config.exit_node_list_refresh is None:
+    config.exit_node_list_refresh = 600
+
 if not os.path.exists(config.datadir):
     print "Tor2web Startup Failure: unexistent directory (%s)" % config.datadir
     exit(1)
@@ -1010,9 +1024,6 @@ for f in files:
     except:
         print "Tor2web Startup Failure: error while accessing file (%s)" % path
         exit(1)
-
-if config.transport is None:
-    config.transport = 'BOTH'
 
 ###############################################################################
 

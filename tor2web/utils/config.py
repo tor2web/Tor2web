@@ -50,6 +50,44 @@ class Config(Storage):
         self._file = cfgfile
         self._section = 'main'
         self._parser = ConfigParser.ConfigParser()
+                
+        self.__dict__['nodename'] = 'tor2web'
+        self.__dict__['datadir'] = '/home/tor2web'
+        self.__dict__['logreqs'] = False
+        self.__dict__['debugmode'] = False
+        self.__dict__['debugtostdout'] = False
+        self.__dict__['transport'] = 'BOTH'
+        self.__dict__['listen_ipv4'] = '127.0.0.1'
+        self.__dict__['listen_ipv6'] = None
+        self.__dict__['listen_port_http'] = 80
+        self.__dict__['listen_port_https'] = 443
+        self.__dict__['basehost'] = 'tor2web.org'
+        self.__dict__['sockshost'] = '127.0.0.1'
+        self.__dict__['socksport'] = 9050
+        self.__dict__['socksoptimistidata'] = True
+        self.__dict__['sockmaxpersistentperhost'] = 5
+        self.__dict__['sockcachedconnectiontimeout'] = 240
+        self.__dict__['sockretryautomatically'] = True
+        self.__dict__['cipher_list'] = 'DHE-RSA-AES256-SHA:DHE-DSS-AES256-SHA:RC4-SHA'
+        self.__dict__['mode'] = 'BLACKLIST'
+        self.__dict__['onion'] = None
+        self.__dict__['blockcrawl'] = True
+        self.__dict__['overriderobotstxt'] = True
+        self.__dict__['disable_banner'] = False
+        self.__dict__['smtp_user'] = ''
+        self.__dict__['smtp_pass'] = ''
+        self.__dict__['smtp_mail'] = ''
+        self.__dict__['smtpmailto_exceptions'] = ''
+        self.__dict__['smtpmailto_notifications'] = ''
+        self.__dict__['smtpdomain'] = ''
+        self.__dict__['smtpport'] = 587
+        self.__dict__['exit_node_list_refresh'] = ''
+        self.__dict__['automatic_blocklist_updates_source'] = ''
+        self.__dict__['automatic_blocklist_updates_refresh'] = ''
+        self.__dict__['mirrors'] = ['tor2web.org, tor2web.fi',
+                                    'tor2web.blutmagie.de',
+                                    'onion.sh',
+                                    'onion.to']
 
     def load(self):
         try:
@@ -63,12 +101,15 @@ class Config(Storage):
             exit(1)
 
         try:
+            
             self._parser.read([self._file])
 
             for name in self._parser.options(self._section):
                 value = self._parser.get(self._section, name)
                 self.__dict__[name] = self.parse(name)
-        except:
+
+        except Exception as e:
+            print e
             raise Exception("Tor2web Error: invalid config file (%s)" % self._file)
 
     def store(self):
