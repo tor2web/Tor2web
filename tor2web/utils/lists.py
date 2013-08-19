@@ -51,8 +51,6 @@ from twisted.internet.ssl import ContextFactory
 from twisted.internet import reactor
 from twisted.web.client import getPage
 
-from tor2web.utils.ssl import T2WSSLContextFactory
-
 certificateAuthorityMap = {}
 
 for certFileName in glob.glob("/etc/ssl/certs/*.pem"):
@@ -64,19 +62,30 @@ for certFileName in glob.glob("/etc/ssl/certs/*.pem"):
         # Now, de-duplicate in case the same cert has multiple names.
         certificateAuthorityMap[digest] = x509
 
-class HTTPSVerifyingContextFactory(T2WSSLContextFactory):
+class HTTPSVerifyingContextFactory(ssl.ClientContextFactory):
     def __init__(self, hostname):
         self.hostname = hostname
 
     def getContext(self):
-        ctx = T2WSSLContextFactory()
+        ctx = self._contextFactory(self.method)
+        # Disallow SSLv2! It's insecure!
+        ctx.set_options(SSL.OP_NO_SSLv2)
+        # https://twistedmatrix.com/trac/ticket/5487
+        # SSL_OP_NO_COMPRESSION = 0x00020000L
+        ctx.set_options(0x00020000)
+        # SSL_MODE_RELEASE_BUFFERS = 0x00000010L
+        ctx.set_options(0x00000010L)
+        ctx.set_options(SSL.OP_EPHEMERAL_RSA)
+        ctx.set_options(SSL.OP_SINGLE_DH_USE)
 
         store = ctx.get_cert_store()
         for value in certificateAuthorityMap.values():
             store.add_cert(value)
         ctx.set_verify(VERIFY_PEER | VERIFY_FAIL_IF_NO_PEER_CERT, self.verifyHostname)
-
         return ctx
+
+    def allButFirst(domain):
+        return domain.split(b".")[1:]
     
     def verifyHostname(self, connection, x509, errno, depth, preverifyOK):
         if  depth == 0 and preverifyOK:

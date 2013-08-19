@@ -14,8 +14,8 @@ T2W_GIT_REPO="https://github.com/globaleaks/Tor2web-3.0.git"
 REPO_DIR='/data/deb'
 WEB_DIR='/data/website/builds'
 
-if test ${GLOBALEAKS_BUILD_ENV}; then
-  BUILD_DIR=${GLOBALEAKS_BUILD_ENV}
+if test ${T2W_BUILD_ENV}; then
+  BUILD_DIR=${T2W_BUILD_ENV}
   mkdir -p ${BUILD_DIR}
 else
   BUILD_DIR=$( readlink -m ${DIR}/../../)
@@ -23,10 +23,10 @@ fi
 
 cd ${BUILD_DIR}
 
-T2W_DIR=$( readlink -m ${BUILD_DIR}/Tor2web-3.0)
+T2W_DIR=$(readlink -m ${BUILD_DIR}/Tor2web-3.0)
 T2W_TMP=${T2W_DIR}_tmp
-T2W_BUILD=$( readlink -m ${T2W_TMP}/tor2web_build)
+T2W_BUILD=$(readlink -m ${T2W_TMP}/tor2web_build)
 
 echo "Running command ${SCRIPTNAME} $*"
 echo "Build directory used: ${BUILD_DIR}"
-echo "To override this do: 'GLOBALEAKS_BUILD_ENV=/what/you/want && export GLOBALEAKS_BUILD_ENV'"
+echo "To override this do: 'T2W_BUILD_ENV=/what/you/want && export T2W_BUILD_ENV'"
