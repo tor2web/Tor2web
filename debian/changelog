@@ -1,3 +1,9 @@
+tor2web (3.0.23-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.23 Addeed Remote Blacklist fetching
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 19 Aug 2013 02:41:42 +0002
+
 tor2web (3.0.22-2) unstable; urgency=low
 
   * Tor2web 3.0 - 3.0.22 Addeed Remote Blacklist fetching
