@@ -1003,7 +1003,7 @@ if config.mode == "TRANSLATION":
         print "Tor2web Startup Failure: TRANSLATION config.mode require config.onion configuration"
         exit(1)        
     
-for d in [ 'certs',  'lists', 'logs',  'static', 'templates']:
+for d in [ 'certs',  'lists', 'logs']:
     path = os.path.join(config.datadir, d)
     if not os.path.exists(path):
         print "Tor2web Startup Failure: unexistent directory (%s)" % path
