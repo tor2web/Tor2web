@@ -6,12 +6,11 @@ fi
 
 if [ ! -d /home/tor2web ]; then
   mkdir -p /home/tor2web
+  mkdir -p /home/tor2web/certs
+  mkdir -p /home/tor2web/logs
+  touch /home/tor2web/logs/debug.log
+  touch /home/tor2web/logs/access.log 
+  chown tor2web:tor2web /home/tor2web -R
 fi
-
-cp /opt/tor2web/* /home/tor2web -rf
-
-touch /home/tor2web/logs/debug.log /home/tor2web/logs/access.log 
-
-chown tor2web:tor2web /home/tor2web -R
 
 #DEBHELPER#

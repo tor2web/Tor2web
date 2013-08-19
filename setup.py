@@ -21,18 +21,13 @@ def get_requires():
         return requires
 
 data_files = [
-
-    ('/opt/tor2web/certs', [
-    ]),
     ('/etc', [
     os.path.join('data', 'tor2web.conf.example'),
     ]),
-    ('/opt/tor2web/lists', [
+    ('/usr/share/tor2web/lists', [
     os.path.join('data', 'lists', 'blocked_ua.txt'),
     ]),
-    ('/opt/tor2web/logs', [
-    ]),
-    ('/opt/tor2web/static', [
+    ('/usr/share/tor2web/static', [
     os.path.join('data', 'static', 'robots.txt'),
     os.path.join('data', 'static', 'index.html'),
     os.path.join('data', 'static', 'tor2web.css'),
@@ -42,7 +37,7 @@ data_files = [
     os.path.join('data', 'static', 'tor2web-small.png'),
     os.path.join('data', 'static', 'tos.html'),
     ]),
-    ('/opt/tor2web/templates', [
+    ('/usr/share/tor2web/templates', [
     os.path.join('data', 'templates', 'banner.tpl'),
     os.path.join('data', 'templates', 'error_blocked_ua.tpl'),
     os.path.join('data', 'templates', 'error_generic.tpl'),

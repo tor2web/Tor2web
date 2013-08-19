@@ -1037,15 +1037,33 @@ rexp = {
     't2w': re.compile(r'(http:)?//([a-z0-9]{16}).onion(:80)?', re.I)
 }
 
+###############################################################################
+# Templates loading
+###############################################################################
 antanistaticmap = {}
-files = FilePath(os.path.join(config.datadir, "static/")).globChildren("*")
+staticdir = "/usr/share/tor2web/static/"
+if os.path.exists(os.path.join(config.datadir, "static/")):
+    staticdir = os.path.join(config.datadir, "static/")
+
+files = FilePath(staticdir).globChildren("*")
 for file in files:
     antanistaticmap[file.basename()] = file.getContent()
+###############################################################################
 
+
+###############################################################################
+# Templates loading
+###############################################################################
 templates = {}
-files = FilePath(os.path.join(config.datadir, "templates/")).globChildren("*.tpl")
+templatesdir = "/usr/share/tor2web/templates/"
+if os.path.exists(os.path.join(config.datadir, "templates/")):
+    templatesdir = os.path.join(config.datadir, "templates/")
+
+files = FilePath(templatesdir).globChildren("*.tpl")
 for file in files:
     templates[file.basename()] = PageTemplate(XMLString(file.getContent()))
+###############################################################################
+
 
 pool = HTTPConnectionPool(reactor, True,
                           config.sockmaxpersistentperhost,
