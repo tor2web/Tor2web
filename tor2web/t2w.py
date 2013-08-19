@@ -100,6 +100,18 @@ def re_sub(pattern, replacement, string):
         return re._expand(pattern, _m(m), replacement)
     
     return re.sub(pattern, _r, string)
+    
+def t2w_file_path(path):
+    """
+    Returns the path of a tor2web file.
+    It could be:
+       - a default file, loaded from /usr/share/tor2web + path
+       - an overridden file present in config.datadir + path
+    """
+    if os.path.exists(os.path.join(config.datadir, path)):
+        return os.path.join(config.datadir, path)
+    else:
+        return os.path.join("/usr/share/tor2web", path)
 
 def verify_onion(address):
     """
@@ -163,16 +175,16 @@ class Tor2web(object):
             pass
 
         elif config.mode == "WHITELIST":
-            self.accesslist = List(os.path.join(config.datadir, 'lists', 'whitelist.txt'))
+            self.accesslist = List(t2w_file_path('lists/whitelist.txt'))
         
         elif config.mode == "BLACKLIST":
-            self.accesslist = List(os.path.join(config.datadir, 'lists', 'blocklist_hashed.txt'),
+            self.accesslist = List(t2w_file_path('lists/blocklist_hashed.txt'),
                                    config.automatic_blocklist_updates_source,
                                    config.automatic_blocklist_updates_refresh)
 
             # clear local cleartext list
             # (load -> hash -> clear feature; for security reasons)
-            self.blocklist_cleartext = List(os.path.join(config.datadir, 'lists', 'blocklist_cleartext.txt'))
+            self.blocklist_cleartext = List(t2w_file_path('lists/blocklist_cleartext.txt'))
             for i in self.blocklist_cleartext:
                 self.accesslist.add(hashlib.md5(i).hexdigest())
 
@@ -183,7 +195,7 @@ class Tor2web(object):
 
         self.blocked_ua = []
         if config.blockcrawl:
-            tmp = List(os.path.join(config.datadir, 'lists', 'blocked_ua.txt'))
+            tmp = List(t2w_file_path('lists/blocked_ua.txt'))
             for ua in tmp:
                 self.blocked_ua.append(ua.lower())
 
@@ -1003,7 +1015,7 @@ if config.mode == "TRANSLATION":
         print "Tor2web Startup Failure: TRANSLATION config.mode require config.onion configuration"
         exit(1)        
     
-for d in [ 'certs',  'lists', 'logs']:
+for d in [ 'certs',  'logs']:
     path = os.path.join(config.datadir, d)
     if not os.path.exists(path):
         print "Tor2web Startup Failure: unexistent directory (%s)" % path
@@ -1027,8 +1039,6 @@ for f in files:
 
 ###############################################################################
 
-sys.excepthook = MailException
-
 t2w = Tor2web(config)
 
 rexp = {
@@ -1041,26 +1051,29 @@ rexp = {
 # Templates loading
 ###############################################################################
 antanistaticmap = {}
-staticdir = "/usr/share/tor2web/static/"
-if os.path.exists(os.path.join(config.datadir, "static/")):
-    staticdir = os.path.join(config.datadir, "static/")
 
-files = FilePath(staticdir).globChildren("*")
+files = FilePath('/usr/share/tor2web/static/').globChildren("*")
 for file in files:
+    file = FilePath(t2w_file_path(os.path.join('static', file.basename())))
     antanistaticmap[file.basename()] = file.getContent()
-###############################################################################
+    
+# we add additional files eventually written in datadir/static
+# and not already loaded by previos lines.
+if os.path.exists(os.path.join(config.datadir, "static/")):
+    for file in files:
+        if file.basename() not in antanistaticmap:
+            antanistaticmap[file.basename()] = file.getContent()
 
+###############################################################################
 
 ###############################################################################
 # Templates loading
 ###############################################################################
 templates = {}
-templatesdir = "/usr/share/tor2web/templates/"
-if os.path.exists(os.path.join(config.datadir, "templates/")):
-    templatesdir = os.path.join(config.datadir, "templates/")
 
-files = FilePath(templatesdir).globChildren("*.tpl")
+files = FilePath('/usr/share/tor2web/templates/').globChildren("*.tpl")
 for file in files:
+    file = FilePath(t2w_file_path(os.path.join('templates', file.basename())))
     templates[file.basename()] = PageTemplate(XMLString(file.getContent()))
 ###############################################################################
 
@@ -1122,3 +1135,5 @@ t2w_daemon.daemon_main = daemon_main
 t2w_daemon.daemon_reload = daemon_reload
 
 t2w_daemon.run(config.datadir)
+
+sys.excepthook = MailException
