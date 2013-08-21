@@ -36,6 +36,7 @@ data_files = [
     os.path.join('data', 'static', 'tor2web-big.png'),
     os.path.join('data', 'static', 'tor2web-small.png'),
     os.path.join('data', 'static', 'tos.html'),
+    os.path.join('data', 'static', 'decoy.html'),
     ]),
     ('/usr/share/tor2web/templates', [
     os.path.join('data', 'templates', 'banner.tpl'),
