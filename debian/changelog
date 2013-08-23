@@ -1,3 +1,9 @@
+tor2web (3.0.26-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.26 Multiprocess server implemented
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Wed, 23 Aug 2013 16:21:42 +0002
+
 tor2web (3.0.25-2) unstable; urgency=low
 
   * Tor2web 3.0 - 3.0.25 Minor Fixes
