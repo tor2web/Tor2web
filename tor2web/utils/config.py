@@ -56,6 +56,7 @@ class Config(Storage):
         self.__dict__['logreqs'] = False
         self.__dict__['debugmode'] = False
         self.__dict__['debugtostdout'] = False
+        self.__dict__['processes'] = 1
         self.__dict__['transport'] = 'BOTH'
         self.__dict__['listen_ipv4'] = '127.0.0.1'
         self.__dict__['listen_ipv6'] = None

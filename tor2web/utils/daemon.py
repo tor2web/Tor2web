@@ -71,12 +71,6 @@ class T2WDaemon:
             uid = pwd.getpwnam(self.options.uid).pw_uid
             gid = grp.getgrnam(self.options.gid).gr_gid
 
-            open(os.path.join(self.options.rundir, 'logs', 'debug.log'), 'a').close()
-            os.chown(os.path.join(self.options.rundir, 'logs', 'debug.log'), uid, gid);
-
-            open(os.path.join(self.options.rundir, 'logs', 'access.log'), 'a').close()
-            os.chown(os.path.join(self.options.rundir,'logs', 'access.log'), uid, gid);
-
         os.umask(0)
         if os.fork() != 0:  # fork again so we are not a session leader
             os._exit(0)
@@ -89,7 +83,8 @@ class T2WDaemon:
         sys.stderr = sys.__stderr__ = _NullDevice()
 
     def daemon_start(self):
-        self.daemon_init()
+        self.daemon_init(self) # self must be explicit passed
+                               # as the function is user defined
 
         if not self.options.nodaemon:
             self.become_daemon()
@@ -104,11 +99,13 @@ class T2WDaemon:
             self.change_uid()
 
         def _daemon_reload(SIG, FRM):
-            self.daemon_reload()
+            self.daemon_reload() # self must be explicit passed
+                                 # as the function is user defined
 
         signal(SIGHUP, _daemon_reload)
 
-        self.daemon_main()
+        self.daemon_main(self) # self must be explicit passed
+                               # as the function is user defined
 
     def daemon_stop(self):
         pid = self.get_pid()

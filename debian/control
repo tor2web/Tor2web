@@ -9,6 +9,6 @@ Standards-Version: 3.9.1
 Package: tor2web
 Architecture: all
 X-Python-Version: 2.7
-Depends: ${misc:Depends}, python (>= 2.7), tor
+Depends: ${misc:Depends}, python (>= 2.7), python-prctl
 Description: Tor2web is a project to let Internet users access anonymous servers based on Tor Hidden Services.
 Provides: ${python:Provides}

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#! /usr/bin/python
 # -*- encoding: utf-8 -*-
 
 import tor2web
@@ -7,10 +7,12 @@ import os
 import sys
 from subprocess import call
 
-t2w = os.path.abspath(os.path.join(os.path.dirname(tor2web.__file__), 't2w.py'))
+t2w_worker = os.path.abspath(os.path.join(os.path.dirname(tor2web.__file__), 't2w-worker.py'))
 
-args = ["python", t2w]
+args = ["python", t2w_worker]
 args += sys.argv[1:]
+
+#print len(args)
 
 try:
     exit(call(args))

@@ -58,7 +58,7 @@ setup(
     author_email = "info@globaleaks.org",
     url="https://tor2web.org/",
     packages=["tor2web", "tor2web.utils"],
-    scripts=["bin/tor2web"],
+    scripts=["bin/tor2web", "bin/tor2web-worker"],
     data_files=data_files,
     install_requires=get_requires()
 )

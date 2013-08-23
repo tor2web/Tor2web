@@ -12,6 +12,10 @@ logreqs = False
 debugmode = False
 debugtostdout = False
 
+# processes (suggested number of cores + 1)
+processes = 1
+requests_per_process = 500
+
 # ip addresses and ports
 transport = BOTH
 listen_ipv4 = [LISTENING_IPV4_ADDRESS]

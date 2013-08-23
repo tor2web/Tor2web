@@ -102,6 +102,4 @@ def MailException(etype, value, tb):
     info_string = ''.join(tmp)
     message = StringIO(info_string)
 
-    print message.read()
-
     sendmail(config.smtpuser, config.smtppass, config.smtpmail, config.smtpmailto_exceptions, message, config.smtpdomain, config.smtpport)
