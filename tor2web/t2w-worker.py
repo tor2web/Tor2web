@@ -978,22 +978,25 @@ def start():
     else:
         log.startLogging(log.NullFile)
 
-    socket_https = int(args[0])
-    socket_http = int(args[1])
+    fds_https = filter(None, args[0].split(","))
+    fds_https = [int(i) for i in fds_https]
+
+    fds_http = filter(None, args[1].split(","))
+    fds_http = [int(i) for i in fds_http]
 
     reactor.listenTCPonExistingFD = listenTCPonExistingFD
     reactor.listenSSLonExistingFD = listenSSLonExistingFD
 
-    if socket_https != -1:
-        service_https = reactor.listenSSLonExistingFD(reactor,
-                                                      fd=socket_https,
-                                                      factory=factory,
-                                                      contextFactory=context_factory)
+    for fd in fds_https:
+        reactor.listenSSLonExistingFD(reactor,
+                                      fd=fd,
+                                      factory=factory,
+                                      contextFactory=context_factory)
 
-    if socket_http != -1:
-        service_http = reactor.listenTCPonExistingFD(reactor,
-                                                     fd=socket_http,
-                                                     factory=factory)
+    for fd in fds_http:
+        reactor.listenTCPonExistingFD(reactor,
+                                      fd=fd,
+                                      factory=factory)
 
 sys.excepthook = MailException
 

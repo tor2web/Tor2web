@@ -140,31 +140,41 @@ class T2WRPCServer(pb.Root):
         self.logfile_debug.write(str(line))
         self.logfile_debug.write("\n")
  
-def spawnT2W(fd_https, fd_http):
+def spawnT2W(sockets_https, sockets_http):
     childFDs = {}
     childFDs[0] = 0
     childFDs[1] = 1
     childFDs[2] = 2
 
-    if fd_https != -1:
-        childFDs[fd_https] = fd_https
+    fds_https = ''
+    fds_http = ''
 
-    if fd_http != -1:            
-        childFDs[fd_http] = fd_http
+    for i in range(len(sockets_https)):
+        if i != 0:
+            fds_https += ','
+        childFDs[sockets_https[i].fileno()] = sockets_https[i].fileno()
+        fds_https += str(sockets_https[i].fileno())
+        
+    for i in range(len(sockets_http)):
+        if i != 0:
+            fds_http += ','
 
-    subprocess = reactor.spawnProcess(T2WPP(fd_https, fd_http),
+        childFDs[sockets_http[i].fileno()] = sockets_http[i].fileno()            
+        fds_http += str(sockets_http[i].fileno())
+
+    subprocess = reactor.spawnProcess(T2WPP(sockets_https, sockets_http),
                                       "tor2web-worker",
                                       ["tor2web-worker",
-                                       str(fd_https),
-                                       str(fd_http)],
+                                       fds_https,
+                                       fds_http],
                                       childFDs=childFDs)
     return subprocess
 
 
 class T2WPP(protocol.ProcessProtocol):
-    def __init__(self, fd_https, fd_http):
-        self.fd_https = fd_https
-        self.fd_http = fd_http
+    def __init__(self, sockets_https, sockets_http):
+        self.sockets_https = sockets_https
+        self.sockets_http = sockets_http
 
     def connectionMade(self):
         self.pid = self.transport.pid
@@ -176,7 +186,7 @@ class T2WPP(protocol.ProcessProtocol):
                 break
 
         if not quitting:
-            subprocess = spawnT2W(self.fd_https, self.fd_http)
+            subprocess = spawnT2W(self.sockets_https, self.sockets_http)
             subprocesses.append(subprocess.pid)
 
         if len(subprocesses) == 0:
@@ -255,26 +265,27 @@ def SigTERM(SIG, FRM):
 signal.signal(signal.SIGTERM, SigTERM)
 signal.signal(signal.SIGINT, SigTERM)
 
-def open_listenin_socket(port):
+def open_listenin_socket(ip, port):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     s.setblocking(False)
-    s.bind(("127.0.0.1", port))
+    s.bind((ip, port))
     s.listen(socket.SOMAXCONN)
     return s
 
 def daemon_init(self):
-    self.socket_rpc = open_listenin_socket(8789)
+    self.socket_rpc = open_listenin_socket('127.0.0.1', 8789)
 
-    if config.transport in ('HTTPS', 'BOTH'):
-        self.socket_https = open_listenin_socket(443)
-    else:
-        self.socket_https = None
+    self.sockets_https = []
+    self.sockets_http = []
 
-    if config.transport in ('HTTP', 'BOTH'):
-        self.socket_http = open_listenin_socket(80)
-    else:
-        self.socket_http = None
+    for ip in [ipv4, ipv6]:
+        if ip != None:
+            if config.transport in ('HTTPS', 'BOTH'):
+                self.sockets_https.append(open_listenin_socket(ip, 443))
+
+            if config.transport in ('HTTP', 'BOTH'):
+                self.sockets_http.append(open_listenin_socket(ip, 80))
 
 def daemon_main(self):
 
@@ -283,7 +294,7 @@ def daemon_main(self):
     reactor.listenTCPonExistingFD(reactor, fd=self.socket_rpc.fileno(), factory=pb.PBServerFactory(rpc_server))
 
     for i in range(config.processes):
-        subprocess = spawnT2W(self.socket_https.fileno(), self.socket_http.fileno())
+        subprocess = spawnT2W(self.sockets_https, self.sockets_http)
         subprocesses.append(subprocess.pid)
 
     if config.debugmode:
@@ -304,7 +315,7 @@ t2w_daemon.daemon_init = daemon_init
 t2w_daemon.daemon_main = daemon_main
 t2w_daemon.daemon_reload = daemon_reload
 
-sys.excepthook = MailException
+#sys.excepthook = MailException
 
 t2w_daemon.run(config.datadir)
 
