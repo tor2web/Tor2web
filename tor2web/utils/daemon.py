@@ -37,7 +37,7 @@ import os
 import sys
 import time
 
-from signal import signal, SIGINT, SIGHUP
+import signal
 import pwd, grp
 
 class T2WDaemonException:
@@ -102,7 +102,13 @@ class T2WDaemon:
             self.daemon_reload() # self must be explicit passed
                                  # as the function is user defined
 
-        signal(SIGHUP, _daemon_reload)
+        def _daemon_shutdown(SIG, FRM):
+            self.daemon_shutdown(self) # self must be explicit passed
+                                       # as the function is user defined
+
+        signal.signal(signal.SIGHUP, _daemon_reload)
+        signal.signal(signal.SIGTERM, _daemon_shutdown)
+        signal.signal(signal.SIGINT, _daemon_shutdown)
 
         self.daemon_main(self) # self must be explicit passed
                                # as the function is user defined
@@ -111,7 +117,7 @@ class T2WDaemon:
         pid = self.get_pid()
         
         try:
-            os.kill(pid, SIGINT)  # SIGTERM is too harsh...
+            os.kill(pid, signal.SIGINT)  # SIGTERM is too harsh...
         except:
             pass
 

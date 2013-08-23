@@ -609,10 +609,14 @@ class T2WRequest(http.Request):
                         tmp.append("URL: %s\n" % (args['url'][0]))
                         tmp.append("COMMENT: %s\n" % (args['comment'][0]))
                         message = StringIO(''.join(tmp))
+
                         try:
                             sendmail(config['smtpuser'], config['smtppass'], config['smtpmail'], config['smtpmailto_notifications'], message, config['smtpdomain'], config['smtpport'])
                         except:
                             pass
+
+                        defer.returnValue(self.contentFinish(''))
+
                 else:
                     if type(antanistaticmap[staticpath]) == str:
                         filename, ext = os.path.splitext(staticpath)
@@ -998,7 +1002,7 @@ def start():
                                       fd=fd,
                                       factory=factory)
 
-sys.excepthook = MailException
+#sys.excepthook = MailException
 
 def SigQUIT(SIG, FRM):
     reactor.stop()
