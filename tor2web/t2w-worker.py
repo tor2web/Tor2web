@@ -571,7 +571,7 @@ class T2WRequest(http.Request):
                     return
                 
                 elif staticpath == "stats/yesterday":
-                    content = rpc("get_yesterday_stats")
+                    content = yield rpc("get_yesterday_stats")
                     defer.returnValue(self.contentFinish(content))
                     return
 

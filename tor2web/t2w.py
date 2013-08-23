@@ -131,7 +131,7 @@ class T2WRPCServer(pb.Root):
         self.stats.update(onion)
 
     def remote_get_yesterday_stats(self):
-        return self.yesterday_stats
+        return self.stats.yesterday_stats
 
     def remote_log_access(self, line):
         self.logfile_access.write(line)
