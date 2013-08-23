@@ -4,8 +4,13 @@
 import tor2web
 
 import os
+import prctl
+import signal
 import sys
 from subprocess import call
+
+prctl.set_pdeathsig(signal.SIGINT)
+prctl.set_proctitle("tor2web-worker")
 
 t2w_worker = os.path.abspath(os.path.join(os.path.dirname(tor2web.__file__), 't2w-worker.py'))
 

@@ -308,14 +308,14 @@ def daemon_main(self):
 def daemon_reload(self):
     rpc_server.load_lists()
 
-prctl.set_proctitle("tor2web")
+#prctl.set_proctitle("tor2web")
 
 t2w_daemon = T2WDaemon()
 t2w_daemon.daemon_init = daemon_init
 t2w_daemon.daemon_main = daemon_main
 t2w_daemon.daemon_reload = daemon_reload
 
-#sys.excepthook = MailException
+sys.excepthook = MailException
 
 t2w_daemon.run(config.datadir)
 

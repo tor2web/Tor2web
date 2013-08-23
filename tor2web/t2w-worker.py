@@ -1004,6 +1004,8 @@ def SigQUIT(SIG, FRM):
     reactor.stop()
 
 signal.signal(signal.SIGUSR1, SigQUIT)
+signal.signal(signal.SIGTERM, SigQUIT)
+signal.signal(signal.SIGINT, SigQUIT)
 
 prctl.set_pdeathsig(signal.SIGINT)
 prctl.set_proctitle("tor2web-worker")
