@@ -14,7 +14,7 @@ debugtostdout = False
 
 # processes (suggested number of cores + 1)
 processes = 1
-requests_per_process = 500
+requests_per_process = 200
 
 # ip addresses and ports
 transport = BOTH
