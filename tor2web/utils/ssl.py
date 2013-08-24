@@ -36,16 +36,9 @@ from OpenSSL import SSL
 from twisted.internet.ssl import ContextFactory
 from twisted.protocols import tls
 
-class TLSMemoryBIOProtocolLessLeaky(tls.TLSMemoryBIOProtocol):
-    def connectionLost(self, reason):
-        super(tls.TLSMemoryBIOProtocol).connectionLost(reason)
-        del self._tlsConnection
-
-tls.TLSMemoryBIOProtocol = TLSMemoryBIOProtocolLessLeaky
-
 class T2WSSLContextFactory(ContextFactory):
-    """
-    """
+    _context = None
+
     def __init__(self, privateKeyFileName, certificateChainFileName, dhFileName, cipherList):
         """
         @param privateKeyFileName: Name of a file containing a private key
@@ -62,27 +55,23 @@ class T2WSSLContextFactory(ContextFactory):
         # Create a context object right now.  This is to force validation of
         # the given parameters so that errors are detected earlier rather
         # than later.
-        self.getContext()
+        self.cacheContext()
+
+    def cacheContext(self):
+        if self._context is None:
+            ctx = SSL.Context(self.sslmethod)
+            # Disallow SSLv2! It's insecure!
+            ctx.set_options(SSL.OP_NO_SSLv2)
+            ctx.set_options(SSL.OP_EPHEMERAL_RSA)
+            ctx.set_options(SSL.OP_SINGLE_DH_USE)
+            ctx.use_certificate_chain_file(self.certificateChainFileName)
+            ctx.use_privatekey_file(self.privateKeyFileName)
+            ctx.set_cipher_list(self.cipherList)
+            ctx.load_tmp_dh(self.dhFileName)
+            self._context = ctx
 
     def getContext(self):
         """
-        We avoid context reuse and we force some additional security
-        on Twisted default context factory.
+        Return an SSL context.
         """
-        ctx = SSL.Context(self.sslmethod)
-        # Disallow SSLv2! It's insecure!
-        ctx.set_options(SSL.OP_NO_SSLv2)
-        ctx.set_options(SSL.OP_EPHEMERAL_RSA)
-        ctx.set_options(SSL.OP_SINGLE_DH_USE)
-        # https://twistedmatrix.com/trac/ticket/5487
-        # SSL_OP_NO_COMPRESSION = 0x00020000L
-        ctx.set_options(0x00020000)
-        # SSL_MODE_RELEASE_BUFFERS = 0x00000010L
-        ctx.set_options(0x00000010L)
-        ctx.set_timeout(0)
-        ctx.use_certificate_chain_file(self.certificateChainFileName)
-        ctx.use_privatekey_file(self.privateKeyFileName)
-        ctx.set_cipher_list(self.cipherList)
-        ctx.load_tmp_dh(self.dhFileName)
-
-        return ctx
+        return self._context

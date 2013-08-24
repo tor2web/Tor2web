@@ -22,7 +22,7 @@
 =====================================================
 
 .. automodule:: Tor2Web
-   :synopsis: [GLOBALEAKS_MODULE_DESCRIPTION]
+   :synopsis: Main Tor2web Server Implementation
 
 .. moduleauthor:: Arturo Filasto' <art@globaleaks.org>
 .. moduleauthor:: Giovanni Pellerano <evilaliv3@globaleaks.org>
@@ -261,6 +261,7 @@ subprocesses = []
 
 def open_listenin_socket(ip, port):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     s.setblocking(False)
     s.bind((ip, port))
     s.listen(socket.SOMAXCONN)
@@ -305,14 +306,6 @@ def daemon_shutdown(self):
     global quitting
     quitting = True
 
-    self.socket_rpc.close()
-
-    for s in self.sockets_https:
-        s.close()
-
-    for s in self.sockets_http:
-        s.close()
-
 prctl.set_proctitle("tor2web")
 
 t2w_daemon = T2WDaemon()
@@ -322,7 +315,7 @@ t2w_daemon.daemon_main = daemon_main
 t2w_daemon.daemon_reload = daemon_reload
 t2w_daemon.daemon_shutdown = daemon_shutdown
 
-#sys.excepthook = MailException
+sys.excepthook = MailException
 
 t2w_daemon.run(config.datadir)
 

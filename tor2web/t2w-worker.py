@@ -22,7 +22,7 @@
 =====================================================
 
 .. automodule:: Tor2Web
-   :synopsis: [GLOBALEAKS_MODULE_DESCRIPTION]
+   :synopsis: Implementation of the Tor2web Worker
 
 .. moduleauthor:: Arturo Filasto' <art@globaleaks.org>
 .. moduleauthor:: Giovanni Pellerano <evilaliv3@globaleaks.org>
@@ -806,7 +806,6 @@ class T2WRequest(http.Request):
         except:
             pass
 
-
         global requests_countdown
         requests_countdown -= 1        
 
@@ -900,9 +899,7 @@ class T2WProxyFactory(http.HTTPFactory):
 
 @defer.inlineCallbacks
 def rpc(f, *args, **kwargs):
-    factory = pb.PBClientFactory()
-    reactor.connectTCP("127.0.0.1",  8789, factory)
-    d = factory.getRootObject()
+    d = rpc_factory.getRootObject()
     d.addCallback(lambda object: object.callRemote(f,  *args, **kwargs))
     ret = yield d
     defer.returnValue(ret)
@@ -910,10 +907,6 @@ def rpc(f, *args, **kwargs):
 def t2w_log(msg):
     rpc("log_debug", msg)
     print msg
-
-args = sys.argv[1:]
-if len(sys.argv[1:]) != 2:
-    exit(1)
 
 @defer.inlineCallbacks
 def start():
@@ -923,6 +916,8 @@ def start():
     global requests_countdown
     global pool
     global rexp
+    global fds_https
+    global fds_http
 
     config = yield rpc("get_config")
 
@@ -1002,10 +997,18 @@ def start():
                                       fd=fd,
                                       factory=factory)
 
-#sys.excepthook = MailException
-
 def SigQUIT(SIG, FRM):
     reactor.stop()
+
+args = sys.argv[1:]
+if len(sys.argv[1:]) != 2:
+    exit(1)
+
+fds_https = []
+fds_http = []
+
+rpc_factory = pb.PBClientFactory()
+reactor.connectTCP("127.0.0.1",  8789, rpc_factory)
 
 signal.signal(signal.SIGUSR1, SigQUIT)
 signal.signal(signal.SIGTERM, SigQUIT)
@@ -1015,6 +1018,8 @@ prctl.set_pdeathsig(signal.SIGINT)
 prctl.set_proctitle("tor2web-worker")
 
 start()
+
+sys.excepthook = MailException
 
 reactor.run()
 

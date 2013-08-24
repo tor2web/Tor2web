@@ -71,10 +71,6 @@ class HTTPSVerifyingContextFactory(ssl.ClientContextFactory):
         # Disallow SSLv2! It's insecure!
         ctx.set_options(SSL.OP_NO_SSLv2)
         # https://twistedmatrix.com/trac/ticket/5487
-        # SSL_OP_NO_COMPRESSION = 0x00020000L
-        ctx.set_options(0x00020000)
-        # SSL_MODE_RELEASE_BUFFERS = 0x00000010L
-        ctx.set_options(0x00000010L)
         ctx.set_options(SSL.OP_EPHEMERAL_RSA)
         ctx.set_options(SSL.OP_SINGLE_DH_USE)
 
