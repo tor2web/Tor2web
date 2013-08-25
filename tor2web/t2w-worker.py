@@ -913,15 +913,14 @@ def start():
     global config
     global antanistaticmap
     global templates
-    global requests_countdown
     global pool
     global rexp
     global fds_https
     global fds_http
+    global ports
+    global requests_countdown
 
     config = yield rpc("get_config")
-
-    requests_countdown = config['requests_per_process']
 
     rexp = {
         'body': re.compile(r'(<body.*?\s*>)', re.I),
@@ -964,7 +963,8 @@ def start():
                               config['sockcachedconnectiontimeout'],
                               config['sockretryautomatically'])
 
-    factory = T2WProxyFactory("antani.log, logfile are based on rpc")
+    factory = T2WProxyFactory()
+    factory.requestCountdown = config['requests_per_process']
 
     context_factory = T2WSSLContextFactory(os.path.join(config['datadir'], "certs/tor2web-key.pem"),
                                                        os.path.join(config['datadir'], "certs/tor2web-intermediate.pem"),
@@ -987,15 +987,21 @@ def start():
     reactor.listenSSLonExistingFD = listenSSLonExistingFD
 
     for fd in fds_https:
-        reactor.listenSSLonExistingFD(reactor,
-                                      fd=fd,
-                                      factory=factory,
-                                      contextFactory=context_factory)
+        ports.append(reactor.listenSSLonExistingFD(reactor,
+                                                   fd=fd,
+                                                   factory=factory,
+                                                   contextFactory=context_factory))
 
     for fd in fds_http:
-        reactor.listenTCPonExistingFD(reactor,
-                                      fd=fd,
-                                      factory=factory)
+        ports.append(reactor.listenTCPonExistingFD(reactor,
+                                                   fd=fd,
+                                                   factory=factory))
+    
+    
+    # we do not want all workers to die in the same moment
+    requests_countdown = config['requests_per_process'] / random.randint(3, 5)
+
+    sys.excepthook = MailException
 
 def SigQUIT(SIG, FRM):
     reactor.stop()
@@ -1004,8 +1010,8 @@ args = sys.argv[1:]
 if len(sys.argv[1:]) != 2:
     exit(1)
 
-fds_https = []
-fds_http = []
+ports = []
+requests_countdown = 10000 / random.randint(3, 5)
 
 rpc_factory = pb.PBClientFactory()
 reactor.connectTCP("127.0.0.1",  8789, rpc_factory)
@@ -1018,8 +1024,6 @@ prctl.set_pdeathsig(signal.SIGINT)
 prctl.set_proctitle("tor2web-worker")
 
 start()
-
-sys.excepthook = MailException
 
 reactor.run()
 

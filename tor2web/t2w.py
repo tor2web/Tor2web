@@ -140,29 +140,8 @@ class T2WRPCServer(pb.Root):
         self.logfile_debug.write(str(line))
         self.logfile_debug.write("\n")
  
-def spawnT2W(sockets_https, sockets_http):
-    childFDs = {}
-    childFDs[0] = 0
-    childFDs[1] = 1
-    childFDs[2] = 2
-
-    fds_https = ''
-    fds_http = ''
-
-    for i in range(len(sockets_https)):
-        if i != 0:
-            fds_https += ','
-        childFDs[sockets_https[i].fileno()] = sockets_https[i].fileno()
-        fds_https += str(sockets_https[i].fileno())
-        
-    for i in range(len(sockets_http)):
-        if i != 0:
-            fds_http += ','
-
-        childFDs[sockets_http[i].fileno()] = sockets_http[i].fileno()            
-        fds_http += str(sockets_http[i].fileno())
-
-    subprocess = reactor.spawnProcess(T2WPP(sockets_https, sockets_http),
+def spawnT2W(childFDs, fds_https, fds_http):
+    subprocess = reactor.spawnProcess(T2WPP(childFDs, fds_https, fds_http),
                                       "tor2web-worker",
                                       ["tor2web-worker",
                                        fds_https,
@@ -172,9 +151,10 @@ def spawnT2W(sockets_https, sockets_http):
 
 
 class T2WPP(protocol.ProcessProtocol):
-    def __init__(self, sockets_https, sockets_http):
-        self.sockets_https = sockets_https
-        self.sockets_http = sockets_http
+    def __init__(self, childFDs, fds_https, fds_http):
+        self.childFDs = childFDs
+        self.fds_https = fds_https
+        self.fds_http = fds_http
 
     def connectionMade(self):
         self.pid = self.transport.pid
@@ -186,7 +166,7 @@ class T2WPP(protocol.ProcessProtocol):
                 break
 
         if not quitting:
-            subprocess = spawnT2W(self.sockets_https, self.sockets_http)
+            subprocess = spawnT2W(self.childFDs, self.fds_https, self.fds_http)
             subprocesses.append(subprocess.pid)
 
         if len(subprocesses) == 0:
@@ -260,26 +240,52 @@ quitting = False
 subprocesses = []
 
 def open_listenin_socket(ip, port):
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    s.setblocking(False)
-    s.bind((ip, port))
-    s.listen(socket.SOMAXCONN)
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.setblocking(False)
+        s.bind((ip, port))
+        s.listen(max(1024, socket.SOMAXCONN))
+    except Exception as e:
+        print "Tor2web Startup Failure: error while binding on %s %s (%s)" % (ip, port, e)
+        exit(1)
     return s
 
 def daemon_init(self):
     self.socket_rpc = open_listenin_socket('127.0.0.1', 8789)
 
-    self.sockets_https = []
-    self.sockets_http = []
+    self.childFDs = {}
+    self.childFDs[0] = 0
+    self.childFDs[1] = 1
+    self.childFDs[2] = 2
+
+    self.fds = []
+
+    self.fds_https = ''
+    self.fds_http = ''
+
+    i_https = 0
+    i_http = 0
 
     for ip in [ipv4, ipv6]:
         if ip != None:
             if config.transport in ('HTTPS', 'BOTH'):
-                self.sockets_https.append(open_listenin_socket(ip, 443))
+                if i_https != 0:
+                    self.fds_https += ','
+                s = open_listenin_socket(ip, config.listen_port_https)
+                self.fds.append(s)
+                self.childFDs[s.fileno()] = s.fileno()
+                self.fds_https += str(s.fileno())
+                i_https += 1
 
             if config.transport in ('HTTP', 'BOTH'):
-                self.sockets_http.append(open_listenin_socket(ip, 80))
+                if i_http != 0:
+                    self.fds_http += ','
+                s = open_listenin_socket(ip, config.listen_port_http)
+                self.fds.append(s)
+                self.childFDs[s.fileno()] = s.fileno()
+                self.fds_http += str(s.fileno())
+                i_http += 1
 
 def daemon_main(self):
 
@@ -288,7 +294,7 @@ def daemon_main(self):
     reactor.listenTCPonExistingFD(reactor, fd=self.socket_rpc.fileno(), factory=pb.PBServerFactory(rpc_server))
 
     for i in range(config.processes):
-        subprocess = spawnT2W(self.sockets_https, self.sockets_http)
+        subprocess = spawnT2W(self.childFDs, self.fds_https, self.fds_http)
         subprocesses.append(subprocess.pid)
 
     if config.debugmode:
@@ -296,6 +302,8 @@ def daemon_main(self):
             log.startLogging(sys.stdout)
     else:
         log.startLogging(log.NullFile)
+
+    sys.excepthook = MailException
 
     reactor.run()
 
@@ -314,8 +322,6 @@ t2w_daemon.daemon_init = daemon_init
 t2w_daemon.daemon_main = daemon_main
 t2w_daemon.daemon_reload = daemon_reload
 t2w_daemon.daemon_shutdown = daemon_shutdown
-
-sys.excepthook = MailException
 
 t2w_daemon.run(config.datadir)
 
