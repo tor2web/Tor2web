@@ -1,3 +1,9 @@
+tor2web (3.0.37-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.37 Minor Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 26 Aug 2013 23:15:42 +0002
+
 tor2web (3.0.36-2) unstable; urgency=low
 
   * Tor2web 3.0 - 3.0.36 Minor Fixes
