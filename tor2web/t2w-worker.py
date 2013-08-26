@@ -902,9 +902,10 @@ class T2WLimitedRequestsFactory(WrappingFactory):
         """
         WrappingFactory.registerProtocol(self, p)
 
-        self.requests_countdown -= 1
+        if self.requests_countdown > 0:
+            self.requests_countdown -= 1
 
-        if self.requests_countdown <= 0:
+        if self.requests_countdown == 0:
             # bai bai mai friend
             #
             # known bug: currently when the limit is reached all
