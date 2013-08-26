@@ -54,6 +54,7 @@ from twisted.spread import pb
 from twisted.internet import reactor, protocol, defer
 from twisted.internet.abstract import isIPAddress, isIPv6Address
 from twisted.internet.endpoints import TCP4ClientEndpoint, SSL4ClientEndpoint
+from twisted.protocols.policies import WrappingFactory
 from twisted.application import service, internet
 from twisted.web import http, client, resource, _newclient
 from twisted.web.http import StringTransport, _IdentityTransferDecoder, _ChunkedTransferDecoder, _MalformedChunkedDataError, parse_qs
@@ -806,13 +807,6 @@ class T2WRequest(http.Request):
         except:
             pass
 
-        global requests_countdown
-        requests_countdown -= 1        
-
-        if requests_countdown <= 0:
-            # bai bai mai friend
-            reactor.stop()
-
 class T2WProxy(http.HTTPChannel):
     requestFactory = T2WRequest
 
@@ -897,6 +891,38 @@ class T2WProxyFactory(http.HTTPFactory):
 
             rpc("log_access", line)
 
+class T2WLimitedRequestsFactory(WrappingFactory):
+    def __init__(self, wrappedFactory, allowedRequests):
+        WrappingFactory.__init__(self, wrappedFactory)
+        self.requests_countdown = allowedRequests
+        self.active_requests = 0
+        self.ports = ports
+
+    def registerProtocol(self, p):
+        """
+        Called by protocol to register itself.
+        """
+        self.protocols[p] = 1
+
+        self.requests_countdown -= 1
+        self.active_requests += 1
+
+        if self.requests_countdown <= 0:
+            # bai bai mai friend
+            for port in ports:
+                port.stopListening()
+
+    def unregisterProtocol(self, p):
+        """
+        Called by protocols when they go away.
+        """
+        del self.protocols[p]
+
+        self.active_requests -= 1
+
+        if self.requests_countdown <= 0 and self.active_requests <= 0:
+            reactor.stop()
+
 @defer.inlineCallbacks
 def rpc(f, *args, **kwargs):
     d = rpc_factory.getRootObject()
@@ -918,7 +944,6 @@ def start():
     global fds_https
     global fds_http
     global ports
-    global requests_countdown
 
     config = yield rpc("get_config")
 
@@ -964,7 +989,11 @@ def start():
                               config['sockretryautomatically'])
 
     factory = T2WProxyFactory()
-    factory.requestCountdown = config['requests_per_process']
+
+    # we do not want all workers to die in the same moment
+    requests_countdown = config['requests_per_process'] / random.randint(3, 5)
+
+    factory = T2WLimitedRequestsFactory(factory, requests_countdown)
 
     context_factory = T2WSSLContextFactory(os.path.join(config['datadir'], "certs/tor2web-key.pem"),
                                                        os.path.join(config['datadir'], "certs/tor2web-intermediate.pem"),
@@ -996,10 +1025,6 @@ def start():
         ports.append(reactor.listenTCPonExistingFD(reactor,
                                                    fd=fd,
                                                    factory=factory))
-    
-    
-    # we do not want all workers to die in the same moment
-    requests_countdown = config['requests_per_process'] / random.randint(3, 5)
 
     sys.excepthook = MailException
 
@@ -1011,6 +1036,7 @@ if len(sys.argv[1:]) != 2:
     exit(1)
 
 ports = []
+active_requests = 0
 requests_countdown = 10000 / random.randint(3, 5)
 
 rpc_factory = pb.PBClientFactory()

@@ -7,6 +7,7 @@ fi
 if [ ! -d /home/tor2web ]; then
   mkdir -p /home/tor2web
   mkdir -p /home/tor2web/certs
+  mkdir -p /home/tor2web/lists
   mkdir -p /home/tor2web/logs
   touch /home/tor2web/logs/debug.log
   touch /home/tor2web/logs/access.log 
