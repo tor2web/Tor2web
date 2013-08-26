@@ -549,7 +549,7 @@ class T2WRequest(http.Request):
         # we try to deny some ua/crawlers regardless the request is (valid or not) / (local or not)
         # we deny EVERY request to known user agents reconized with pattern matching
         if config['blockcrawl'] and request.headers.getRawHeaders(b'user-agent') != None:
-            check = yield rpc("check_blocked_ua", request.headers.getRawHeaders(b'user-agent')[0])
+            check = yield rpc("check_blocked_ua", str(request.headers.getRawHeaders(b'user-agent')[0]))
             if check:
                 self.sendError(403, "error_blocked_ua.tpl")
                 defer.returnValue(NOT_DONE_YET)
@@ -651,25 +651,25 @@ class T2WRequest(http.Request):
                     defer.returnValue(NOT_DONE_YET)
 
                 if config['mode'] == "ACCESSLIST":
-                    check = yield rpc("check_access", hashlib.md5(self.obj.onion))
+                    check = yield rpc("check_access", str(hashlib.md5(self.obj.onion)))
                     if not check:
                         self.sendError(403, 'error_hs_completely_blocked.tpl')
                         defer.returnValue(NOT_DONE_YET)
 
                 elif config['mode'] == "BLACKLIST":
-                    check = yield rpc("check_access", hashlib.md5(self.obj.onion).hexdigest())
+                    check = yield rpc("check_access", str(hashlib.md5(self.obj.onion).hexdigest()))
                     if check:
                         self.sendError(403, 'error_hs_completely_blocked.tpl')
                         defer.returnValue(NOT_DONE_YET)
 
-                    check = yield rpc("check_access", hashlib.md5(self.obj.onion + self.obj.uri).hexdigest())
+                    check = yield rpc("check_access", str(hashlib.md5(self.obj.onion + self.obj.uri).hexdigest()))
                     if check:
                         self.sendError(403, 'error_hs_specific_page_blocked.tpl')
                         defer.returnValue(NOT_DONE_YET)
 
             # we need to verify if the user is using tor;
             # on this condition it's better to redirect on the .onion
-            check = yield rpc("check_tor", self.getClientIP())
+            check = yield rpc("check_tor", str(self.getClientIP()))
             if check:
                 self.redirect("http://" + self.obj.onion + request.uri)
 
@@ -776,7 +776,7 @@ class T2WRequest(http.Request):
     def processResponseHeaders(self, headers):
         # currently we track only responding hidden services
         # we don't need to block on the rpc now so no yield is needed
-        rpc("update_stats", self.obj.onion.replace(".onion", ""))
+        rpc("update_stats", str(self.obj.onion.replace(".onion", "")))
 
         for key, values in headers.getAllRawHeaders():
             self.handleHeader(key, values)
@@ -889,13 +889,12 @@ class T2WProxyFactory(http.HTTPFactory):
                 self._escape(request.getHeader(b'referer') or "-"),
                 self._escape(request.getHeader(b'user-agent') or "-"))
 
-            rpc("log_access", line)
+            rpc("log_access", str(line))
 
 class T2WLimitedRequestsFactory(WrappingFactory):
     def __init__(self, wrappedFactory, allowedRequests):
         WrappingFactory.__init__(self, wrappedFactory)
         self.requests_countdown = allowedRequests
-        self.active_requests = 0
 
     def registerProtocol(self, p):
         """
@@ -904,22 +903,14 @@ class T2WLimitedRequestsFactory(WrappingFactory):
         WrappingFactory.registerProtocol(self, p)
 
         self.requests_countdown -= 1
-        self.active_requests += 1
 
         if self.requests_countdown <= 0:
             # bai bai mai friend
-            for port in ports:
-                port.stopListening()
-
-    def unregisterProtocol(self, p):
-        """
-        Called by protocols when they go away.
-        """
-        WrappingFactory.unregisterProtocol(self, p)
-
-        self.active_requests -= 1
-
-        if self.requests_countdown <= 0 and self.active_requests <= 0:
+            #
+            # known bug: currently when the limit is reached all
+            #            the active requests are trashed.
+            #            this simple solution is used to achive
+            #            stronger stability.
             reactor.stop()
 
 @defer.inlineCallbacks
@@ -930,7 +921,7 @@ def rpc(f, *args, **kwargs):
     defer.returnValue(ret)
     
 def t2w_log(msg):
-    rpc("log_debug", msg)
+    rpc("log_debug", str(msg))
     print msg
 
 @defer.inlineCallbacks
@@ -990,7 +981,7 @@ def start():
     factory = T2WProxyFactory()
 
     # we do not want all workers to die in the same moment
-    requests_countdown = config['requests_per_process'] / random.randint(3, 5)
+    requests_countdown = config['requests_per_process'] / random.randint(1, 3)
 
     factory = T2WLimitedRequestsFactory(factory, requests_countdown)
 

@@ -31,9 +31,7 @@
 
 # -*- coding: utf-8 -*-
 
-import signal
-import atexit
-
+import datetime
 import os
 import prctl
 import re
@@ -47,6 +45,7 @@ from twisted.application import service, internet
 from twisted.python import log, logfile, syslog
 from twisted.python.filepath import FilePath
 from twisted.spread import pb
+from twisted.web.http import datetimeToString
 
 from tor2web.utils.daemon import T2WDaemon
 from tor2web.utils.config import config
@@ -137,8 +136,8 @@ class T2WRPCServer(pb.Root):
         self.logfile_access.write(line)
 
     def remote_log_debug(self, line):
-        self.logfile_debug.write(str(line))
-        self.logfile_debug.write("\n")
+        date = datetimeToString()
+        self.logfile_debug.write(date+" "+str(line)+"\n")
  
 def spawnT2W(childFDs, fds_https, fds_http):
     subprocess = reactor.spawnProcess(T2WPP(childFDs, fds_https, fds_http),
