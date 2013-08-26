@@ -896,13 +896,12 @@ class T2WLimitedRequestsFactory(WrappingFactory):
         WrappingFactory.__init__(self, wrappedFactory)
         self.requests_countdown = allowedRequests
         self.active_requests = 0
-        self.ports = ports
 
     def registerProtocol(self, p):
         """
         Called by protocol to register itself.
         """
-        self.protocols[p] = 1
+        WrappingFactory.registerProtocol(self, p)
 
         self.requests_countdown -= 1
         self.active_requests += 1
@@ -916,7 +915,7 @@ class T2WLimitedRequestsFactory(WrappingFactory):
         """
         Called by protocols when they go away.
         """
-        del self.protocols[p]
+        WrappingFactory.unregisterProtocol(self, p)
 
         self.active_requests -= 1
 
@@ -1000,9 +999,8 @@ def start():
                                                        os.path.join(config['datadir'], "certs/tor2web-dh.pem"),
                                                        config['cipher_list'])
 
-    if config['debugmode']:
-        if config['debugtostdout']:
-            log.startLogging(sys.stdout)
+    if config['debugmode'] and config['debugtostdout']:
+        log.startLogging(sys.stdout)
     else:
         log.startLogging(log.NullFile)
 
@@ -1036,8 +1034,6 @@ if len(sys.argv[1:]) != 2:
     exit(1)
 
 ports = []
-active_requests = 0
-requests_countdown = 10000 / random.randint(3, 5)
 
 rpc_factory = pb.PBClientFactory()
 reactor.connectTCP("127.0.0.1",  8789, rpc_factory)

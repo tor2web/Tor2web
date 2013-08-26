@@ -245,7 +245,7 @@ def open_listenin_socket(ip, port):
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.setblocking(False)
         s.bind((ip, port))
-        s.listen(max(1024, socket.SOMAXCONN))
+        s.listen(socket.SOMAXCONN)
     except Exception as e:
         print "Tor2web Startup Failure: error while binding on %s %s (%s)" % (ip, port, e)
         exit(1)
@@ -297,9 +297,8 @@ def daemon_main(self):
         subprocess = spawnT2W(self.childFDs, self.fds_https, self.fds_http)
         subprocesses.append(subprocess.pid)
 
-    if config.debugmode:
-        if config.debugtostdout:
-            log.startLogging(sys.stdout)
+    if config.debugmode and config.debugtostdout:
+        log.startLogging(sys.stdout)
     else:
         log.startLogging(log.NullFile)
 
