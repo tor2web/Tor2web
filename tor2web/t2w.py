@@ -289,8 +289,8 @@ def daemon_init(self):
 def daemon_main(self):
 
     reactor.listenTCPonExistingFD = listenTCPonExistingFD
-
-    reactor.listenTCPonExistingFD(reactor, fd=self.socket_rpc.fileno(), factory=pb.PBServerFactory(rpc_server))
+    
+    reactor.listenUNIX(os.path.join("/var/run/tor2web/rpc.socket"), factory=pb.PBServerFactory(rpc_server))
 
     for i in range(config.processes):
         subprocess = spawnT2W(self.childFDs, self.fds_https, self.fds_http)

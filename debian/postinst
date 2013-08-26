@@ -9,9 +9,8 @@ if [ ! -d /home/tor2web ]; then
   mkdir -p /home/tor2web/certs
   mkdir -p /home/tor2web/lists
   mkdir -p /home/tor2web/logs
-  touch /home/tor2web/logs/debug.log
-  touch /home/tor2web/logs/access.log 
-  chown tor2web:tor2web /home/tor2web -R
+  mkdir -p /var/run/tor2web/
+  chown tor2web:tor2web /home/tor2web/ /var/run/tor2web -R
 fi
 
 #DEBHELPER#

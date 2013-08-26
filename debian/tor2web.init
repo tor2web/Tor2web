@@ -28,7 +28,7 @@ DAEMON=tor2web
 
 # Configurable variables overridden in /etc/default/tor2web
 DAEMON_DIR=/home/tor2web
-DAEMON_PIDFILE=/var/run/tor2web.pid
+DAEMON_PIDFILE=/var/run/tor2web/t2w.pid
 DAEMON_USER=tor2web
 # End of configurable variables
 

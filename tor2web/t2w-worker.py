@@ -1027,7 +1027,7 @@ if len(sys.argv[1:]) != 2:
 ports = []
 
 rpc_factory = pb.PBClientFactory()
-reactor.connectTCP("127.0.0.1",  8789, rpc_factory)
+reactor.connectUNIX(os.path.join("/var/run/tor2web/rpc.socket"),  rpc_factory)
 
 signal.signal(signal.SIGUSR1, SigQUIT)
 signal.signal(signal.SIGTERM, SigQUIT)
