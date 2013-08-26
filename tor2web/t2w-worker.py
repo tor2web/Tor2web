@@ -912,7 +912,8 @@ class T2WLimitedRequestsFactory(WrappingFactory):
             #            the active requests are trashed.
             #            this simple solution is used to achive
             #            stronger stability.
-            reactor.stop()
+            if reactor.running:
+                reactor.stop()
 
 @defer.inlineCallbacks
 def rpc(f, *args, **kwargs):
