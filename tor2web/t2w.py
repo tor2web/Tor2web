@@ -38,6 +38,7 @@ import re
 import sys
 import random
 import socket
+import signal
 import hashlib
 
 from twisted.internet import reactor, protocol, defer
@@ -151,6 +152,8 @@ class T2WPP(protocol.ProcessProtocol):
         self.pid = self.transport.pid
 
     def processExited(self, reason):
+        global quitting
+        global subprocesses
         for x in range(len(subprocesses)):
             if subprocesses[x] == self.pid:
                 del subprocesses[x]
@@ -285,6 +288,7 @@ def daemon_main(self):
     reactor.listenUNIX(os.path.join("/var/run/tor2web/rpc.socket"), factory=pb.PBServerFactory(rpc_server))
 
     for i in range(config.processes):
+        global subprocesses
         subprocess = spawnT2W(self.childFDs, self.fds_https, self.fds_http)
         subprocesses.append(subprocess.pid)
 
@@ -302,7 +306,13 @@ def daemon_reload(self):
 
 def daemon_shutdown(self):
     global quitting
+    global subprocesses
+
     quitting = True
+
+    for pid in subprocesses:
+        os.kill(pid, signal.SIGINT)
+    subprocesses = []
 
 prctl.set_proctitle("tor2web")
 

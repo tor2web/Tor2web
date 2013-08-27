@@ -125,7 +125,9 @@ do_t2w_start()
 
 do_t2w_stop()
 {
-    start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --pidfile ${DAEMON_PIDFILE}
+    start-stop-daemon --start --quiet --pidfile ${DAEMON_PIDFILE} \
+        --exec $DAEMON -- $DAEMON_ARGS --command=stop
+
 }
 
 do_t2w_reload()
