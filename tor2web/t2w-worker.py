@@ -39,6 +39,7 @@ import mimetypes
 import random
 import socket
 import signal
+import operator
 import zlib
 import hashlib
 from StringIO import StringIO
@@ -65,6 +66,7 @@ from twisted.web.iweb import IBodyProducer
 from twisted.python import log, logfile
 from twisted.python.compat import networkString, intToBytes
 from twisted.python.filepath import FilePath
+from twisted.internet.task import LoopingCall
 
 from tor2web.utils.daemon import T2WDaemon
 from tor2web.utils.config import VERSION
@@ -549,10 +551,10 @@ class T2WRequest(http.Request):
         # we try to deny some ua/crawlers regardless the request is (valid or not) / (local or not)
         # we deny EVERY request to known user agents reconized with pattern matching
         if config['blockcrawl'] and request.headers.getRawHeaders(b'user-agent') != None:
-            check = yield rpc("check_blocked_ua", str(request.headers.getRawHeaders(b'user-agent')[0]))
-            if check:
-                self.sendError(403, "error_blocked_ua.tpl")
-                defer.returnValue(NOT_DONE_YET)
+            for ua in blocked_ua_list:
+                if re.match(ua, request.headers.getRawHeaders(b'user-agent')[0].lower()):
+                    self.sendError(403, "error_blocked_ua.tpl")
+                    defer.returnValue(NOT_DONE_YET)
 
         # 1: Client capability assessment stage
         if request.headers.getRawHeaders(b'accept-encoding') != None:
@@ -651,26 +653,22 @@ class T2WRequest(http.Request):
                     defer.returnValue(NOT_DONE_YET)
 
                 if config['mode'] == "ACCESSLIST":
-                    check = yield rpc("check_access", str(hashlib.md5(self.obj.onion)))
-                    if not check:
+                    if not hashlib.md5(self.obj.onion) in access_list:
                         self.sendError(403, 'error_hs_completely_blocked.tpl')
                         defer.returnValue(NOT_DONE_YET)
 
                 elif config['mode'] == "BLACKLIST":
-                    check = yield rpc("check_access", str(hashlib.md5(self.obj.onion).hexdigest()))
-                    if check:
+                    if hashlib.md5(self.obj.onion).hexdigest() in access_list:
                         self.sendError(403, 'error_hs_completely_blocked.tpl')
                         defer.returnValue(NOT_DONE_YET)
 
-                    check = yield rpc("check_access", str(hashlib.md5(self.obj.onion + self.obj.uri).hexdigest()))
-                    if check:
+                    if hashlib.md5(self.obj.onion + self.obj.uri).hexdigest() in access_list:
                         self.sendError(403, 'error_hs_specific_page_blocked.tpl')
                         defer.returnValue(NOT_DONE_YET)
 
             # we need to verify if the user is using tor;
             # on this condition it's better to redirect on the .onion
-            check = yield rpc("check_tor", str(self.getClientIP()))
-            if check:
+            if self.getClientIP() in tor_exits_lists:
                 self.redirect("http://" + self.obj.onion + request.uri)
 
                 try:
@@ -912,8 +910,10 @@ class T2WLimitedRequestsFactory(WrappingFactory):
             #            the active requests are trashed.
             #            this simple solution is used to achive
             #            stronger stability.
-            if reactor.running:
+            try:
                 reactor.stop()
+            except:
+                pass
 
 @defer.inlineCallbacks
 def rpc(f, *args, **kwargs):
@@ -938,6 +938,9 @@ def start():
     global ports
 
     config = yield rpc("get_config")
+
+    lc = LoopingCall(updateTask)
+    lc.start(600)
 
     rexp = {
         'body': re.compile(r'(<body.*?\s*>)', re.I),
@@ -1019,6 +1022,28 @@ def start():
 
     sys.excepthook = MailException
 
+def updateTask():
+    def set_access_list(l):
+        global access_list
+        access_list = l
+
+    def set_blocked_ua_list(l):
+        global blocked_ua_list
+        blocked_ua_list = l
+
+    def set_tor_exits_list(l):
+        global tor_exits_list
+        tor_exits_list = l
+
+    d = rpc("get_access_list")
+    d.addCallback(set_access_list)
+
+    d = rpc("get_blocked_ua_list")
+    d.addCallback(set_blocked_ua_list)
+
+    d = rpc("get_tor_exits_list")
+    d.addCallback(set_tor_exits_list)
+
 def SigQUIT(SIG, FRM):
     reactor.stop()
 
@@ -1026,6 +1051,9 @@ args = sys.argv[1:]
 if len(sys.argv[1:]) != 2:
     exit(1)
 
+access_list = []
+blocked_ua_list = []
+tor_exits_list = []
 ports = []
 
 rpc_factory = pb.PBClientFactory()

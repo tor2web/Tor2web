@@ -109,22 +109,14 @@ class T2WRPCServer(pb.Root):
     def remote_get_config(self):
         return self.config.__dict__
 
-    def remote_check_blocked_ua(self, check):
-        check = check.lower()
-        for ua in self.blocked_ua:
-            if re.match(ua, check):
-                return True
-        return False
+    def remote_get_blocked_ua_list(self):
+        return list(self.blocked_ua)
 
-    def remote_check_access(self, check):
-        if check in self.access_list:
-            return True
-        return False
+    def remote_get_access_list(self):
+        return list(self.access_list)
 
-    def remote_check_tor(self, check):
-        if check in self.TorExitNodes:
-            return True
-        return False
+    def remote_get_tor_exits_list(self):
+        return list(self.TorExitNodes)
 
     def remote_update_stats(self, onion):
         self.stats.update(onion)
