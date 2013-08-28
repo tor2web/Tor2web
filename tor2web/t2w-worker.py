@@ -944,8 +944,8 @@ def start():
 
     rexp = {
         'body': re.compile(r'(<body.*?\s*>)', re.I),
-        'w2t': re.compile(r'(https:)?//([a-z0-9]{16}).' + config['basehost'] + '(:443)?', re.I),
-        't2w': re.compile(r'(http:)?//([a-z0-9]{16}).onion(:80)?', re.I)
+        'w2t': re.compile(r'(http.?:)?//([a-z0-9]{16}).' + config['basehost'] + '(?!:\d+)', re.I),
+        't2w': re.compile(r'(http.?:)?//([a-z0-9]{16}).(?!' + config['basehost'] + ')onion(?!:\d+)', re.I)
     }
 
     ###############################################################################
