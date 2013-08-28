@@ -136,6 +136,22 @@ do_t2w_reload()
         --exec $DAEMON -- $DAEMON_ARGS --command=reload    
 }
 
+do_t2w_status()
+{
+    start-stop-daemon --start --quiet --pidfile ${DAEMON_PIDFILE} \
+        --exec $DAEMON -- $DAEMON_ARGS --command=status
+    RETVAL=$?
+    if [ $RETVAL -eq 1 ]; then
+        log_failure_msg "Tor2web is not running"
+        exit 1
+    fi
+
+    if [ $RETVAL -eq 0 ]; then
+        log_success_msg "Tor2web is running"
+        exit 0
+    fi
+}
+
 do_start()
 {
     /etc/init.d/tor start
@@ -179,22 +195,7 @@ case "$1" in
     exit 0
     ;;
   status)
-    if test ! -r $(dirname ${DAEMON_PIDFILE}); then
-        log_failure_msg "cannot read PID file ${DAEMON_PIDFILE}"
-        exit 4
-    fi
-    pid=`cat ${DAEMON_PIDFILE} 2>/dev/null` || true
-    if test ! -f ${DAEMON_PIDFILE} -o -z "$pid"; then
-        log_failure_msg "Tor2web is not running"
-        exit 3
-    fi
-    if ps "$pid" >/dev/null 2>&1; then
-        log_success_msg "Tor2web is running"
-        exit 0
-    else
-        log_failure_msg "Tor2web is not running"
-        exit 1
-    fi
+    do_t2w_status
     ;;
   reload|force-reload)
     log_action_begin_msg "Reloading Tor2web" "tor2web"
