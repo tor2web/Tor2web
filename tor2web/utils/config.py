@@ -86,10 +86,10 @@ class Config(Storage):
         self.__dict__['exit_node_list_refresh'] = 600
         self.__dict__['automatic_blocklist_updates_source'] = ''
         self.__dict__['automatic_blocklist_updates_refresh'] = 600
-        self.__dict__['mirrors'] = ['tor2web.org, tor2web.fi',
-                                    'tor2web.blutmagie.de',
-                                    'onion.sh',
-                                    'onion.to']
+        self.__dict__['mirror'] = ['tor2web.org, tor2web.fi',
+                                   'tor2web.blutmagie.de',
+                                   'onion.sh',
+                                   'onion.to']
 
     def load(self):
         try:
