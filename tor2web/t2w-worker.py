@@ -967,8 +967,7 @@ def start():
     # and not already loaded by previos lines.
     if os.path.exists(os.path.join(config['datadir'], "static/")):
         for file in files:
-            if file.basename() not in antanistaticmap:
-                antanistaticmap[file.basename()] = file.getContent()
+            antanistaticmap[file.basename()] = file.getContent()
 
     ###############################################################################
 
