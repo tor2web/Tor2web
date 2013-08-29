@@ -55,6 +55,6 @@ class PageTemplate(Element):
     @renderer
     def mirror(self, request, tag):
         if 'mirror' in request.var:
-            url = "https://%s.%s%s" % (request.var['onion'], request.var['mirror'],  request.var['path'])
+            url = "https://%s.%s%s" % (request.var['onion'], request.var['mirror'], request.var['path'])
             return ["This page is accessible also on the following random mirror: "], tags.a(href=url, title=url)(request.var['mirror'])
         return ""

@@ -335,14 +335,15 @@ class T2WRequest(http.Request):
         data = self.stream + data
 
         if len(data) >= 1000:
-            if not self.header_injected and data.find("<body") != -1:
-                banner = yield flattenString(self, templates['banner.tpl'])
-                data = re.sub(rexp['body'], partial(self.add_banner, banner), data)
-                self.header_injected = True
-
             data = re_sub(rexp['t2w'], r'https://\2.' + config['basehost'], data)
 
-            self.forwardData(self.handleCleartextForwardPart(data[:-500]))
+            forward = data[:-500]
+            if not self.header_injected and forward.find("<body") != -1:
+                banner = yield flattenString(self, templates['banner.tpl'])
+                forward = re.sub(rexp['body'], partial(self.add_banner, banner), forward)
+                self.header_injected = True
+
+            self.forwardData(self.handleCleartextForwardPart(forward))
             self.stream = data[-500:]
         else:
             self.stream = data
@@ -354,12 +355,12 @@ class T2WRequest(http.Request):
 
         data = self.stream + data
 
+        data = re_sub(rexp['t2w'], r'https://\2.' + config['basehost'], data)
+
         if not self.header_injected and data.find("<body") != -1:
             banner = yield flattenString(self, templates['banner.tpl'])
             data = re.sub(rexp['body'], partial(self.add_banner, banner), data)
             self.header_injected = True
-                
-        data = re_sub(rexp['t2w'], r'https://\2.' + config['basehost'], data)
 
         data = self.handleCleartextForwardPart(data, True)
         self.forwardData(data, True)
@@ -539,7 +540,10 @@ class T2WRequest(http.Request):
         if config['mirror'] is not None:
             if config['basehost'] in config['mirror']:
                 config['mirror'].remove(config['basehost'])
-            self.var['mirror'] = choice(config['mirror'])
+            if len(config['mirror']) > 1:
+                self.var['mirror'] = choice(config['mirror'])
+            elif len(config['mirror']) == 1:
+                self.var['mirror'] = config['mirror'][0]
 
         # we serve contents only over https
         if not self.isSecure() and (config['transport'] != 'HTTP'):
