@@ -40,12 +40,6 @@ import time
 import signal
 import pwd, grp
 
-class T2WDaemonException:
-    def __init__(self, msg):
-        self.msg = msg
-    def __str__(self):
-        return self.msg
-
 class _NullDevice:
     """A substitute for stdout/stderr that writes to nowhere."""
 
@@ -88,9 +82,6 @@ class T2WDaemon:
 
         if not self.options.nodaemon:
             self.become_daemon()
-
-        if self.is_process_running():
-            raise T2WDaemonException("Unable to start server. Process is already running.")
 
         f = open(self.options.pidfile, 'w')
         f.write("%s" % os.getpid())
@@ -190,6 +181,8 @@ class T2WDaemon:
         elif self.options.command == 'start':
             if not self.is_process_running():
                 self.daemon_start()
+            else:
+                print "Unable to start Tor2web: process is already running."
             exit(0)
         elif self.options.command == 'stop':
             if self.is_process_running():

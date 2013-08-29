@@ -522,7 +522,8 @@ class T2WRequest(http.Request):
         staticpath = re.sub('^(/antanistaticmap/)?', '', staticpath)
         staticpath = re.sub('^/', '', staticpath)
 
-        resource_is_local = isIPAddress(request.host) or \
+        resource_is_local = request.host == 'www.' + config['basehost'] or \
+                            isIPAddress(request.host) or \
                             isIPv6Address(request.host) or \
                             (config['overriderobotstxt'] and request.uri == '/robots.txt') or \
                             request.uri.startswith('/antanistaticmap/')
@@ -966,8 +967,7 @@ def start():
     # and not already loaded by previos lines.
     if os.path.exists(os.path.join(config['datadir'], "static/")):
         for file in files:
-            if file.basename() not in antanistaticmap:
-                antanistaticmap[file.basename()] = file.getContent()
+            antanistaticmap[file.basename()] = file.getContent()
 
     ###############################################################################
 

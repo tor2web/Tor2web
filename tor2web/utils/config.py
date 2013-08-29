@@ -66,7 +66,7 @@ class Config(Storage):
         self.__dict__['basehost'] = 'tor2web.org'
         self.__dict__['sockshost'] = '127.0.0.1'
         self.__dict__['socksport'] = 9050
-        self.__dict__['socksoptimistidata'] = True
+        self.__dict__['socksoptimisticdata'] = True
         self.__dict__['sockmaxpersistentperhost'] = 5
         self.__dict__['sockcachedconnectiontimeout'] = 240
         self.__dict__['sockretryautomatically'] = True
