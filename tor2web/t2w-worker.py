@@ -619,7 +619,13 @@ class T2WRequest(http.Request):
                         message = StringIO(''.join(tmp))
 
                         try:
-                            sendmail(config['smtpuser'], config['smtppass'], config['smtpmail'], config['smtpmailto_notifications'], message, config['smtpdomain'], config['smtpport'])
+                            sendmail(config['smtpuser'],
+                                     config['smtppass'],
+                                     config['smtpmail'],
+                                     config['smtpmailto_notifications'],
+                                     message,
+                                     config['smtpdomain'],
+                                     config['smtpport'])
                         except:
                             pass
 
@@ -685,7 +691,8 @@ class T2WRequest(http.Request):
 
             # Avoid image hotlinking
             if request.uri.lower().endswith(('gif','jpg','png')):
-                if request.headers.getRawHeaders(b'referer') != None and not config['basehost'] in request.headers.getRawHeaders(b'referer')[0].lower():
+                if request.headers.getRawHeaders(b'referer') != None and
+                   not config['basehost'] in request.headers.getRawHeaders(b'referer')[0].lower():
                     self.sendError(403)
                     defer.returnValue(NOT_DONE_YET)
 

@@ -17,4 +17,7 @@ t2w_worker = os.path.abspath(os.path.join(os.path.dirname(tor2web.__file__), 't2
 args = ["python", t2w_worker]
 args += sys.argv[1:]
 
-exit(call(args))
+try:
+    exit(call(args))
+except:
+    exit(1)
