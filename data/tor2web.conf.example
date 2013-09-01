@@ -63,4 +63,7 @@ exit_node_list_refresh = 600
 # automatic_blocklist_updates_refresh = 600
 
 # List of mirrors showed in Tor2web banner
-mirror = [tor2web.org, tor2web.fi, tor2web.blutmagie.de, onion.sh, onion.to]
+# There is no need to define this argument by hands as ehach new Tor2web package
+# by default includes the list of all the "trusted" nodes.
+# You only need to define this if you want to selectively avoid to show some mirror
+# mirror = [tor2worg.org, mirror2.tld, mirror3.tld, ...]
