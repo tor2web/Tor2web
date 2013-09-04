@@ -13,8 +13,8 @@ debugmode = False
 debugtostdout = False
 
 # processes (suggested number of cores + 1)
-processes = 1
-requests_per_process = 10000
+processes = 5
+requests_per_process = 100000
 
 # ip addresses and ports
 transport = BOTH
