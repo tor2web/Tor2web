@@ -1,8 +1,14 @@
+tor2web (3.0.51-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.51 Packaging Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Wed, 4 Sep 2013 21:52:42 +0002
+
 tor2web (3.0.50-2) unstable; urgency=low
 
   * Tor2web 3.0 - 3.0.50 Minor Fixes
 
- -- GlobaLeaks software signing key <info@globaleaks.org>  Wed, 4 Sep 2013 21:69:42 +0002
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Wed, 4 Sep 2013 21:49:42 +0002
 
 tor2web (3.0.49-2) unstable; urgency=low
 
