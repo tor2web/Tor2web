@@ -522,7 +522,8 @@ class T2WRequest(http.Request):
         staticpath = re.sub('^(/antanistaticmap/)?', '', staticpath)
         staticpath = re.sub('^/', '', staticpath)
 
-        resource_is_local = request.host == 'www.' + config['basehost'] or \
+        resource_is_local = request.host == config['basehost'] or \
+                            request.host == 'www.' + config['basehost'] or \
                             isIPAddress(request.host) or \
                             isIPv6Address(request.host) or \
                             (config['overriderobotstxt'] and request.uri == '/robots.txt') or \
@@ -920,7 +921,7 @@ class T2WLimitedRequestsFactory(WrappingFactory):
             #
             # known bug: currently when the limit is reached all
             #            the active requests are trashed.
-            #            this simple solution is used to achive
+            #            this simple solution is used to achieve
             #            stronger stability.
             try:
                 reactor.stop()
@@ -961,7 +962,9 @@ def start():
     }
 
     ###############################################################################
-    # Templates loading
+    # Static Data loading
+    #    Here we make a file caching to not handle I/O
+    #    at run-time and achieve better performance
     ###############################################################################
     antanistaticmap = {}
 
@@ -970,16 +973,21 @@ def start():
         file = FilePath(t2w_file_path(config['datadir'], os.path.join('static', file.basename())))
         antanistaticmap[file.basename()] = file.getContent()
 
-    # we add additional files eventually written in datadir/static
-    # and not already loaded by previos lines.
-    if os.path.exists(os.path.join(config['datadir'], "static/")):
-        for file in files:
-            antanistaticmap[file.basename()] = file.getContent()
+    # we add also user defined data allowing also the user to override tor2web defaults.
+    userstaticdir = os.path.join(config['datadir'], "static/")
+    if os.path.exists(userstaticdir):
+        for root, dirs, files in os.walk(os.path.join(userstaticdir)):
+            for basename in files:
+                filename = os.path.join(root, basename)
+                file = FilePath(filename)
+                antanistaticmap[filename.replace(userstaticdir, "")] = file.getContent()
 
     ###############################################################################
 
     ###############################################################################
     # Templates loading
+    #    Here we make a templates caching to not handle I/O
+    #    at run-time and achieve better performance
     ###############################################################################
     templates = {}
 

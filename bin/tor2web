@@ -17,7 +17,7 @@ t2w = os.path.abspath(os.path.join(os.path.dirname(tor2web.__file__), 't2w.py'))
 args = ["python", t2w]
 args += sys.argv[1:]
 
-try:
+try: 
     exit(call(args))
 except:
     exit(1)

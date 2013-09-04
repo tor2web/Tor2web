@@ -3,21 +3,20 @@
 
 import os
 import re
-from setuptools import setup
+from distutils.core import setup
 
 def pip_to_requirements(s):
     """
     Change a PIP-style requirements.txt string into one suitable for setup.py
     """
-
-    m = re.match('(.*)([>=]=[.0-9]*).*', s)
+    m = re.match('(.*)([>=]=[.0-9a-zA-Z]*).*', s)
     if m:
         return '%s (%s)' % (m.group(1), m.group(2))
     return s.strip()
 
 def get_requires():
     with open('requirements.txt') as f:
-        requires = f.readlines()
+        requires = map(pip_to_requirements, f.readlines())
         return requires
 
 data_files = [
@@ -60,5 +59,5 @@ setup(
     packages=["tor2web", "tor2web.utils"],
     scripts=["bin/tor2web", "bin/tor2web-worker"],
     data_files=data_files,
-    install_requires=get_requires()
+    requires=get_requires()
 )
