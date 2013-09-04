@@ -522,8 +522,9 @@ class T2WRequest(http.Request):
         staticpath = re.sub('^(/antanistaticmap/)?', '', staticpath)
         staticpath = re.sub('^/', '', staticpath)
 
-        resource_is_local = request.host == config['basehost'] or \
-                            request.host == 'www.' + config['basehost'] or \
+        resource_is_local = (config['mode'] != "TRANSLATION" and 
+                             (request.host == config['basehost'] or \
+                              request.host == 'www.' + config['basehost'])) or \
                             isIPAddress(request.host) or \
                             isIPv6Address(request.host) or \
                             (config['overriderobotstxt'] and request.uri == '/robots.txt') or \
