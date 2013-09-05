@@ -1,8 +1,15 @@
+tor2web (3.0.55-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.55 Compatibility fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Wed, 5 Sep 2013 12:04:42 +0002
+
 tor2web (3.0.54-2) unstable; urgency=low
 
   * Tor2web 3.0 - 3.0.54 Compatibility fixes (mainly with IE and Safari)
 
  -- GlobaLeaks software signing key <info@globaleaks.org>  Wed, 5 Sep 2013 11:07:42 +0002
+
 tor2web (3.0.53-2) unstable; urgency=low
 
   * Tor2web 3.0 - 3.0.53 Packaging Fixes
