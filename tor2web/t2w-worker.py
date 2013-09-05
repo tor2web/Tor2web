@@ -410,6 +410,10 @@ class T2WRequest(http.Request):
             data = self.zip(data, True)
 
         self.setHeader(b'content-length', intToBytes(len(data)))
+        self.setHeader(b'cache-control', b'no-cache')
+
+        if self.isSecure():
+            self.setHeader(b'strict-transport-security', b'max-age=31536000')
 
         try:
             self.write(data)
@@ -419,6 +423,7 @@ class T2WRequest(http.Request):
 
     def sendError(self, error=500, errortemplate='error_generic.tpl'):
         self.setResponseCode(error)
+        self.setHeader(b'content-type', 'text/html')
         self.var['errorcode'] = error
         return flattenString(self, templates[errortemplate]).addCallback(self.contentFinish)
 
@@ -577,10 +582,12 @@ class T2WRequest(http.Request):
             try:
                 if staticpath == "dev/null":
                     content = "A" * random.randint(20, 1024)
+                    self.setHeader(b'content-type', 'text/plain')
                     defer.returnValue(self.contentFinish(content))
                     return
                 
                 elif staticpath == "stats/yesterday":
+                    self.setHeader(b'content-type', 'application/json')
                     content = yield rpc("get_yesterday_stats")
                     defer.returnValue(self.contentFinish(content))
                     return
@@ -631,6 +638,7 @@ class T2WRequest(http.Request):
                         except:
                             pass
 
+                        self.setHeader(b'content-type', 'text/plain')
                         defer.returnValue(self.contentFinish(''))
 
                 else:
@@ -781,10 +789,6 @@ class T2WRequest(http.Request):
         
         self.responseHeaders.setRawHeaders(key, values)
 
-    def handleEndHeaders(self):
-        self.setHeader(b'cache-control', b'no-cache')
-        self.setHeader(b'strict-transport-security', b'max-age=31536000')
-
     def processResponseHeaders(self, headers):
         # currently we track only responding hidden services
         # we don't need to block on the rpc now so no yield is needed
@@ -792,8 +796,6 @@ class T2WRequest(http.Request):
 
         for key, values in headers.getAllRawHeaders():
             self.handleHeader(key, values)
-
-        self.handleEndHeaders()
 
     def connectionLost(self, reason):
         try:
