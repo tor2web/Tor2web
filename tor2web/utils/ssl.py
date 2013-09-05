@@ -62,7 +62,6 @@ class T2WSSLContextFactory(ContextFactory):
             ctx = SSL.Context(self.sslmethod)
             # Disallow SSLv2! It's insecure!
             ctx.set_options(SSL.OP_NO_SSLv2)
-            ctx.set_options(SSL.OP_EPHEMERAL_RSA)
             ctx.set_options(SSL.OP_SINGLE_DH_USE)
             ctx.use_certificate_chain_file(self.certificateChainFileName)
             ctx.use_privatekey_file(self.privateKeyFileName)
