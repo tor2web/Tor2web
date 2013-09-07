@@ -1,3 +1,9 @@
+tor2web (3.0.58-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.58 Added dummyproxy capability
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sat, 7 Sep 2013 10:11:42 +0002
+
 tor2web (3.0.57-2) unstable; urgency=low
 
   * Tor2web 3.0 - 3.0.57 Stevy Legacy fix
