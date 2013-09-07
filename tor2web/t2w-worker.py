@@ -719,8 +719,14 @@ class T2WRequest(http.Request):
                 self.var['path'] += '?' + parsed[3]
 
             agent = Agent(reactor, sockhost=config['sockshost'], sockport=config['socksport'], pool=self.pool)
+
+            if config['dummyproxy'] is None:
+                proxy_url = 's' + self.obj.address
+            else:
+                proxy_url = config['dummyproxy'] + parsed[2] + '?' + parsed[3]
+                
             self.proxy_d = agent.request(self.method,
-                                         's' + self.obj.address,
+                                         proxy_url,
                                          self.obj.headers, bodyProducer=producer)
 
             self.proxy_d.addCallback(self.cbResponse)

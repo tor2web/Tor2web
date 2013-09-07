@@ -93,6 +93,7 @@ class Config(Storage):
                                    'onion.lu',
                                    't2w.pw'
                                   ]
+        self.__dict__['dummyproxy'] = None
 
     def load(self):
         try:
