@@ -1,3 +1,9 @@
+tor2web (3.0.60-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.60 Security enforcement of filesystem permissions
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 9 Sep 2013 16:35:42 +0002
+
 tor2web (3.0.59-2) unstable; urgency=low
 
   * Tor2web 3.0 - 3.0.59 Security enforcement of default SSL ciphers
