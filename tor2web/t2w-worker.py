@@ -1075,6 +1075,18 @@ def updateTask():
 def SigQUIT(SIG, FRM):
     reactor.stop()
 
+##########################
+# Security UMASK hardening
+os.umask(077)
+
+orig_umask = os.umask
+
+def umask(mask):
+    return orig_umask(077)
+
+os.umask = umask
+##########################
+
 args = sys.argv[1:]
 if len(sys.argv[1:]) != 2:
     exit(1)

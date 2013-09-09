@@ -166,6 +166,18 @@ class T2WPP(protocol.ProcessProtocol):
         if len(subprocesses) == 0:
             reactor.stop()
 
+##########################
+# Security UMASK hardening
+os.umask(077)
+
+orig_umask = os.umask
+
+def umask(mask):
+    return orig_umask(077)
+
+os.umask = umask
+##########################
+
 ###############################################################################
 # Basic Safety Checks
 ###############################################################################

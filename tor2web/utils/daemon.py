@@ -36,6 +36,7 @@ from optparse import OptionParser
 import os
 import sys
 import time
+import glob
 
 import signal
 import pwd, grp
@@ -65,14 +66,17 @@ class T2WDaemon:
             uid = pwd.getpwnam(self.options.uid).pw_uid
             gid = grp.getgrnam(self.options.gid).gr_gid
 
-        os.umask(0)
+        os.umask(077)
+
         if os.fork() != 0:  # fork again so we are not a session leader
             os._exit(0)
+
         sys.stdin.close()
-        
         sys.__stdin__ = sys.stdin
+
         sys.stdout.close()
         sys.stdout = sys.__stdout__ = _NullDevice()
+
         sys.stderr.close()
         sys.stderr = sys.__stderr__ = _NullDevice()
 
@@ -138,31 +142,37 @@ class T2WDaemon:
         return 0
 
     def change_uid(self):
-      c_user =  self.options.uid
-      c_group = self.options.gid
-      if os.getuid() == 0:
-         cpw = pwd.getpwnam(c_user)
-         c_uid = cpw.pw_uid
-         if c_group:
-            cgr = grp.getgrnam(c_group)
-            c_gid = cgr.gr_gid
-         else:
-            c_gid = cpw.pw_gid
-            c_group = grp.getgrgid(cpw.pw_gid).gr_name
-         c_groups = []
-         for item in grp.getgrall():
-            if c_user in item.gr_mem:
-               c_groups.append(item.gr_gid)
-         if c_gid not in c_groups:
-            c_groups.append(c_gid)
+        c_user =  self.options.uid
+        c_group = self.options.gid
 
-         os.setgid(c_gid)
-         os.setgroups(c_groups)
-         os.setuid(c_uid)
+        if os.getuid() == 0:
+            cpw = pwd.getpwnam(c_user)
+            c_uid = cpw.pw_uid
+            if c_group:
+                cgr = grp.getgrnam(c_group)
+                c_gid = cgr.gr_gid
+            else:
+                c_gid = cpw.pw_gid
+                c_group = grp.getgrgid(cpw.pw_gid).gr_name
+
+            c_groups = []
+            for item in grp.getgrall():
+                if c_user in item.gr_mem:
+                    c_groups.append(item.gr_gid)
+                if c_gid not in c_groups:
+                    c_groups.append(c_gid)
+
+            for item in glob.glob('/var/run/tor2web/*'):
+                os.chown(item, c_uid, c_gid)
+                os.chmod(item, 0600)
+
+            os.setgid(c_gid)
+            os.setgroups(c_groups)
+            os.setuid(c_uid)
 
     def run(self, datadir):
         parser = OptionParser()
-        parser.add_option("", "--pidfile", dest="pidfile", default="/var/run/tor2web.pid")
+        parser.add_option("", "--pidfile", dest="pidfile", default="/var/run/t2w.pid")
         parser.add_option("", "--uid", dest="uid", default="")
         parser.add_option("", "--gid", dest="gid", default="")
         parser.add_option("", "--nodaemon", dest="nodaemon", default=False, action="store_true")
