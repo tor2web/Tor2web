@@ -62,7 +62,7 @@ exit_node_list_refresh = 600
 # automatic_blocklist_updates_source = https://ahmia.fi/bannedMD5.txt
 # automatic_blocklist_updates_refresh = 600
 
-# List of mirrors showed in Tor2web banner
+# List of mirrors shown in Tor2web banner
 # By default the list of mirrors is empty to avoid liability for the mirrors.
 # An updated list of know mirrors can be found at: http://wiki.tor2web.org/
 # mirror = [tor2web.org, mirror2.tld, mirror3.tld, ...]
