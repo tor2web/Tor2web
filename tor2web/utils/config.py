@@ -70,7 +70,11 @@ class Config(Storage):
         self.__dict__['sockmaxpersistentperhost'] = 5
         self.__dict__['sockcachedconnectiontimeout'] = 240
         self.__dict__['sockretryautomatically'] = True
-        self.__dict__['cipher_list'] = 'DHE-RSA-AES256-SHA:DHE-DSS-AES256-SHA:RC4-SHA'
+        self.__dict__['cipher_list'] = 'ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:' \
+                                       'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-SHA256:' \
+                                       'ECDHE-RSA-AES256-SHA:DHE-DSS-AES256-SHA:DHE-RSA-AES128-SHA:' \
+                                       'DES-CBC3-SHA' # this last one (not FS) is kept only for
+                                                      # compatibility reasons :/
         self.__dict__['mode'] = 'BLACKLIST'
         self.__dict__['onion'] = None
         self.__dict__['blockcrawl'] = True
