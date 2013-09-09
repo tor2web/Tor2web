@@ -1097,7 +1097,9 @@ tor_exits_list = []
 ports = []
 
 rpc_factory = pb.PBClientFactory()
+
 reactor.connectUNIX(os.path.join("/var/run/tor2web/rpc.socket"),  rpc_factory)
+os.chmod("/var/run/tor2web/rpc.socket", 0600)
 
 signal.signal(signal.SIGUSR1, SigQUIT)
 signal.signal(signal.SIGTERM, SigQUIT)
