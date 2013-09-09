@@ -1,3 +1,9 @@
+tor2web (3.0.59-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.59 Security enforcement of default SSL ciphers
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 9 Sep 2013 11:56:42 +0002
+
 tor2web (3.0.58-2) unstable; urgency=low
 
   * Tor2web 3.0 - 3.0.58 Added dummyproxy capability
