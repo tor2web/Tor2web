@@ -63,9 +63,8 @@ exit_node_list_refresh = 600
 # automatic_blocklist_updates_refresh = 600
 
 # List of mirrors showed in Tor2web banner
-# There is no need to define this configuration argument by hands as each
-# new Tor2web package by default includes the list of all the "trusted" nodes.
-# You only need to define this if you want to selectively avoid to show some mirror
+# By default the list of mirrors is empty to avoid liability for the mirrors.
+# An updated list of know mirrors can be found at: http://wiki.tor2web.org/
 # mirror = [tor2web.org, mirror2.tld, mirror3.tld, ...]
 
 # This allows Tor2web to make use a simple TCP proxies
