@@ -68,11 +68,16 @@ class HTTPSVerifyingContextFactory(ssl.ClientContextFactory):
 
     def getContext(self):
         ctx = self._contextFactory(self.method)
+
         # Disallow SSLv2! It's insecure!
         ctx.set_options(SSL.OP_NO_SSLv2)
-        # https://twistedmatrix.com/trac/ticket/5487
-        ctx.set_options(SSL.OP_EPHEMERAL_RSA)
+
         ctx.set_options(SSL.OP_SINGLE_DH_USE)
+
+        # http://en.wikipedia.org/wiki/CRIME_(security_exploit)
+        # https://twistedmatrix.com/trac/ticket/5487
+        # SSL_OP_NO_COMPRESSION = 0x00020000L
+        ctx.set_options(0x00020000)
 
         store = ctx.get_cert_store()
         for value in certificateAuthorityMap.values():

@@ -60,9 +60,16 @@ class T2WSSLContextFactory(ContextFactory):
     def cacheContext(self):
         if self._context is None:
             ctx = SSL.Context(self.sslmethod)
+
             # Disallow SSLv2! It's insecure!
             ctx.set_options(SSL.OP_NO_SSLv2)
+
             ctx.set_options(SSL.OP_SINGLE_DH_USE)
+
+            # https://twistedmatrix.com/trac/ticket/5487
+            # SSL_OP_NO_COMPRESSION = 0x00020000L
+            ctx.set_options(0x00020000)
+
             ctx.use_certificate_chain_file(self.certificateChainFileName)
             ctx.use_privatekey_file(self.privateKeyFileName)
             ctx.set_cipher_list(self.cipherList)
