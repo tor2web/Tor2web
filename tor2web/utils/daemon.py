@@ -81,13 +81,13 @@ class T2WDaemon:
         self.daemon_init(self) # self must be explicit passed
                                # as the function is user defined
 
-        if not self.options.nodaemon:
-            self.become_daemon()
-
-        if  not os.path.exists(self.options.rundir):
+        if not os.path.exists(self.options.rundir):
             os.mkdir(self.options.rundir)
 
         os.chmod(self.options.rundir, 0700)
+
+        if not self.options.nodaemon:
+            self.become_daemon()
 
         with open(self.options.pidfile, 'w') as f:
            f.write("%s" % os.getpid())
