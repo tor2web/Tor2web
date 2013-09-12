@@ -31,23 +31,17 @@
 
 # -*- coding: utf-8 -*-
 
-import datetime
 import os
-import prctl
-import re
 import sys
-import random
 import socket
 import signal
 import hashlib
 
-from twisted.internet import reactor, protocol, defer
-from twisted.application import service, internet
-from twisted.python import log, logfile, syslog
-from twisted.python.filepath import FilePath
+import prctl
+from twisted.internet import reactor, protocol
+from twisted.python import log, logfile
 from twisted.spread import pb
 from twisted.web.http import datetimeToString
-
 from tor2web.utils.daemon import T2WDaemon
 from tor2web.utils.config import config
 from tor2web.utils.lists import List, TorExitNodeList
@@ -55,9 +49,10 @@ from tor2web.utils.mail import MailException
 from tor2web.utils.misc import listenTCPonExistingFD, t2w_file_path, verify_onion
 from tor2web.utils.stats import T2WStats
 
+
 class T2WRPCServer(pb.Root):
     def __init__(self, config):
-        self.config = config     
+        self.config = config
         self.stats = T2WStats()
 
         if config.logreqs:
@@ -71,7 +66,7 @@ class T2WRPCServer(pb.Root):
             self.logfile_debug = log.NullFile
 
         self.load_lists()
-    
+
     def load_lists(self):
         self.access_list = []
         if config.mode == "TRANSLATION":
@@ -79,7 +74,7 @@ class T2WRPCServer(pb.Root):
 
         elif config.mode == "WHITELIST":
             self.access_list = List(t2w_file_path(config.datadir, 'lists/whitelist.txt'))
-        
+
         elif config.mode == "BLACKLIST":
             self.access_list = List(t2w_file_path(config.datadir, 'lists/blocklist_hashed.txt'),
                                     config.automatic_blocklist_updates_source,
@@ -130,8 +125,9 @@ class T2WRPCServer(pb.Root):
 
     def remote_log_debug(self, line):
         date = datetimeToString()
+        # noinspection PyCallByClass
         self.logfile_debug.write(date+" "+str(line)+"\n")
- 
+
 def spawnT2W(childFDs, fds_https, fds_http):
     subprocess = reactor.spawnProcess(T2WPP(childFDs, fds_https, fds_http),
                                       "tor2web-worker",
@@ -189,13 +185,13 @@ config.load()
 
 if config.transport is None:
     config.transport = 'BOTH'
-    
+
 if config.automatic_blocklist_updates_source is None:
     config.automatic_blocklist_updates_source = ''
 
 if config.automatic_blocklist_updates_refresh is None:
     config.automatic_blocklist_updates_refresh = 600
-    
+
 if config.exit_node_list_refresh is None:
     config.exit_node_list_refresh = 600
 
@@ -210,18 +206,15 @@ if config.mode not in [ 'TRANSLATION', 'WHITELIST', 'BLACKLIST' ]:
 if config.mode == "TRANSLATION":
     if not verify_onion(config.onion):
         print "Tor2web Startup Failure: TRANSLATION config.mode require config.onion configuration"
-        exit(1)        
-    
+        exit(1)
+
 for d in [ 'certs',  'logs']:
     path = os.path.join(config.datadir, d)
     if not os.path.exists(path):
         print "Tor2web Startup Failure: unexistent directory (%s)" % path
         exit(1)
 
-files =[]
-files.append('certs/tor2web-key.pem')
-files.append('certs/tor2web-intermediate.pem')
-files.append('certs/tor2web-dh.pem')
+files = ['certs/tor2web-key.pem', 'certs/tor2web-intermediate.pem', 'certs/tor2web-dh.pem']
 for f in files:
     path = os.path.join(config.datadir, f)
     try:
@@ -230,7 +223,7 @@ for f in files:
             not os.access(path, os.R_OK)):
             print "Tor2web Startup Failure: unexistent file (%s)" % path
             exit(1)
-    except:
+    except Exception:
         print "Tor2web Startup Failure: error while accessing file (%s)" % path
         exit(1)
 
@@ -256,18 +249,15 @@ def open_listenin_socket(ip, port):
         s.setblocking(False)
         s.bind((ip, port))
         s.listen(1024)
+        return s
     except Exception as e:
         print "Tor2web Startup Failure: error while binding on %s %s (%s)" % (ip, port, e)
         exit(1)
-    return s
 
 def daemon_init(self):
     self.socket_rpc = open_listenin_socket('127.0.0.1', 8789)
 
-    self.childFDs = {}
-    self.childFDs[0] = 0
-    self.childFDs[1] = 1
-    self.childFDs[2] = 2
+    self.childFDs = {0: 0, 1: 1, 2: 2}
 
     self.fds = []
 
@@ -278,7 +268,7 @@ def daemon_init(self):
     i_http = 0
 
     for ip in [ipv4, ipv6]:
-        if ip != None:
+        if ip is not None:
             if config.transport in ('HTTPS', 'BOTH'):
                 if i_https != 0:
                     self.fds_https += ','
@@ -298,9 +288,8 @@ def daemon_init(self):
                 i_http += 1
 
 def daemon_main(self):
-
     reactor.listenTCPonExistingFD = listenTCPonExistingFD
-    
+
     reactor.listenUNIX(os.path.join("/var/run/tor2web/rpc.socket"), factory=pb.PBServerFactory(rpc_server))
 
     for i in range(config.processes):
@@ -328,6 +317,7 @@ def daemon_shutdown(self):
 
     for pid in subprocesses:
         os.kill(pid, signal.SIGINT)
+
     subprocesses = []
 
 t2w_daemon = T2WDaemon()

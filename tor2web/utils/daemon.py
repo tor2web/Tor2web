@@ -32,14 +32,13 @@
 # -*- coding: utf-8 -*-
 
 from optparse import OptionParser
-
 import os
 import sys
 import time
 import glob
-
 import signal
-import pwd, grp
+import pwd
+import grp
 
 class _NullDevice:
     """A substitute for stdout/stderr that writes to nowhere."""
@@ -59,13 +58,9 @@ class T2WDaemon:
 
         if os.fork() != 0:  # launch child and ...
             os._exit(0)     # kill off parent
+
         os.setsid()
         os.chdir(self.options.rundir)
-
-        if (self.options.uid != "") and (self.options.gid != ""):
-            uid = pwd.getpwnam(self.options.uid).pw_uid
-            gid = grp.getgrnam(self.options.gid).gr_gid
-
         os.umask(077)
 
         if os.fork() != 0:  # fork again so we are not a session leader
@@ -113,14 +108,14 @@ class T2WDaemon:
         
         try:
             os.kill(pid, signal.SIGINT)  # SIGTERM is too harsh...
-        except:
+        except Exception:
             pass
 
         time.sleep(1)
 
         try:
             os.unlink(self.options.pidfile)
-        except:
+        except Exception:
             pass
 
     def get_pid(self):
@@ -153,7 +148,6 @@ class T2WDaemon:
                 c_gid = cgr.gr_gid
             else:
                 c_gid = cpw.pw_gid
-                c_group = grp.getgrgid(cpw.pw_gid).gr_name
 
             c_groups = []
             for item in grp.getgrall():
@@ -180,8 +174,6 @@ class T2WDaemon:
         parser.add_option("", "--command", dest="command", default="start")
 
         (self.options, args) = parser.parse_args()
-
-        pid = self.get_pid()
         
         if self.options.command == 'status':
             if not self.is_process_running():
@@ -203,8 +195,8 @@ class T2WDaemon:
             if self.is_process_running():
                 pid = self.get_pid()
                 try:
-                   os.kill(pid, SIGHUP)
-                except:
+                   os.kill(pid, signal.SIGHUP)
+                except Exception:
                    pass
             else:
                self.daemon_start()
@@ -218,3 +210,15 @@ class T2WDaemon:
             raise SystemExit
 
         exit(1)
+
+    def daemon_init(self):
+        pass
+
+    def daemon_reload(self):
+        pass
+
+    def daemon_shutdown(self):
+        pass
+
+    def daemon_main(self):
+        pass

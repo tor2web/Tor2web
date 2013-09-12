@@ -100,7 +100,7 @@ class Config(Storage):
                 not os.access(self._file, os.R_OK)):
                 print "Tor2web Startup Failure: cannot open config file (%s)" % self._file
                 exit(1)
-        except:
+        except Exception:
             print "Tor2web Startup Failure: error while accessing config file (%s)" % self._file
             exit(1)
 
@@ -109,7 +109,6 @@ class Config(Storage):
             self._parser.read([self._file])
 
             for name in self._parser.options(self._section):
-                value = self._parser.get(self._section, name)
                 self.__dict__[name] = self.parse(name)
 
         except Exception as e:

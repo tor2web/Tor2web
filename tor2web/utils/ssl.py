@@ -34,7 +34,7 @@
 from OpenSSL import SSL
 
 from twisted.internet.ssl import ContextFactory
-from twisted.protocols import tls
+
 
 class T2WSSLContextFactory(ContextFactory):
     _context = None

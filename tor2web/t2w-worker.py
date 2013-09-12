@@ -32,54 +32,47 @@
 # -*- coding: utf-8 -*-
 
 import os
-import prctl
 import re
 import sys
 import mimetypes
 import random
-import socket
 import signal
-import operator
 import zlib
 import hashlib
 from StringIO import StringIO
 from random import choice
 from functools import partial
-from urlparse import urlparse, urlunparse
-
+from urlparse import urlparse
 from cgi import parse_header
 
+import prctl
 from zope.interface import implements
-
 from twisted.spread import pb
 from twisted.internet import reactor, protocol, defer
 from twisted.internet.abstract import isIPAddress, isIPv6Address
 from twisted.internet.endpoints import TCP4ClientEndpoint, SSL4ClientEndpoint
 from twisted.protocols.policies import WrappingFactory
-from twisted.application import service, internet
-from twisted.web import http, client, resource, _newclient
-from twisted.web.http import StringTransport, _IdentityTransferDecoder, _ChunkedTransferDecoder, _MalformedChunkedDataError, parse_qs
+from twisted.web import http, client, _newclient
+from twisted.web.error import SchemeNotSupported
+from twisted.web.http import StringTransport, _IdentityTransferDecoder, _ChunkedTransferDecoder, parse_qs
 from twisted.web.http_headers import Headers
 from twisted.web.server import NOT_DONE_YET
 from twisted.web.template import flattenString, XMLString
 from twisted.web.iweb import IBodyProducer
-from twisted.python import log, logfile
+from twisted.python import log
 from twisted.python.compat import networkString, intToBytes
 from twisted.python.filepath import FilePath
 from twisted.internet.task import LoopingCall
-
-from tor2web.utils.daemon import T2WDaemon
 from tor2web.utils.config import VERSION
-from tor2web.utils.lists import List, TorExitNodeList
 from tor2web.utils.mail import sendmail, MailException
 from tor2web.utils.misc import listenTCPonExistingFD, listenSSLonExistingFD, re_sub, t2w_file_path, verify_onion
 from tor2web.utils.socks import SOCKS5ClientEndpoint, SOCKSError
 from tor2web.utils.ssl import T2WSSLContextFactory
 from tor2web.utils.storage import Storage
 from tor2web.utils.templating import PageTemplate
-from tor2web.utils.stats import T2WStats
 
-SOCKS_errors = {\
+
+SOCKS_errors = {
     0x00: "error_sock_generic.tpl",
     0x23: "error_sock_hs_not_found.tpl",
     0x24: "error_sock_hs_not_reachable.tpl"
@@ -117,11 +110,11 @@ class BodyReceiver(protocol.Protocol):
         self._finished = finished
         self._data = []
 
-    def dataReceived(self, bytes):
-        self._data.append(bytes)
+    def dataReceived(self, chunk):
+        self._data.append(chunk)
 
-    def write(self, bytes):
-        self._data.append(bytes)
+    def write(self, chunk):
+        self._data.append(chunk)
 
     def connectionLost(self, reason):
         self._finished.callback(''.join(self._data))
@@ -141,7 +134,7 @@ class BodyStreamer(protocol.Protocol):
 
 class BodyProducer(object):
     implements(IBodyProducer)
-    
+
     def __init__(self):
         self.length = _newclient.UNKNOWN_LENGTH
         self.finished = defer.Deferred()
@@ -304,7 +297,7 @@ class T2WRequest(http.Request):
         if data != '':
             try:
                 self.write(data)
-            except:
+            except Exception:
                 pass
 
     def requestReceived(self, command, path, version):
@@ -369,7 +362,7 @@ class T2WRequest(http.Request):
 
         try:
             self.finish()
-        except:
+        except Exception:
             pass
 
     def handleGzippedForwardPart(self, data, end=False):
@@ -381,7 +374,7 @@ class T2WRequest(http.Request):
     def handleCleartextForwardPart(self, data, end=False):
         if self.obj.client_supports_gzip:
            data = self.zip(data, end)
-        
+
         return data
 
     def handleForwardPart(self, data):
@@ -401,7 +394,7 @@ class T2WRequest(http.Request):
         self.forwardData(data, True)
         try:
             self.finish()
-        except:
+        except Exception:
             pass
 
     def contentFinish(self, data):
@@ -418,7 +411,7 @@ class T2WRequest(http.Request):
         try:
             self.write(data)
             self.finish()
-        except:
+        except Exception:
             pass
 
     def sendError(self, error=500, errortemplate='error_generic.tpl'):
@@ -442,7 +435,7 @@ class T2WRequest(http.Request):
         data1 = data2 = ''
 
         try:
-            if self.decoderGzip == None:
+            if self.decoderGzip is None:
                 self.decoderGzip = zlib.decompressobj(16 + zlib.MAX_WBITS)
 
             if data != '':
@@ -451,7 +444,7 @@ class T2WRequest(http.Request):
             if end:
                 data2 = self.decoderGzip.flush()
 
-        except:
+        except Exception:
             pass
 
         return data1 + data2
@@ -460,7 +453,7 @@ class T2WRequest(http.Request):
         data1 = data2 = ''
 
         try:
-            if self.encoderGzip == None:
+            if self.encoderGzip is None:
                 self.encoderGzip = zlib.compressobj(6, zlib.DEFLATED, 16 + zlib.MAX_WBITS)
 
             if data != '':
@@ -468,7 +461,7 @@ class T2WRequest(http.Request):
 
             if end:
                 data2 = self.encoderGzip.flush()
-        except:
+        except Exception:
             pass
 
         return data1 + data2
@@ -512,8 +505,6 @@ class T2WRequest(http.Request):
 
     @defer.inlineCallbacks
     def process(self):
-        content = ""
-
         request = Storage()
         request.headers = self.requestHeaders
         request.host = self.getRequestHostname()
@@ -523,12 +514,12 @@ class T2WRequest(http.Request):
         transfer_encoding = self.getHeader(b'transfer-encoding')
 
         staticpath = request.uri
-        staticpath = re.sub('\/$', '/index.html', staticpath)
+        staticpath = re.sub('/$', '/index.html', staticpath)
         staticpath = re.sub('^(/antanistaticmap/)?', '', staticpath)
         staticpath = re.sub('^/', '', staticpath)
 
-        resource_is_local = (config['mode'] != "TRANSLATION" and 
-                             (request.host == config['basehost'] or \
+        resource_is_local = (config['mode'] != "TRANSLATION" and
+                             (request.host == config['basehost'] or
                               request.host == 'www.' + config['basehost'])) or \
                             isIPAddress(request.host) or \
                             isIPv6Address(request.host) or \
@@ -562,14 +553,14 @@ class T2WRequest(http.Request):
         # 0: Request admission control stage
         # we try to deny some ua/crawlers regardless the request is (valid or not) / (local or not)
         # we deny EVERY request to known user agents reconized with pattern matching
-        if config['blockcrawl'] and request.headers.getRawHeaders(b'user-agent') != None:
+        if config['blockcrawl'] and request.headers.getRawHeaders(b'user-agent') is not None:
             for ua in blocked_ua_list:
                 if re.match(ua, request.headers.getRawHeaders(b'user-agent')[0].lower()):
                     self.sendError(403, "error_blocked_ua.tpl")
                     defer.returnValue(NOT_DONE_YET)
 
         # 1: Client capability assessment stage
-        if request.headers.getRawHeaders(b'accept-encoding') != None:
+        if request.headers.getRawHeaders(b'accept-encoding') is not None:
             if re.search('gzip', request.headers.getRawHeaders(b'accept-encoding')[0]):
                 self.obj.client_supports_gzip = True
 
@@ -585,7 +576,7 @@ class T2WRequest(http.Request):
                     self.setHeader(b'content-type', 'text/plain')
                     defer.returnValue(self.contentFinish(content))
                     return
-                
+
                 elif staticpath == "stats/yesterday":
                     self.setHeader(b'content-type', 'application/json')
                     content = yield rpc("get_yesterday_stats")
@@ -593,7 +584,7 @@ class T2WRequest(http.Request):
                     return
 
                 elif staticpath == "notification":
- 
+
                     #################################################################
                     # Here we need to parse POST data in x-www-form-urlencoded format
                     #################################################################
@@ -609,12 +600,11 @@ class T2WRequest(http.Request):
                         ctype = ctype[0]
 
                     if self.method == b"POST" and ctype:
-                        mfd = b'multipart/form-data'
                         key, pdict = parse_header(ctype)
                         if key == b'application/x-www-form-urlencoded':
                             args.update(parse_qs(content, 1))
                     #################################################################
-                    
+
                     if 'by' in args and 'url' in args and 'comment' in args:
                         tmp = []
                         tmp.append("From: Tor2web Node %s.%s <%s>\n" % (config['nodename'], config['basehost'], config['smtpmail']))
@@ -635,7 +625,7 @@ class T2WRequest(http.Request):
                                      message,
                                      config['smtpdomain'],
                                      config['smtpport'])
-                        except:
+                        except Exception:
                             pass
 
                         self.setHeader(b'content-type', 'text/plain')
@@ -651,9 +641,9 @@ class T2WRequest(http.Request):
                     elif type(antanistaticmap[staticpath]) == PageTemplate:
                         defer.returnValue(flattenString(self, antanistaticmap[staticpath]).addCallback(self.contentFinish))
 
-            except:
+            except Exception:
                 pass
-            
+
             self.sendError(404)
             defer.returnValue(NOT_DONE_YET)
 
@@ -694,14 +684,14 @@ class T2WRequest(http.Request):
 
                 try:
                     self.finish()
-                except:
+                except Exception:
                     pass
 
                 return
 
             # Avoid image hotlinking
             if request.uri.lower().endswith(('gif','jpg','png')):
-                if request.headers.getRawHeaders(b'referer') != None and \
+                if request.headers.getRawHeaders(b'referer') is not None and \
                    not config['basehost'] in request.headers.getRawHeaders(b'referer')[0].lower():
                     self.sendError(403)
                     defer.returnValue(NOT_DONE_YET)
@@ -724,7 +714,7 @@ class T2WRequest(http.Request):
                 proxy_url = 's' + self.obj.address
             else:
                 proxy_url = config['dummyproxy'] + parsed[2] + '?' + parsed[3]
-                
+
             self.proxy_d = agent.request(self.method,
                                          proxy_url,
                                          self.obj.headers, bodyProducer=producer)
@@ -736,7 +726,7 @@ class T2WRequest(http.Request):
 
     def cbResponse(self, response):
         self.proxy_response = response
-        if int(response.code) >= 600 and int(response.code) <= 699:
+        if 600 <= int(response.code) <= 699:
             self.setResponseCode(500)
             self.var['errorcode'] = int(response.code) - 600
             if self.var['errorcode'] in SOCKS_errors:
@@ -748,7 +738,7 @@ class T2WRequest(http.Request):
 
         self.processResponseHeaders(response.headers)
 
-        if(response.length is not 0):
+        if response.length is not 0:
             finished = defer.Deferred()
             if self.obj.html:
                 response.deliverBody(BodyStreamer(self.handleFixPart, finished))
@@ -764,7 +754,7 @@ class T2WRequest(http.Request):
 
     def handleHeader(self, key, values):
         keyLower = key.lower()
-        
+
         # some headers does not allow multiple occurrences
         # in case of multiple occurrences we evaluate only the first
         valueLower = values[0].lower()
@@ -786,13 +776,13 @@ class T2WRequest(http.Request):
         elif keyLower == 'cache-control':
             return
 
-        if keyLower in ('location'):
+        if keyLower in 'location':
             fixed_values = []
             for value in values:
                 value = re_sub(rexp['t2w'], r'https://\2.' + config['basehost'], value)
                 fixed_values.append(value)
             values = fixed_values
-        
+
         self.responseHeaders.setRawHeaders(key, values)
 
     def processResponseHeaders(self, headers):
@@ -807,24 +797,24 @@ class T2WRequest(http.Request):
         try:
             if self.proxy_d:
                 self.proxy_d.cancel()
-        except:
+        except Exception:
             pass
 
         try:
             if self.proxy_response:
                 self.proxy_response._transport.stopProducing()
-        except:
+        except Exception:
             pass
 
         try:
             http.Request.connectionLost(self, reason)
-        except:
+        except Exception:
             pass
 
     def finish(self):
         try:
             http.Request.finish(self)
-        except:
+        except Exception:
             pass
 
 class T2WProxy(http.HTTPChannel):
@@ -874,7 +864,7 @@ class T2WProxy(http.HTTPChannel):
         if len(self.requests):
             req = self.requests[-1]
             req.bodyProducer.allDataReceived()
-        
+
         # reset ALL state variables, so we don't interfere with next request
         self.length = 0
         self._receivedHeaderCount = 0
@@ -934,16 +924,16 @@ class T2WLimitedRequestsFactory(WrappingFactory):
             #            stronger stability.
             try:
                 reactor.stop()
-            except:
+            except Exception:
                 pass
 
 @defer.inlineCallbacks
 def rpc(f, *args, **kwargs):
     d = rpc_factory.getRootObject()
-    d.addCallback(lambda object: object.callRemote(f,  *args, **kwargs))
+    d.addCallback(lambda obj: obj.callRemote(f,  *args, **kwargs))
     ret = yield d
     defer.returnValue(ret)
-    
+
 def t2w_log(msg):
     rpc("log_debug", str(msg))
     print msg
@@ -978,9 +968,9 @@ def start():
     antanistaticmap = {}
 
     files = FilePath('/usr/share/tor2web/static/').globChildren("*")
-    for file in files:
-        file = FilePath(t2w_file_path(config['datadir'], os.path.join('static', file.basename())))
-        antanistaticmap[file.basename()] = file.getContent()
+    for f in files:
+        f = FilePath(t2w_file_path(config['datadir'], os.path.join('static', f.basename())))
+        antanistaticmap[f.basename()] = f.getContent()
 
     # we add also user defined data allowing also the user to override tor2web defaults.
     userstaticdir = os.path.join(config['datadir'], "static/")
@@ -988,8 +978,8 @@ def start():
         for root, dirs, files in os.walk(os.path.join(userstaticdir)):
             for basename in files:
                 filename = os.path.join(root, basename)
-                file = FilePath(filename)
-                antanistaticmap[filename.replace(userstaticdir, "")] = file.getContent()
+                f = FilePath(filename)
+                antanistaticmap[filename.replace(userstaticdir, "")] = f.getContent()
 
     ###############################################################################
 
@@ -1001,9 +991,9 @@ def start():
     templates = {}
 
     files = FilePath('/usr/share/tor2web/templates/').globChildren("*.tpl")
-    for file in files:
-        file = FilePath(t2w_file_path(config['datadir'], os.path.join('templates', file.basename())))
-        templates[file.basename()] = PageTemplate(XMLString(file.getContent()))
+    for f in files:
+        f = FilePath(t2w_file_path(config['datadir'], os.path.join('templates', f.basename())))
+        templates[f.basename()] = PageTemplate(XMLString(f.getContent()))
     ###############################################################################
 
     pool = HTTPConnectionPool(reactor, True,

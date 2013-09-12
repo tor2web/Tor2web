@@ -52,7 +52,7 @@ class Storage(dict):
     def __getattr__(self, key):
         try:
             return self[key]
-        except KeyError, k:
+        except KeyError:
             return None
 
     def __setattr__(self, key, value):
@@ -61,7 +61,7 @@ class Storage(dict):
     def __delattr__(self, key):
         try:
             del self[key]
-        except KeyError, k:
+        except KeyError as k:
             raise AttributeError, k
 
     def __repr__(self):

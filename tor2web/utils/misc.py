@@ -35,16 +35,17 @@ import os
 import re
 import socket
 
-from twisted.internet import reactor
+try:
+    from twisted.protocols import tls
+
+except ImportError:
+    raise Exception("tor2web: ssl hack for listenSSLonExistingFD not implemented (tls only)")
+
 
 def listenTCPonExistingFD(reactor, fd, factory):
     return reactor.adoptStreamPort(fd, socket.AF_INET, factory)
 
 def listenSSLonExistingFD(reactor, fd, factory, contextFactory):
-    try:
-        from twisted.protocols import tls
-    except ImportError:
-        raise Exception("tor2web: ssl hack for listenSSLonExistingFD not implemented (tls only)")
 
     tlsFactory = tls.TLSMemoryBIOFactory(contextFactory, False, factory)
     port = reactor.listenTCPonExistingFD(reactor, fd, tlsFactory)
@@ -95,7 +96,7 @@ def verify_onion(address):
         onion, tld = address.split(".")
         if tld == 'onion' and len(onion) == 16 and onion.isalnum():
             return True
-    except:
+    except Exception:
         pass
 
     return False

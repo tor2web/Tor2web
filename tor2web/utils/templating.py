@@ -32,13 +32,14 @@
 # -*- coding: utf-8 -*-
 
 from twisted.web.template import Element, renderer, tags
+from twisted.web.error import MissingTemplateLoader
 
 class PageTemplate(Element):
     def lookupRenderMethod(self, name):
         method = renderer.get(self, name, None)
         if method is None:
             def renderUsingDict(request, tag):
-                if(name.startswith("t2wvar-")):
+                if name.startswith("t2wvar-"):
                     prefix, var = name.split("-")
                     if var in request.var:
                         return tag('%s' % request.var[var])

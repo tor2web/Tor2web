@@ -33,10 +33,8 @@
 
 import struct
 
-from zope.interface import implements, implementer
+from zope.interface import implementer
 from twisted.internet import defer, interfaces
-from twisted.internet.interfaces import IStreamClientEndpoint
-from twisted.protocols import policies
 from twisted.protocols.policies import ProtocolWrapper, WrappingFactory
 from twisted.python.failure import Failure
 
@@ -89,7 +87,7 @@ class SOCKSv5ClientProtocol(ProtocolWrapper):
 
         self._buf = self._buf[2:]
 
-        self.state = self.state + 1
+        self.state += 1
 
     def socks_state_2(self):
         if len(self._buf) < 10:
@@ -105,13 +103,13 @@ class SOCKSv5ClientProtocol(ProtocolWrapper):
             self.wrappedProtocol.makeConnection(self)
             try:
                 self._connectedDeferred.callback(self.wrappedProtocol)
-            except:
+            except Exception:
                 pass
 
         self.wrappedProtocol.dataReceived(self._buf)
         self._buf = ''
 
-        self.state = self.state + 1
+        self.state += 1
 
     def makeConnection(self, transport):
         """
@@ -131,15 +129,15 @@ class SOCKSv5ClientProtocol(ProtocolWrapper):
             self.wrappedProtocol.makeConnection(self)
             try:
                 self._connectedDeferred.callback(self.wrappedProtocol)
-            except:
+            except Exception:
                 pass
 
-        self.state = self.state + 1
+        self.state += 1
 
     def dataReceived(self, data):
         if self.state != 3:
             self._buf = ''.join([self._buf, data])
-            getattr(self, 'socks_state_%s' % (self.state), self.socks_state_0)()
+            getattr(self, 'socks_state_%s' % self.state, self.socks_state_0)()
         else:
             self.wrappedProtocol.dataReceived(data)
 
@@ -157,7 +155,7 @@ class SOCKSv5ClientFactory(WrappingFactory):
     def buildProtocol(self, addr):
         try:
             proto = self.wrappedFactory.buildProtocol(addr)
-        except:
+        except Exception:
             self._onConnection.errback()
         else:
             return self.protocol(self, proto, self._onConnection,
@@ -175,7 +173,7 @@ class SOCKSv5ClientFactory(WrappingFactory):
         """
         try:
             del self.protocols[p]
-        except:
+        except Exception:
             pass
 
 
@@ -202,5 +200,5 @@ class SOCKS5ClientEndpoint(object):
                 self._sockhost, self._sockport, wf,
                 timeout=self._timeout, bindAddress=self._bindAddress)
             return wf._onConnection
-        except:
+        except Exception:
             return defer.fail()

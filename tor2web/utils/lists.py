@@ -35,21 +35,17 @@ import re
 import gzip
 import json
 from StringIO import StringIO
-from OpenSSL import SSL
+import os
+import glob
 
+from OpenSSL import SSL
 from twisted.internet import reactor, ssl
 from twisted.internet.task import LoopingCall
 from twisted.internet.defer import Deferred
 from twisted.web.client import HTTPPageGetter, HTTPClientFactory, _URI
-
-import os
-import glob
-from OpenSSL.SSL import Context, TLSv1_METHOD, VERIFY_PEER, VERIFY_FAIL_IF_NO_PEER_CERT, OP_NO_SSLv2
+from OpenSSL.SSL import VERIFY_PEER, VERIFY_FAIL_IF_NO_PEER_CERT
 from OpenSSL.crypto import load_certificate, FILETYPE_PEM
-from twisted.python.urlpath import URLPath
-from twisted.internet.ssl import ContextFactory
-from twisted.internet import reactor
-from twisted.web.client import getPage
+
 
 certificateAuthorityMap = {}
 
@@ -84,9 +80,6 @@ class HTTPSVerifyingContextFactory(ssl.ClientContextFactory):
             store.add_cert(value)
         ctx.set_verify(VERIFY_PEER | VERIFY_FAIL_IF_NO_PEER_CERT, self.verifyHostname)
         return ctx
-
-    def allButFirst(domain):
-        return domain.split(b".")[1:]
     
     def verifyHostname(self, connection, x509, errno, depth, preverifyOK):
         if  depth == 0 and preverifyOK:
@@ -114,7 +107,6 @@ def getPageCached(url, contextFactory=None, *args, **kwargs):
     scheme = uri.scheme
     host = uri.host
     port = uri.port
-    path = uri.originForm
  
     factory = HTTPClientCacheFactory(url, *args, **kwargs)
 
@@ -269,15 +261,15 @@ class List(set):
     
     def handleData(self, data):
         for elem in data.split('\n'):
-            if(elem != ''):
+            if elem != '':
                 self.add(elem)
 
     def processData(self, data):
         try:
-            if(len(data) != 0):
+            if len(data) != 0:
                 self.handleData(data)
                 self.dump()
-        except:
+        except Exception:
             pass
 
     def update(self):
@@ -291,5 +283,5 @@ class TorExitNodeList(List):
         data = json.loads(data)
         for relay in data['relays']:
             for ip in relay['a']:
-                if(ip != ''):
+                if ip != '':
                     self.add(ip)
