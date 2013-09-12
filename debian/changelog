@@ -1,3 +1,15 @@
+tor2web (3.0.64-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.64 AppArmor sandboxing profile added
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Thu, 12 Sep 2013 17:53:42 +0002
+
+tor2web (3.0.63-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.63 Fix against TLS CRIME Attack
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Tue, 10 Sep 2013 11:34:42 +0002
+
 tor2web (3.0.63-0) unstable; urgency=low
 
   * Tor2web 3.0 - 3.0.63 Fix against TLS CRIME Attack
