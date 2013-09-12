@@ -4,7 +4,7 @@
 # startup script for Ubuntu and Debian Linux servers
 #
 # To use this file
-# cp tor2web.init.sh /etc/init.d/tor2web
+# cp tor2web.init /etc/init.d/tor2web
 #
 # To automatitcally start at reboot
 # sudo update-rc.d tor2web defaults
@@ -22,7 +22,8 @@
 #          Giovanni Pellerano <evilaliv3@globaleaks.org>
 
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-NAME=tor2web
+
+NAME=$(basename $(readlink -nf $0))
 
 DAEMON=tor2web
 
@@ -35,8 +36,6 @@ DAEMON_USER=tor2web
 DAEMON_ARGS="--pidfile ${DAEMON_PIDFILE} --uid ${DAEMON_USER} --gid ${DAEMON_USER}"
 
 DAEMON_CMD="$DAEMON $DAEMON_ARGS"
-
-NAME=$(basename $(readlink -nf $0))
 
 SCRIPTNAME=$0
 
