@@ -31,7 +31,6 @@
 
 # -*- coding: utf-8 -*-
 
-from optparse import OptionParser
 import os
 import sys
 import time
@@ -39,6 +38,9 @@ import glob
 import signal
 import pwd
 import grp
+import atexit
+
+from optparse import OptionParser
 
 class _NullDevice:
     """A substitute for stdout/stderr that writes to nowhere."""
@@ -91,6 +93,13 @@ class T2WDaemon:
            f.write("%s" % os.getpid())
 
         os.chmod(self.options.pidfile, 0600)
+
+        @atexit.register
+        def goodbye():
+            try:
+                os.unlink(self.options.pidfile)
+            except Exception:
+                pass
 
         if (self.options.uid != "") and (self.options.gid != ""):
             self.change_uid()
