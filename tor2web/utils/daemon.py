@@ -82,11 +82,21 @@ class T2WDaemon:
         if not self.options.nodaemon:
             self.become_daemon()
 
-        f = open(self.options.pidfile, 'w')
-        f.write("%s" % os.getpid())
-        f.close()
+        if  not os.path.exists(self.options.rundir):
+            os.mkdir(self.options.rundir)
+
+        os.chmod(self.options.rundir, 0700)
+
+        with open(self.options.pidfile, 'w') as f:
+           f.write("%s" % os.getpid())
+
+        os.chmod(self.options.pidfile, 0600)
+
         if (self.options.uid != "") and (self.options.gid != ""):
             self.change_uid()
+
+        for item in glob.glob(self.options.rundir + '/*'):
+            os.chmod(item, 0600)
 
         def _daemon_reload(SIG, FRM):
             self.daemon_reload() # self must be explicit passed
@@ -156,9 +166,12 @@ class T2WDaemon:
                 if c_gid not in c_groups:
                     c_groups.append(c_gid)
 
-            for item in glob.glob('/var/run/tor2web/*'):
+            os.chown(self.options.rundir, c_uid, c_gid)
+
+            os.chown(self.options.pidfile, c_uid, c_gid)
+
+            for item in glob.glob(self.options.rundir + '/*'):
                 os.chown(item, c_uid, c_gid)
-                os.chmod(item, 0600)
 
             os.setgid(c_gid)
             os.setgroups(c_groups)
@@ -166,11 +179,11 @@ class T2WDaemon:
 
     def run(self, datadir):
         parser = OptionParser()
-        parser.add_option("", "--pidfile", dest="pidfile", default="/var/run/t2w.pid")
+        parser.add_option("", "--pidfile", dest="pidfile", default="/var/run/tor2web/t2w.pid")
         parser.add_option("", "--uid", dest="uid", default="")
         parser.add_option("", "--gid", dest="gid", default="")
         parser.add_option("", "--nodaemon", dest="nodaemon", default=False, action="store_true")
-        parser.add_option("", "--rundir", dest="rundir", default=datadir)
+        parser.add_option("", "--rundir", dest="rundir", default='/var/run/tor2web')
         parser.add_option("", "--command", dest="command", default="start")
 
         (self.options, args) = parser.parse_args()
