@@ -191,9 +191,10 @@ class T2WDaemon:
         elif self.options.command == 'start':
             if not self.is_process_running():
                 self.daemon_start()
+                exit(0)
             else:
                 print "Unable to start Tor2web: process is already running."
-            exit(0)
+                exit(1)
         elif self.options.command == 'stop':
             if self.is_process_running():
                 self.daemon_stop()

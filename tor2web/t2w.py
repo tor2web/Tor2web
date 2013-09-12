@@ -166,6 +166,10 @@ class T2WPP(protocol.ProcessProtocol):
         if len(subprocesses) == 0:
             reactor.stop()
 
+sys.excepthook = None
+prctl.set_pdeathsig(signal.SIGINT)
+prctl.set_proctitle("tor2web")
+
 ##########################
 # Security UMASK hardening
 os.umask(077)
@@ -325,8 +329,6 @@ def daemon_shutdown(self):
     for pid in subprocesses:
         os.kill(pid, signal.SIGINT)
     subprocesses = []
-
-prctl.set_proctitle("tor2web")
 
 t2w_daemon = T2WDaemon()
 

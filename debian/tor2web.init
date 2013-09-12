@@ -34,6 +34,8 @@ DAEMON_USER=tor2web
 
 DAEMON_ARGS="--pidfile ${DAEMON_PIDFILE} --uid ${DAEMON_USER} --gid ${DAEMON_USER}"
 
+DAEMON_CMD="$DAEMON $DAEMON_ARGS"
+
 NAME=$(basename $(readlink -nf $0))
 
 SCRIPTNAME=$0
@@ -102,6 +104,15 @@ else
         MAX_FILEDESCRIPTORS=8192
 fi
 
+if [ "${APPARMOR_SANDBOXING}" -eq "1" ]; then
+    test -x /usr/sbin/aa-status \
+        && test -x /usr/sbin/aa-exec \
+        && test -e /etc/apparmor.d/usr.bin.tor2web \
+        && /usr/sbin/aa-status --enabled \
+        && DAEMON_CMD="/usr/sbin/aa-exec --profile=usr.bin.tor2web -- ${DAEMON_CMD}" \
+        && echo "Enabling Tor2web Apparmor Sandboxing"
+fi
+
 do_t2w_start()
 {
     if [ -n "$MAX_FILEDESCRIPTORS" ]; then
@@ -109,14 +120,15 @@ do_t2w_start()
     fi
 
     # Check to see if the daemon is already running.
-    start-stop-daemon --start --quiet --pidfile ${DAEMON_PIDFILE} \
-        --exec $DAEMON -- $DAEMON_ARGS
+    $DAEMON_CMD --command=status
     RETVAL=$?
-    if [ $RETVAL -eq 1 ]; then
+    if [ $RETVAL -eq 0 ]; then
         log_end_msg 0 "already running"
         exit 0
     fi
 
+    $DAEMON_CMD --command=start
+    RETVAL=$?
     if [ $RETVAL -ne 0 ]; then
         log_end_msg 1 "couldn't start"
         exit 1
@@ -125,21 +137,17 @@ do_t2w_start()
 
 do_t2w_stop()
 {
-    start-stop-daemon --start --quiet --pidfile ${DAEMON_PIDFILE} \
-        --exec $DAEMON -- $DAEMON_ARGS --command=stop
-
+    $DAEMON_CMD --command=stop
 }
 
 do_t2w_reload()
 {
-    start-stop-daemon --start --quiet --pidfile ${DAEMON_PIDFILE} \
-        --exec $DAEMON -- $DAEMON_ARGS --command=reload    
+    $DAEMON_CMD --command=reload    
 }
 
 do_t2w_status()
 {
-    start-stop-daemon --start --quiet --pidfile ${DAEMON_PIDFILE} \
-        --exec $DAEMON -- $DAEMON_ARGS --command=status
+    $DAEMON_CMD --command=status
     RETVAL=$?
     if [ $RETVAL -eq 1 ]; then
         log_failure_msg "Tor2web is not running"
