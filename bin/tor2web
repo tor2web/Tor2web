@@ -9,7 +9,10 @@ import signal
 import sys
 from subprocess import call
 
-sys.excepthook = None
+def NullSysHook(etype, value, tb):
+    pass
+
+sys.excepthook = NullSysHook
 prctl.set_pdeathsig(signal.SIGINT)
 prctl.set_proctitle("tor2web")
 
@@ -20,5 +23,5 @@ args += sys.argv[1:]
 
 try: 
     exit(call(args))
-except:
+except Exception:
     exit(1)
