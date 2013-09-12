@@ -28,6 +28,7 @@ profile usr.bin.tor2web {
     /usr/include/python2.7/** r,
     /usr/lib/python2.7/** mr,
     /usr/local/lib/python2.7/** mr,
+    /usr/lib/pyshared/python2.7/** mr,
     /etc/python2.7/** r,
     /etc/mime.types r,
 
