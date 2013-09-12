@@ -35,7 +35,7 @@ profile usr.bin.tor2web {
     /etc/tor2web.conf r,
     /home/tor2web/ r,
     /home/tor2web/** lrwk,
-    /run/tor2web/ rc,
+    /run/tor2web/ rk,
     /run/tor2web/** lrw,
 
     owner /tmp/** rwkl,
