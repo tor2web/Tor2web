@@ -1,3 +1,9 @@
+tor2web (3.0.67-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.67 Packaging fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Fri, 13 Sep 2013 00:55:42 +0002
+
 tor2web (3.0.66-0) unstable; urgency=low
 
   * Tor2web 3.0 - 3.0.66 Massive fixs thanks to python pycharm code debugging
