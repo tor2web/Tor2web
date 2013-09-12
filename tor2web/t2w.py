@@ -255,7 +255,7 @@ def open_listenin_socket(ip, port):
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.setblocking(False)
         s.bind((ip, port))
-        s.listen(socket.SOMAXCONN)
+        s.listen(1024)
     except Exception as e:
         print "Tor2web Startup Failure: error while binding on %s %s (%s)" % (ip, port, e)
         exit(1)
