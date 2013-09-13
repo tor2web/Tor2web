@@ -11,6 +11,7 @@ profile usr.bin.tor2web {
     capability fowner,
     capability chown,
     capability dac_override,
+    capability sys_tty_config,
     capability kill,
 
     /proc/*/mounts r,
