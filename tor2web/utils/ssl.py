@@ -64,6 +64,10 @@ class T2WSSLContextFactory(ContextFactory):
             # Disallow SSLv2! It's insecure!
             ctx.set_options(SSL.OP_NO_SSLv2)
 
+            # https://bugs.launchpad.net/pyopenssl/+bug/1244201
+            # SSL_OP_CIPHER_SERVER_PREFERENCE = 0x00400000L
+            ctx.set_options(0x00400000L)
+
             ctx.set_options(SSL.OP_SINGLE_DH_USE)
 
             # https://twistedmatrix.com/trac/ticket/5487
