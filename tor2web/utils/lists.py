@@ -245,19 +245,25 @@ class List(set):
         self.clear()
         
         #simple touch to create non existent files
-        open(self.filename, 'a').close()
+        try:
+            open(self.filename, 'a').close()
 
-        with open(self.filename, 'r') as fh:
-            for l in fh.readlines():
-                self.add(re.split("#", l)[0].rstrip("[ , \n,\t]"))
+            with open(self.filename, 'r') as fh:
+                for l in fh.readlines():
+                    self.add(re.split("#", l)[0].rstrip("[ , \n,\t]"))
+        except:
+            pass
 
     def dump(self):
         """
         Dump the list to the specified file.
         """
-        with open(self.filename, 'w') as fh:
-            for l in self:
-                fh.write(l + "\n")
+        try:
+            with open(self.filename, 'w') as fh:
+                for l in self:
+                    fh.write(l + "\n")
+        except:
+            pass
     
     def handleData(self, data):
         for elem in data.split('\n'):

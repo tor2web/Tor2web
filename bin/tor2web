@@ -3,8 +3,9 @@
 
 import tor2web
 
+from tor2web.utils.daemon import set_pdeathsig, set_proctitle
+
 import os
-import prctl
 import signal
 import sys
 from subprocess import call
@@ -13,8 +14,8 @@ def NullSysHook(etype, value, tb):
     pass
 
 sys.excepthook = NullSysHook
-prctl.set_pdeathsig(signal.SIGINT)
-prctl.set_proctitle("tor2web")
+set_pdeathsig(signal.SIGINT)
+set_proctitle("tor2web")
 
 t2w = os.path.abspath(os.path.join(os.path.dirname(tor2web.__file__), 't2w.py'))
 

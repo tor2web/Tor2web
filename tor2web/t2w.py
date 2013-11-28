@@ -37,18 +37,23 @@ import socket
 import signal
 import hashlib
 
-import prctl
 from twisted.internet import reactor, protocol
 from twisted.python import log, logfile
 from twisted.spread import pb
 from twisted.web.http import datetimeToString
-from tor2web.utils.daemon import T2WDaemon
+from tor2web.utils.daemon import T2WDaemon, set_pdeathsig, set_proctitle
 from tor2web.utils.config import config
 from tor2web.utils.lists import List, TorExitNodeList
 from tor2web.utils.mail import MailException
 from tor2web.utils.misc import listenTCPonExistingFD, t2w_file_path, verify_onion
 from tor2web.utils.stats import T2WStats
 
+# Development VS. Production
+path = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), "..", "bin", "tor2web-worker"))
+if os.path.exists(path):
+    t2w_worker = path
+else:
+    t2w_worker = "/usr/bin/tor2web-worker"
 
 class T2WRPCServer(pb.Root):
     def __init__(self, config):
@@ -130,10 +135,11 @@ class T2WRPCServer(pb.Root):
 
 def spawnT2W(childFDs, fds_https, fds_http):
     subprocess = reactor.spawnProcess(T2WPP(childFDs, fds_https, fds_http),
-                                      "tor2web-worker",
+                                      t2w_worker,
                                       ["tor2web-worker",
                                        fds_https,
                                        fds_http],
+                                      env=None,
                                       childFDs=childFDs)
     return subprocess
 
@@ -163,8 +169,8 @@ class T2WPP(protocol.ProcessProtocol):
             reactor.stop()
 
 sys.excepthook = None
-prctl.set_pdeathsig(signal.SIGINT)
-prctl.set_proctitle("tor2web")
+set_pdeathsig(signal.SIGINT)
+set_proctitle("tor2web")
 
 ##########################
 # Security UMASK hardening

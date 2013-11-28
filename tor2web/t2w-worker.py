@@ -45,7 +45,6 @@ from functools import partial
 from urlparse import urlparse
 from cgi import parse_header
 
-import prctl
 from zope.interface import implements
 from twisted.spread import pb
 from twisted.internet import reactor, protocol, defer
@@ -64,6 +63,7 @@ from twisted.python.compat import networkString, intToBytes
 from twisted.python.filepath import FilePath
 from twisted.internet.task import LoopingCall
 from tor2web.utils.config import VERSION
+from tor2web.utils.daemon import set_pdeathsig, set_proctitle
 from tor2web.utils.mail import sendmail, MailException
 from tor2web.utils.misc import listenTCPonExistingFD, listenSSLonExistingFD, re_sub, t2w_file_path, verify_onion
 from tor2web.utils.socks import SOCKS5ClientEndpoint, SOCKSError
@@ -71,6 +71,14 @@ from tor2web.utils.ssl import T2WSSLContextFactory
 from tor2web.utils.storage import Storage
 from tor2web.utils.templating import PageTemplate
 
+# Development VS. Production
+path = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), "..", "bin", "tor2web-worker"))
+if os.path.exists(path):
+    static_path = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), "..", "data", "static"))
+    templates_path = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), "..", "data", "templates"))
+else:
+    static_path = "/usr/share/tor2web/static/"
+    templates_path = "/usr/share/tor2web/templates/"
 
 SOCKS_errors = {
     0x00: "error_sock_generic.tpl",
@@ -967,7 +975,7 @@ def start():
     ###############################################################################
     antanistaticmap = {}
 
-    files = FilePath('/usr/share/tor2web/static/').globChildren("*")
+    files = FilePath(static_path).globChildren("*")
     for f in files:
         f = FilePath(t2w_file_path(config['datadir'], os.path.join('static', f.basename())))
         antanistaticmap[f.basename()] = f.getContent()
@@ -990,7 +998,7 @@ def start():
     ###############################################################################
     templates = {}
 
-    files = FilePath('/usr/share/tor2web/templates/').globChildren("*.tpl")
+    files = FilePath(templates_path).globChildren("*.tpl")
     for f in files:
         f = FilePath(t2w_file_path(config['datadir'], os.path.join('templates', f.basename())))
         templates[f.basename()] = PageTemplate(XMLString(f.getContent()))
@@ -1066,8 +1074,8 @@ def SigQUIT(SIG, FRM):
     reactor.stop()
 
 sys.excepthook = None
-prctl.set_pdeathsig(signal.SIGINT)
-prctl.set_proctitle("tor2web-worker")
+set_pdeathsig(signal.SIGINT)
+set_proctitle("tor2web-worker")
 
 ##########################
 # Security UMASK hardening
