@@ -1,8 +1,14 @@
+tor2web (3.0.76-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.76 decoy widget bugfixing.
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 02 Dec 2013 16:03:42 +0002
+
 tor2web (3.0.75-0) unstable; urgency=low
 
   * Tor2web 3.0 - 3.0.75 upgraded to Twisted 13.2.0; prctl dependency removed.
 
- -- GlobaLeaks software signing key <info@globaleaks.org>  Thu, 28 Dec 2013 10:16:42 +0002
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Thu, 28 Nov 2013 10:16:42 +0002
 
 tor2web (3.0.74-0) unstable; urgency=low
 
