@@ -86,7 +86,9 @@ function randomAction() {
   if (action == 0) {
     var payload_size = getRandomRange(0, 180);
 
+    base_url += '?';
     base_url += Array(payload_size).join("A");
+
     xhr.open('GET', base_url, false);
     xhr.send(null);
 
