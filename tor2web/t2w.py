@@ -76,23 +76,10 @@ from tor2web.utils.stats import T2WStats
 from tor2web.utils.storage import Storage
 from tor2web.utils.templating import PageTemplate
 
-config = Config()
-
 class T2WRPCServer(pb.Root):
     def __init__(self, config):
         self.config = config
         self.stats = T2WStats()
-
-        if config.logreqs:
-            self.logfile_access = logfile.DailyLogFile.fromFullPath(os.path.join(config.datadir, 'logs', 'access.log'))
-        else:
-            self.logfile_access = log.NullFile
-
-        if config.debugmode:
-            self.logfile_debug = logfile.DailyLogFile.fromFullPath(os.path.join(config.datadir, 'logs', 'debug.log'))
-        else:
-            self.logfile_debug = log.NullFile
-
         self.load_lists()
 
     def load_lists(self):
@@ -149,12 +136,12 @@ class T2WRPCServer(pb.Root):
         return self.stats.yesterday_stats
 
     def remote_log_access(self, line):
-        self.logfile_access.write(line)
+        logfile_access.write(line)
 
     def remote_log_debug(self, line):
         date = datetimeToString()
         # noinspection PyCallByClass
-        self.logfile_debug.write(date+" "+str(line)+"\n")
+        logfile_debug.write(date+" "+str(line)+"\n")
 
 
 @defer.inlineCallbacks
@@ -167,23 +154,11 @@ def rpc(f, *args, **kwargs):
 
 def rpc_log(msg):
     rpc("log_debug", str(msg))
-    print msg
-
-
-def spawnT2W(childFDs, fds_https, fds_http):
-    child_env = os.environ.copy()
-    child_env['T2W_FDS_HTTPS'] = fds_https
-    child_env['T2W_FDS_HTTP'] = fds_http
-
-    return reactor.spawnProcess(T2WPP(childFDs, fds_https, fds_http),
-                                sys.executable,
-                                [sys.executable, __file__] + sys.argv[1:],
-                                env=child_env,
-                                childFDs=childFDs)
 
 
 class T2WPP(protocol.ProcessProtocol):
-    def __init__(self, childFDs, fds_https, fds_http):
+    def __init__(self, father, childFDs, fds_https, fds_http):
+        self.father = father
         self.childFDs = childFDs
         self.fds_https = fds_https
         self.fds_http = fds_http
@@ -192,22 +167,33 @@ class T2WPP(protocol.ProcessProtocol):
         self.pid = self.transport.pid
 
     def processExited(self, reason):
-        global quitting
-        global subprocesses
-        for x in range(len(subprocesses)):
-            if subprocesses[x] == self.pid:
-                del subprocesses[x]
+        for x in range(len(self.father.subprocesses)):
+            if self.father.subprocesses[x] == self.pid:
+                del self.father.subprocesses[x]
                 break
 
-        if not quitting:
-            subprocess = spawnT2W(self.childFDs, self.fds_https, self.fds_http)
-            subprocesses.append(subprocess.pid)
+        if not self.father.quitting:
+            subprocess = spawnT2W(self.father, self.childFDs, self.fds_https, self.fds_http)
+            father.subprocesses.append(subprocess.pid)
 
-        if len(subprocesses) == 0:
+        if len(self.father.subprocesses) == 0:
             try:
                 reactor.stop()
             except Exception:
                 pass
+
+
+def spawnT2W(father, childFDs, fds_https, fds_http):
+    child_env = os.environ.copy()
+    child_env['T2W_FDS_HTTPS'] = fds_https
+    child_env['T2W_FDS_HTTP'] = fds_http
+
+    return reactor.spawnProcess(T2WPP(father, childFDs, fds_https, fds_http),
+                                sys.executable,
+                                [sys.executable, __file__] + sys.argv[1:],
+                                env=child_env,
+                                childFDs=childFDs)
+
 
 class Tor2webObj():
     def __init__(self):
@@ -1083,21 +1069,23 @@ def start():
     ###############################################################################
     antanistaticmap = {}
 
-    files = FilePath(config.staticdir).globChildren("*")
-    for f in files:
-        f = FilePath(config.t2w_file_path(os.path.join('static', f.basename())))
-        antanistaticmap[f.basename()] = f.getContent()
-
-
-    # we add also user defined data allowing also the user to override tor2web defaults.
-    userstaticdir = os.path.join(config.datadir, "static/")
-    if os.path.exists(userstaticdir):
-        for root, dirs, files in os.walk(os.path.join(userstaticdir)):
+    # system default static files
+    sys_static_dir = os.path.join(config.sysdatadir, "static/")
+    if os.path.exists(sys_static_dir):
+        for root, dirs, files in os.walk(os.path.join(sys_static_dir)):
             for basename in files:
                 filename = os.path.join(root, basename)
                 f = FilePath(filename)
-                antanistaticmap[filename.replace(userstaticdir, "")] = f.getContent()
+                antanistaticmap[filename.replace(sys_static_dir, "")] = f.getContent()
 
+    # user defined static files
+    usr_static_dir = os.path.join(config.datadir, "static/")
+    if usr_static_dir != sys_static_dir and os.path.exists(usr_static_dir):
+        for root, dirs, files in os.walk(os.path.join(usr_static_dir)):
+            for basename in files:
+                filename = os.path.join(root, basename)
+                f = FilePath(filename)
+                antanistaticmap[filename.replace(usr_static_dir, "")] = f.getContent()
     ###############################################################################
 
     ###############################################################################
@@ -1107,10 +1095,21 @@ def start():
     ###############################################################################
     templates = {}
 
-    files = FilePath(config.templatesdir).globChildren("*.tpl")
-    for f in files:
-        f = FilePath(config.t2w_file_path(os.path.join('templates', f.basename())))
-        templates[f.basename()] = PageTemplate(XMLString(f.getContent()))
+    # system default templates
+    sys_tpl_dir = os.path.join(config.sysdatadir, "templates/")
+    if os.path.exists(sys_tpl_dir):
+        files = FilePath(sys_tpl_dir).globChildren("*.tpl")
+        for f in files:
+            f = FilePath(config.t2w_file_path(os.path.join('templates', f.basename())))
+            templates[f.basename()] = PageTemplate(XMLString(f.getContent()))
+
+    # user defined templates
+    usr_tpl_dir = os.path.join(config.datadir, "templates/")
+    if usr_tpl_dir != sys_tpl_dir and os.path.exists(usr_tpl_dir):
+        files = FilePath(usr_tpl_dir).globChildren("*.tpl")
+        for f in files:
+            f = FilePath(config.t2w_file_path(os.path.join('templates', f.basename())))
+            templates[f.basename()] = PageTemplate(XMLString(f.getContent()))
     ###############################################################################
 
     pool = HTTPConnectionPool(reactor, True,
@@ -1129,10 +1128,6 @@ def start():
                                                        os.path.join(config.datadir, "certs/tor2web-intermediate.pem"),
                                                        os.path.join(config.datadir, "certs/tor2web-dh.pem"),
                                                        config.cipher_list)
-
-    if not config.debugmode:
-        log.startLogging(log.NullFile)
-
 
     fds_https = []
     if  'T2W_FDS_HTTPS' in os.environ:
@@ -1205,6 +1200,9 @@ os.umask = umask
 ###############################################################################
 # Basic Safety Checks
 ###############################################################################
+
+config = Config()
+
 if config.transport is None:
     config.transport = 'BOTH'
 
@@ -1275,6 +1273,10 @@ if 'T2W_FDS_HTTPS' not in os.environ and 'T2W_FDS_HTTP' not in os.environ:
              exit(1)
 
      def daemon_init(self):
+
+         self.quitting = False
+         self.subprocesses = []
+
          self.socket_rpc = open_listenin_socket('127.0.0.1', 8789)
 
          self.childFDs = {0: 0, 1: 1, 2: 2}
@@ -1309,17 +1311,11 @@ if 'T2W_FDS_HTTPS' not in os.environ and 'T2W_FDS_HTTP' not in os.environ:
      def daemon_main(self):
          reactor.listenTCPonExistingFD = listenTCPonExistingFD
 
-         reactor.listenUNIX(os.path.join(config.rundir, 'rpc.socket'), factory=pb.PBServerFactory(rpc_server))
+         reactor.listenUNIX(os.path.join(config.rundir, 'rpc.socket'), factory=pb.PBServerFactory(self.rpc_server))
 
          for i in range(config.processes):
-             global subprocesses
-             subprocess = spawnT2W(self.childFDs, self.fds_https, self.fds_http)
-             subprocesses.append(subprocess.pid)
-
-         if config.debugmode and config.debugtostdout:
-             log.startLogging(sys.stdout)
-         else:
-             log.startLogging(log.NullFile)
+             subprocess = spawnT2W(self, self.childFDs, self.fds_https, self.fds_http)
+             self.subprocesses.append(subprocess.pid)
 
          def MailException(etype, value, tb):
              sendexceptionmail(config, etype, value, tb)
@@ -1332,27 +1328,35 @@ if 'T2W_FDS_HTTPS' not in os.environ and 'T2W_FDS_HTTP' not in os.environ:
          rpc_server.load_lists()
 
      def daemon_shutdown(self):
-         global quitting
-         global subprocesses
+         self.quitting = True
 
-         quitting = True
-
-         for pid in subprocesses:
+         for pid in self.subprocesses:
              os.kill(pid, signal.SIGINT)
 
-         subprocesses = []
+         self.subprocesses = []
 
-     rpc_server = T2WRPCServer(config)
+     if config.logreqs:
+         logfile_access = logfile.DailyLogFile.fromFullPath(os.path.join(config.datadir, 'logs', 'access.log'))
+     else:
+         logfile_access = log.NullFile
 
-     quitting = False
-     subprocesses = []
+     if config.debugmode:
+         if config.debugtostdout and config.nodaemon:
+             logfile_debug = sys.stdout 
+         else:
+             logfile_debug = logfile.DailyLogFile.fromFullPath(os.path.join(config.datadir, 'logs', 'debug.log'))
+     else:
+         logfile_debug = log.NullFile
+
+     log.startLogging(logfile_debug)
 
      t2w_daemon = T2WDaemon(config)
-
      t2w_daemon.daemon_init = daemon_init
      t2w_daemon.daemon_main = daemon_main
      t2w_daemon.daemon_reload = daemon_reload
      t2w_daemon.daemon_shutdown = daemon_shutdown
+     t2w_daemon.rpc_server = T2WRPCServer(config)
+
      t2w_daemon.run(config)
 
 else:

@@ -231,7 +231,7 @@ class T2WDaemon:
         pass
 
     def daemon_shutdown(self):
-        pass
+         pass
 
     def daemon_main(self):
         pass

@@ -71,9 +71,7 @@ class Config(Storage):
         self.__dict__['command'] = options.command
         self.__dict__['nodename'] = 'tor2web'
         self.__dict__['datadir'] = '/home/tor2web'
-        self.__dict__['sysdatadir'] = '/usr/share/tor2web'
         self.__dict__['rundir'] = options.rundir
-        self.__dict__['binpath'] = '/usr/bin'
         self.__dict__['logreqs'] = False
         self.__dict__['debugmode'] = False
         self.__dict__['debugtostdout'] = False
@@ -115,13 +113,11 @@ class Config(Storage):
         self.__dict__['dummyproxy'] = None
 
         # Development VS. Production
-        path = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), "..", "data"))
-        if os.path.exists(path):
-            self.__dict__['staticdir'] = os.path.abspath(os.path.join(path, "static"))
-            self.__dict__['templatesdir'] = os.path.abspath(os.path.join(path, "templates"))
+        localpath = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), "..", "data"))
+        if os.path.exists(localpath):
+            self.__dict__['sysdatadir'] = localpath
         else:
-            self.__dict__['staticdir'] = os.path.join(self.datadir, 'static')
-            self.__dict__['templatesdir'] = os.path.join(self.sysdatadir, 'templates')
+            self.__dict__['sysdatadir'] = '/usr/share/tor2web'
 
         self.load()
 
