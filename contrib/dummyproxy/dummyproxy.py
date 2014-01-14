@@ -80,7 +80,8 @@ if __name__ == "__main__":
 
     if len(sys.argv) != 5:
         sys.stderr.write("Usage: " + sys.argv[0] + "<src-port> <dst-host> <dst-port>\n\n" \
-                         "\texample: ./dummyproxy.sh 127.0.0.1 80 127.0.0.1 8080\n\n")
+                         "\texample: ./dummyproxy.py 127.0.0.1 80 127.0.0.1 8080\n" \
+                         "\t         ./dummyproxy.py 0.0.0.0 88 google.com 80\n\n")
         sys.exit(1)
 
     src_ip = str(sys.argv[1])
