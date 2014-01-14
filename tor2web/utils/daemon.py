@@ -40,8 +40,6 @@ import pwd
 import grp
 import atexit
 
-from optparse import OptionParser
-
 import ctypes
 
 class _NullDevice:
@@ -58,13 +56,16 @@ class _NullDevice:
 
 
 class T2WDaemon:
+    def __init__(self, config):
+        self.config = config
+
     def become_daemon(self):
 
         if os.fork() != 0:  # launch child and ...
             os._exit(0)     # kill off parent
 
         os.setsid()
-        os.chdir(self.options.rundir)
+        os.chdir(self.config.rundir)
         os.umask(077)
 
         if os.fork() != 0:  # fork again so we are not a session leader
@@ -83,31 +84,28 @@ class T2WDaemon:
         self.daemon_init(self) # self must be explicit passed
                                # as the function is user defined
 
-        if not os.path.exists(self.options.rundir):
-            os.mkdir(self.options.rundir)
+        if not os.path.exists(self.config.rundir):
+            os.mkdir(self.config.rundir)
 
-        os.chmod(self.options.rundir, 0700)
+        os.chmod(self.config.rundir, 0700)
 
-        if not self.options.nodaemon:
+        if not self.config.nodaemon:
             self.become_daemon()
 
-        with open(self.options.pidfile, 'w') as f:
+        with open(self.config.pidfile, 'w') as f:
            f.write("%s" % os.getpid())
 
-        os.chmod(self.options.pidfile, 0600)
+        os.chmod(self.config.pidfile, 0600)
 
         @atexit.register
         def goodbye():
             try:
-                os.unlink(self.options.pidfile)
+                os.unlink(self.config.pidfile)
             except Exception:
                 pass
 
-        if (self.options.uid != "") and (self.options.gid != ""):
+        if (self.config.uid != "") and (self.config.gid != ""):
             self.change_uid()
-
-        for item in glob.glob(self.options.rundir + '/*'):
-            os.chmod(item, 0600)
 
         def _daemon_reload(SIG, FRM):
             self.daemon_reload() # self must be explicit passed
@@ -135,18 +133,19 @@ class T2WDaemon:
         time.sleep(1)
 
         try:
-            os.unlink(self.options.pidfile)
+            os.unlink(self.config.pidfile)
         except Exception:
             pass
 
     def get_pid(self):
         try:
-            f = open(self.options.pidfile)
+            f = open(self.config.pidfile)
             pid = int(f.readline().strip())
             f.close()
         except IOError:
             pid = None
         return pid
+
     def is_process_running(self):
         pid = self.get_pid()
         if pid:
@@ -158,8 +157,8 @@ class T2WDaemon:
         return 0
 
     def change_uid(self):
-        c_user =  self.options.uid
-        c_group = self.options.gid
+        c_user =  self.config.uid
+        c_group = self.config.gid
 
         if os.getuid() == 0:
             cpw = pwd.getpwnam(c_user)
@@ -177,45 +176,35 @@ class T2WDaemon:
                 if c_gid not in c_groups:
                     c_groups.append(c_gid)
 
-            os.chown(self.options.rundir, c_uid, c_gid)
+            os.chown(self.config.rundir, c_uid, c_gid)
+            os.chown(self.config.pidfile, c_uid, c_gid)
 
-            os.chown(self.options.pidfile, c_uid, c_gid)
-
-            for item in glob.glob(self.options.rundir + '/*'):
+            for item in glob.glob(self.config.rundir + '/*'):
                 os.chown(item, c_uid, c_gid)
 
             os.setgid(c_gid)
             os.setgroups(c_groups)
             os.setuid(c_uid)
 
-    def run(self, datadir):
-        parser = OptionParser()
-        parser.add_option("", "--pidfile", dest="pidfile", default="/var/run/tor2web/t2w.pid")
-        parser.add_option("", "--uid", dest="uid", default="")
-        parser.add_option("", "--gid", dest="gid", default="")
-        parser.add_option("", "--nodaemon", dest="nodaemon", default=False, action="store_true")
-        parser.add_option("", "--rundir", dest="rundir", default='/var/run/tor2web')
-        parser.add_option("", "--command", dest="command", default="start")
+    def run(self, config):
 
-        (self.options, args) = parser.parse_args()
-        
-        if self.options.command == 'status':
+        if self.config.command == 'status':
             if not self.is_process_running():
                 exit(1)
             else:
                 exit(0)
-        elif self.options.command == 'start':
+        elif self.config.command == 'start':
             if not self.is_process_running():
                 self.daemon_start()
                 exit(0)
             else:
                 print "Unable to start Tor2web: process is already running."
                 exit(1)
-        elif self.options.command == 'stop':
+        elif self.config.command == 'stop':
             if self.is_process_running():
                 self.daemon_stop()
             exit(0)
-        elif self.options.command == 'reload':
+        elif self.config.command == 'reload':
             if self.is_process_running():
                 pid = self.get_pid()
                 try:
@@ -225,12 +214,12 @@ class T2WDaemon:
             else:
                self.daemon_start()
             exit(0)
-        elif self.options.command == 'restart':
+        elif self.config.command == 'restart':
             self.daemon_stop()
             self.daemon_start()
             exit(0)
         else:
-            print "Unknown command:", self.options.command
+            print "Unknown command:", self.config.command
             raise SystemExit
 
         exit(1)

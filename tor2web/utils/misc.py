@@ -75,18 +75,6 @@ def re_sub(pattern, replacement, string):
     
     return re.sub(pattern, _r, string)
     
-def t2w_file_path(prefix, path):
-    """
-    Returns the path of a tor2web file.
-    It could be:
-       - a default file, loaded from /usr/share/tor2web + path
-       - an overridden file present in config.datadir + path
-    """
-    if os.path.exists(os.path.join(prefix, path)):
-        return os.path.join(prefix, path)
-    else:
-        return os.path.join("/usr/share/tor2web", path)
-
 def verify_onion(address):
     """
     Check to see if the address is a .onion.

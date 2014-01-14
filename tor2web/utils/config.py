@@ -35,24 +35,45 @@ VERSION = "Tor2Web 3.0 Beta 1"
 
 import os
 import re
+import sys
 import ConfigParser
+from optparse import OptionParser
 from storage import Storage
 
 listpattern = re.compile(r'\s*("[^"]*"|.*?)\s*,')
 
 class Config(Storage):
     """
-    A Storage-like class which loads and store each attribute into a portable
-    conf file.
+    A Storage-like class which loads each attribute into a portable conf file.
     """
-    def __init__(self, cfgfile="/etc/tor2web.conf"):
+    def __init__(self):
         Storage.__init__(self)
-        self._file = cfgfile
         self._section = 'main'
         self._parser = ConfigParser.ConfigParser()
-                
+
+        parser = OptionParser()
+        parser.add_option("-c", "--configfile", dest="configfile", default="/etc/tor2web.conf")
+        parser.add_option("-p", "--pidfile", dest="pidfile", default='/var/run/tor2web/t2w.pid')
+        parser.add_option("-u", "--uid", dest="uid", default='')
+        parser.add_option("-g", "--gid", dest="gid", default='')
+        parser.add_option("-n", "--nodaemon", dest="nodaemon", default=False, action="store_true")
+        parser.add_option("-d", "--rundir", dest="rundir", default='/var/run/tor2web/')
+        parser.add_option("-x", "--command", dest="command", default='start')
+        (options, args) = parser.parse_args()
+
+        self._file = options.configfile
+
+        self.__dict__['configfile'] = options.configfile
+        self.__dict__['pidfile'] = options.pidfile
+        self.__dict__['uid'] = options.uid
+        self.__dict__['gid'] = options.gid
+        self.__dict__['nodaemon'] = options.nodaemon
+        self.__dict__['command'] = options.command
         self.__dict__['nodename'] = 'tor2web'
         self.__dict__['datadir'] = '/home/tor2web'
+        self.__dict__['sysdatadir'] = '/usr/share/tor2web'
+        self.__dict__['rundir'] = options.rundir
+        self.__dict__['binpath'] = '/usr/bin'
         self.__dict__['logreqs'] = False
         self.__dict__['debugmode'] = False
         self.__dict__['debugtostdout'] = False
@@ -93,6 +114,17 @@ class Config(Storage):
         self.__dict__['mirror'] = []
         self.__dict__['dummyproxy'] = None
 
+        # Development VS. Production
+        path = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), "..", "data"))
+        if os.path.exists(path):
+            self.__dict__['staticdir'] = os.path.abspath(os.path.join(path, "static"))
+            self.__dict__['templatesdir'] = os.path.abspath(os.path.join(path, "templates"))
+        else:
+            self.__dict__['staticdir'] = os.path.join(self.datadir, 'static')
+            self.__dict__['templatesdir'] = os.path.join(self.sysdatadir, 'templates')
+
+        self.load()
+
     def load(self):
         try:
             if (not os.path.exists(self._file) or
@@ -114,19 +146,6 @@ class Config(Storage):
         except Exception as e:
             print e
             raise Exception("Tor2web Error: invalid config file (%s)" % self._file)
-
-    def store(self):
-        """
-        Commit changes in config file.
-        """
-        if self._file is None:
-            raise Exception("Tor2web Error: cannot store configuration (never loaded)")
-
-        self._file = open(self._file, 'w')
-        try:
-            self._parser.write(self._file)
-        finally:
-            self._file.close()
 
     def splitlist(self, line):
         return [x[1:-1] if x[:1] == x[-1:] == '"' else x
@@ -169,4 +188,9 @@ class Config(Storage):
         except ConfigParser.NoOptionError:
             raise NameError(name)
 
-config = Config()
+    def t2w_file_path(self, path):
+        if os.path.exists(os.path.join(self.datadir, path)):
+            return os.path.join(self.datadir, path)
+        else:
+            return os.path.join(self.sysdatadir, path)
+

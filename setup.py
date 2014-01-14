@@ -5,6 +5,8 @@ import os
 import re
 from setuptools import setup
 
+from tor2web import __version__
+
 def get_requires():
     with open('requirements.txt') as f:
         requires = f.readlines()
@@ -31,12 +33,12 @@ data_files = [
 
 setup(
     name="tor2web",
-    version="3.0.76",
+    version=__version__,
     author="Random GlobaLeaks developers",
     author_email = "info@globaleaks.org",
     url="https://tor2web.org/",
     packages=["tor2web", "tor2web.utils"],
-    scripts=["bin/tor2web", "bin/tor2web-worker"],
+    scripts=["bin/tor2web"],
     data_files=data_files,
     install_requires=get_requires()
 )

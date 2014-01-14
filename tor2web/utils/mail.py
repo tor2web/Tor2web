@@ -39,7 +39,7 @@ from OpenSSL import SSL
 from twisted.internet import reactor, defer
 from twisted.mail.smtp import ESMTPSenderFactory
 from twisted.internet.ssl import ClientContextFactory
-from tor2web.utils.config import VERSION, config
+from tor2web.utils.config import VERSION
 
 
 def sendmail(authenticationUsername, authenticationSecret, fromAddress, toAddress, messageFile, smtpHost, smtpPort=25):
@@ -72,7 +72,7 @@ def sendmail(authenticationUsername, authenticationSecret, fromAddress, toAddres
 
     return resultDeferred
 
-def MailException(etype, value, tb):
+def sendexceptionmail(config, etype, value, tb):
     """
     Formats traceback and exception data and emails the error
 
