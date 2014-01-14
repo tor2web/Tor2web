@@ -39,7 +39,8 @@ from OpenSSL import SSL
 from twisted.internet import reactor, defer
 from twisted.mail.smtp import ESMTPSenderFactory
 from twisted.internet.ssl import ClientContextFactory
-from tor2web.utils.config import VERSION
+
+from tor2web import __version__
 
 
 def sendmail(authenticationUsername, authenticationSecret, fromAddress, toAddress, messageFile, smtpHost, smtpPort=25):
@@ -90,7 +91,7 @@ def sendexceptionmail(config, etype, value, tb):
     tmp.append("Content-Type: text/plain; charset=ISO-8859-1\n")
     tmp.append("Content-Transfer-Encoding: 8bit\n\n")
     tmp.append("Exception from Node %s (IPV4: %s, IPv6: %s)\n" % (config.nodename, config.listen_ipv4, config.listen_ipv6))
-    tmp.append("Tor2web version: %s\n" % VERSION)
+    tmp.append("Tor2web version: %s\n" % __version__)
 
     error_message = "%s %s" % (exc_type.strip(), etype.__doc__)
     tmp.append(error_message)

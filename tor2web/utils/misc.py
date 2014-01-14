@@ -31,7 +31,6 @@
 
 # -*- coding: utf-8 -*-
 
-import os
 import re
 import socket
 
@@ -58,23 +57,23 @@ def re_sub(pattern, replacement, string):
         # Python has a "feature" where unmatched groups return None
         # then re_sub chokes on this.
         # see http://bugs.python.org/issue1519638
-        
+
         # this works around and hooks into the internal of the re module...
- 
+
         # the match object is replaced with a wrapper that
         # returns "" instead of None for unmatched groups
- 
+
         class _m():
             def __init__(self, m):
                 self.m=m
                 self.string=m.string
             def group(self, n):
                 return m.group(n) or ""
- 
+
         return re._expand(pattern, _m(m), replacement)
-    
+
     return re.sub(pattern, _r, string)
-    
+
 def verify_onion(address):
     """
     Check to see if the address is a .onion.

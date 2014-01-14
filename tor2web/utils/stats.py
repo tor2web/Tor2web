@@ -43,7 +43,7 @@ class T2WStats(dict):
     def __init__(self):
         dict.__init__(self)
         self.yesterday_stats = ''
-        
+
         self.update_stats()
 
     def update(self, key):

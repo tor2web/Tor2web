@@ -46,7 +46,6 @@ from random import choice
 from functools import partial
 from urlparse import urlparse
 from cgi import parse_header
-from optparse import OptionParser
 
 from zope.interface import implements
 from twisted.spread import pb
@@ -65,7 +64,9 @@ from twisted.python import log, logfile
 from twisted.python.compat import networkString, intToBytes
 from twisted.python.filepath import FilePath
 from twisted.internet.task import LoopingCall
-from tor2web.utils.config import VERSION, Config
+
+from tor2web import __version__
+from tor2web.utils.config import Config
 from tor2web.utils.daemon import T2WDaemon, set_pdeathsig, set_proctitle
 from tor2web.utils.lists import List, TorExitNodeList
 from tor2web.utils.mail import sendmail, sendexceptionmail
@@ -75,6 +76,12 @@ from tor2web.utils.ssl import T2WSSLContextFactory
 from tor2web.utils.stats import T2WStats
 from tor2web.utils.storage import Storage
 from tor2web.utils.templating import PageTemplate
+
+SOCKS_errors = {
+    0x00: "error_sock_generic.tpl",
+    0x23: "error_sock_hs_not_found.tpl",
+    0x24: "error_sock_hs_not_reachable.tpl"
+}
 
 class T2WRPCServer(pb.Root):
     def __init__(self, config):
@@ -136,12 +143,12 @@ class T2WRPCServer(pb.Root):
         return self.stats.yesterday_stats
 
     def remote_log_access(self, line):
-        logfile_access.write(line)
+        t2w_daemon.logfile_access.write(line)
 
     def remote_log_debug(self, line):
         date = datetimeToString()
         # noinspection PyCallByClass
-        logfile_debug.write(date+" "+str(line)+"\n")
+        t2w_daemon.logfile_debug.write(date+" "+str(line)+"\n")
 
 
 @defer.inlineCallbacks
@@ -174,7 +181,7 @@ class T2WPP(protocol.ProcessProtocol):
 
         if not self.father.quitting:
             subprocess = spawnT2W(self.father, self.childFDs, self.fds_https, self.fds_http)
-            father.subprocesses.append(subprocess.pid)
+            self.father.subprocesses.append(subprocess.pid)
 
         if len(self.father.subprocesses) == 0:
             try:
@@ -298,7 +305,6 @@ class HTTPConnectionPool(client.HTTPConnectionPool):
         self.cachedConnectionTimeout = cachedConnectionTimeout
         self.retryAutomatically = retryAutomatically
 
-
 class Agent(client.Agent):
     def __init__(self, reactor,
                  contextFactory=client.WebClientContextFactory(),
@@ -367,7 +373,7 @@ class T2WRequest(http.Request):
 
         self.obj = Tor2webObj()
         self.var = Storage()
-        self.var['version'] = VERSION
+        self.var['version'] = __version__
         self.var['basehost'] = config.basehost
         self.var['errorcode'] = None
 
@@ -695,13 +701,11 @@ class T2WRequest(http.Request):
                     content = "A" * random.randint(20, 1024)
                     self.setHeader(b'content-type', 'text/plain')
                     defer.returnValue(self.contentFinish(content))
-                    return
 
                 elif staticpath == "stats/yesterday":
                     self.setHeader(b'content-type', 'application/json')
                     content = yield rpc("get_yesterday_stats")
                     defer.returnValue(self.contentFinish(content))
-                    return
 
                 elif staticpath == "notification":
 
@@ -728,7 +732,7 @@ class T2WRequest(http.Request):
                     if 'by' in args and 'url' in args and 'comment' in args:
                         tmp = []
                         tmp.append("From: Tor2web Node %s.%s <%s>\n" % (config.nodename, config.basehost, config.smtpmail))
-                        tmp.append("To: %s\n" % (configsmtpmailto_notifications))
+                        tmp.append("To: %s\n" % config.smtpmailto_notifications)
                         tmp.append("Subject: Tor2web Node (IPv4 %s, IPv6 %s): notification for %s\n" % (config.listen_ipv4, config.listen_ipv6, args['url'][0]))
                         tmp.append("Content-Type: text/plain; charset=ISO-8859-1\n")
                         tmp.append("Content-Transfer-Encoding: 8bit\n\n")
@@ -748,8 +752,8 @@ class T2WRequest(http.Request):
                         except Exception:
                             pass
 
-                        self.setHeader(b'content-type', 'text/plain')
-                        defer.returnValue(self.contentFinish(''))
+                    self.setHeader(b'content-type', 'text/plain')
+                    defer.returnValue(self.contentFinish(''))
 
                 else:
                     if type(antanistaticmap[staticpath]) == str:
@@ -1046,14 +1050,14 @@ class T2WLimitedRequestsFactory(WrappingFactory):
             except Exception:
                 pass
 
-def start():
+def start_worker():
     global antanistaticmap
     global templates
     global pool
     global rexp
     global ports
 
-    lc = LoopingCall(updateTask)
+    lc = LoopingCall(updateListsTask)
     lc.start(600)
 
     rexp = {
@@ -1154,12 +1158,12 @@ def start():
                                                    fd=fd,
                                                    factory=factory))
 
-    #def MailException(etype, value, tb):
-    #    sendexceptionmail(config, etype, value, tb)
+    def MailException(etype, value, tb):
+        sendexceptionmail(config, etype, value, tb)
 
-    #sys.excepthook = MailException
+    sys.excepthook = MailException
 
-def updateTask():
+def updateListsTask():
     def set_access_list(l):
         global access_list
         access_list = l
@@ -1309,6 +1313,21 @@ if 'T2W_FDS_HTTPS' not in os.environ and 'T2W_FDS_HTTP' not in os.environ:
 
 
      def daemon_main(self):
+         if config.logreqs:
+             self.logfile_access = logfile.DailyLogFile.fromFullPath(os.path.join(config.datadir, 'logs', 'access.log'))
+         else:
+             self.logfile_access = log.NullFile()
+
+         if config.debugmode:
+             if config.debugtostdout and config.nodaemon:
+                 self.logfile_debug = sys.stdout
+             else:
+                 self.logfile_debug = logfile.DailyLogFile.fromFullPath(os.path.join(config.datadir, 'logs', 'debug.log'))
+         else:
+             self.logfile_debug = log.NullFile()
+
+         log.startLogging(self.logfile_debug)
+
          reactor.listenTCPonExistingFD = listenTCPonExistingFD
 
          reactor.listenUNIX(os.path.join(config.rundir, 'rpc.socket'), factory=pb.PBServerFactory(self.rpc_server))
@@ -1325,7 +1344,7 @@ if 'T2W_FDS_HTTPS' not in os.environ and 'T2W_FDS_HTTP' not in os.environ:
          reactor.run()
 
      def daemon_reload(self):
-         rpc_server.load_lists()
+         self.rpc_server.load_lists()
 
      def daemon_shutdown(self):
          self.quitting = True
@@ -1334,21 +1353,6 @@ if 'T2W_FDS_HTTPS' not in os.environ and 'T2W_FDS_HTTP' not in os.environ:
              os.kill(pid, signal.SIGINT)
 
          self.subprocesses = []
-
-     if config.logreqs:
-         logfile_access = logfile.DailyLogFile.fromFullPath(os.path.join(config.datadir, 'logs', 'access.log'))
-     else:
-         logfile_access = log.NullFile
-
-     if config.debugmode:
-         if config.debugtostdout and config.nodaemon:
-             logfile_debug = sys.stdout 
-         else:
-             logfile_debug = logfile.DailyLogFile.fromFullPath(os.path.join(config.datadir, 'logs', 'debug.log'))
-     else:
-         logfile_debug = log.NullFile
-
-     log.startLogging(logfile_debug)
 
      t2w_daemon = T2WDaemon(config)
      t2w_daemon.daemon_init = daemon_init
@@ -1377,6 +1381,6 @@ else:
      signal.signal(signal.SIGTERM, SigQUIT)
      signal.signal(signal.SIGINT, SigQUIT)
 
-     start()
+     start_worker()
 
      reactor.run()

@@ -52,7 +52,7 @@ class _NullDevice:
         pass
 
     def flush(self, s):
-        pass        
+        pass
 
 
 class T2WDaemon:
@@ -93,7 +93,7 @@ class T2WDaemon:
             self.become_daemon()
 
         with open(self.config.pidfile, 'w') as f:
-           f.write("%s" % os.getpid())
+            f.write("%s" % os.getpid())
 
         os.chmod(self.config.pidfile, 0600)
 
@@ -124,7 +124,7 @@ class T2WDaemon:
 
     def daemon_stop(self):
         pid = self.get_pid()
-        
+
         try:
             os.kill(pid, signal.SIGINT)  # SIGTERM is too harsh...
         except Exception:
@@ -208,11 +208,11 @@ class T2WDaemon:
             if self.is_process_running():
                 pid = self.get_pid()
                 try:
-                   os.kill(pid, signal.SIGHUP)
+                    os.kill(pid, signal.SIGHUP)
                 except Exception:
-                   pass
+                    pass
             else:
-               self.daemon_start()
+                self.daemon_start()
             exit(0)
         elif self.config.command == 'restart':
             self.daemon_stop()
@@ -231,14 +231,14 @@ class T2WDaemon:
         pass
 
     def daemon_shutdown(self):
-         pass
+        pass
 
     def daemon_main(self):
         pass
 
 def set_proctitle(title):
     libc = ctypes.cdll.LoadLibrary('libc.so.6')
-    buff = ctypes.create_string_buffer(len(title)+1)
+    buff = ctypes.create_string_buffer(len(title) + 1)
     buff.value = title
     libc.prctl(15, ctypes.byref(buff), 0, 0, 0)
 

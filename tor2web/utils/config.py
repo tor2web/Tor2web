@@ -31,8 +31,6 @@
 
 # -*- coding: utf-8 -*-
 
-VERSION = "Tor2Web 3.0 Beta 1"
-
 import os
 import re
 import sys
@@ -133,7 +131,7 @@ class Config(Storage):
             exit(1)
 
         try:
-            
+
             self._parser.read([self._file])
 
             for name in self._parser.options(self._section):

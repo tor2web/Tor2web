@@ -80,7 +80,7 @@ class HTTPSVerifyingContextFactory(ssl.ClientContextFactory):
             store.add_cert(value)
         ctx.set_verify(VERIFY_PEER | VERIFY_FAIL_IF_NO_PEER_CERT, self.verifyHostname)
         return ctx
-    
+
     def verifyHostname(self, connection, x509, errno, depth, preverifyOK):
         if  depth == 0 and preverifyOK:
             cn = x509.get_subject().commonName
@@ -107,7 +107,7 @@ def getPageCached(url, contextFactory=None, *args, **kwargs):
     scheme = uri.scheme
     host = uri.host
     port = uri.port
- 
+
     factory = HTTPClientCacheFactory(url, *args, **kwargs)
 
     if scheme == 'https':
@@ -182,7 +182,7 @@ class HTTPCacheDownloader(HTTPPageGetter):
 
         if key == 'content-encoding' and value == 'gzip':
             self.content_is_gzip = True
-            
+
         HTTPPageGetter.handleHeader(self, key, value)
 
     def handleResponse(self, response):
@@ -196,7 +196,7 @@ class HTTPCacheDownloader(HTTPPageGetter):
 
     def handleStatus(self, version, status, message):
         HTTPPageGetter.handleStatus(self, version, status, message)
-        
+
     def handleStatus_304(self):
         # content not modified
         pass
@@ -231,7 +231,7 @@ class List(set):
         set.__init__(self)
         self.filename = filename
         self.url = url
-       
+
         self.load()
 
         if url != '' and refreshPeriod != 0:
@@ -243,7 +243,7 @@ class List(set):
         Load the list from the specified file.
         """
         self.clear()
-        
+
         #simple touch to create non existent files
         try:
             open(self.filename, 'a').close()
@@ -264,7 +264,7 @@ class List(set):
                     fh.write(l + "\n")
         except:
             pass
-    
+
     def handleData(self, data):
         for elem in data.split('\n'):
             if elem != '':
