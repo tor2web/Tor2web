@@ -8,7 +8,7 @@ rather than by using .onion, reachable only from within Tor Darknet.
 Take a look [www.tor2web.org](http://www.tor2web.org/) or [wiki.tor2web.org](http://wiki.tor2web.org/)
 for more general information, here follow the technical documentation.
 
-Tor2web is part of a larger project ([GlobaLeaks documentation](https://github.com/globaleaks/GlobaLeaks/wiki/)),
+Tor2web is part of a larger project ([GlobaLeaks](https://github.com/globaleaks/GlobaLeaks/wiki/)),
 and is a crucial point in an architectural design aimed to make
 Tor Hidden Services (HS) easily reachable for all internet users,
 even if they have not installed Tor.
