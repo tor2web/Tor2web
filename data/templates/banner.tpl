@@ -7,7 +7,7 @@
 <div id="tor2web-header">
   <div id="tor2web-visible">
     <div id="tor2web_logo">
-      <a href="https://www.tor2web.org"><img src="/antanistaticmap/tor2web-small.png" alt="tor2web logo" /></a>
+      <a href="http://www.tor2web.org"><img src="/antanistaticmap/tor2web-small.png" alt="tor2web logo" /></a>
     </div>
     <div id="tor2web_disclaimer">
     <div><b>tor2web.org does not host this content</b>; we are simply a conduit connecting Internet users to content hosted inside <a href="https://www.torproject.org/docs/hidden-services.html.en">the Tor network.</a></div>
@@ -15,7 +15,6 @@
       <div>Please send us your <a href="javascript:show_hide_notification_form()">feedback</a> and if you have concerns with this content, send us an <a href="javascript:show_hide_notification_form()">abuse notice</a>.</div>
       <div>For more informations please refer to <a href="/antanistaticmap/tos.html">Tor2Web Terms of Services.</a></div>
       <div><t:transparent t:render="mirror" /></div>
-      <div>Software Version: <a href="https://github.com/globaleaks/Tor2web-3.0"><t:transparent t:render="t2wvar-version" /></a></div>
     </div>
     <div id="tor2web_notification_form">
       <fieldset>
