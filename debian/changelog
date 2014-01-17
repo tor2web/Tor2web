@@ -1,3 +1,9 @@
+tor2web (3.1.1-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.1 Banner updated
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Tue, 17 Jan 2013 15:22:42 +0002
+
 tor2web (3.1.0-0) unstable; urgency=low
 
   * Tor2web 3.0 - 3.1.0 Stable Release
