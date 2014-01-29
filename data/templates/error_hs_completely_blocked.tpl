@@ -17,7 +17,7 @@
     <div id="tor2web-content">
       <h2 id="tor2web-title">Tor2web Error: Access Denied to Entire Hidden Service</h2>
       <p>Access to this Hidden Service has been completely blocked</p><br />
-      <p>It may happen that tor2web maintainer have to block proxy acces certain explicit illegal content in order to keep the network up and running. In such case you can still access the content directly by using Tor, that's because Tor2web just act as a proxy server and the content is on a Tor Hidden Service.</p>
+      <p>It may happen that Tor2web maintainers have to block proxy access to certain explicit illegal contents in order to keep the network up and running. In such case you can still access the content directly by using Tor, that's because Tor2web just acts as a proxy server and the content is on a Tor Hidden Service.</p>
     </div>
   </div>
   </body>

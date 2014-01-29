@@ -17,7 +17,7 @@
     <div id="tor2web-content">
       <h2 id="tor2web-title">Tor2web Error: Access Denied to Specific Hidden Service Page</h2>
       <p>Access to this specific Hidden Service page been blocked.</p><br />
-      <p> It may happen that tor2web maintainer have to block proxy acces certain explicit illegal content in order to keep the network up and running. In such case you can still access the content directly by using Tor, that's because Tor2web just act as a proxy server and the content is on a Tor Hidden Service.</p>
+      <p>It may happen that Tor2web maintainers have to block proxy access for certain explicit illegal contents in order to keep the network up and running. In such case you can still access the content directly by using Tor, that's because Tor2web just acts as a proxy server and the content is on a Tor Hidden Service.</p>
     </div>
   </div>
   </body>
