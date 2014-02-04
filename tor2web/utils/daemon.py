@@ -39,6 +39,7 @@ import signal
 import pwd
 import grp
 import atexit
+import platform
 
 import ctypes
 
@@ -237,14 +238,14 @@ class T2WDaemon:
         pass
 
 def set_proctitle(title):
-    if os.uname() == 'Linux': # Virgil has Mac OS!
+    if platform.system() == 'Linux': # Virgil has Mac OS!
         libc = ctypes.cdll.LoadLibrary('libc.so.6')
         buff = ctypes.create_string_buffer(len(title) + 1)
         buff.value = title
         libc.prctl(15, ctypes.byref(buff), 0, 0, 0)
 
 def set_pdeathsig(sig):
-    if os.uname() == 'Linux': # Virgil has Mac OS!
+    if platform.system() == 'Linux': # Virgil has Mac OS!
         PR_SET_PDEATHSIG = 1
         libc = ctypes.cdll.LoadLibrary('libc.so.6')
         libc.prctl.argtypes = (ctypes.c_int, ctypes.c_ulong, ctypes.c_ulong,
