@@ -674,7 +674,7 @@ class T2WRequest(http.Request):
         if not self.isSecure() and (config.transport != 'HTTP'):
             self.redirect("https://" + request.host + request.uri)
             self.finish()
-            return
+            defer.returnValue(None)
 
         # 0: Request admission control stage
         # we try to deny some ua/crawlers regardless the request is (valid or not) / (local or not)
@@ -811,7 +811,7 @@ class T2WRequest(http.Request):
                 except Exception:
                     pass
 
-                return
+                defer.returnValue(None)
 
             # Avoid image hotlinking
             if request.uri.lower().endswith(('gif','jpg','png')):
