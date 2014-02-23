@@ -35,6 +35,32 @@ from OpenSSL import SSL
 
 from twisted.internet.ssl import ContextFactory
 
+class T2WSSLContext(SSL.Context):
+
+    def load_tmp_dh(self, dhfile):
+        """
+        Function overridden in order to enforce ECDH/PFS
+        """
+
+        from OpenSSL._util import (ffi as _ffi,
+                                   lib as _lib)
+
+        if not isinstance(dhfile, bytes):
+            raise TypeError("dhfile must be a byte string")
+
+        bio = _lib.BIO_new_file(dhfile, b"r")
+        if bio == _ffi.NULL:
+            _raise_current_error()
+        bio = _ffi.gc(bio, _lib.BIO_free)
+
+        dh = _lib.PEM_read_bio_DHparams(bio, _ffi.NULL, _ffi.NULL, _ffi.NULL)
+        dh = _ffi.gc(dh, _lib.DH_free)
+        _lib.SSL_CTX_set_tmp_dh(self._context, dh)
+
+        ecdh = _lib.EC_KEY_new_by_curve_name(_lib.NID_X9_62_prime256v1)
+        ecdh = _ffi.gc(ecdh, _lib.EC_KEY_free)
+        _lib.SSL_CTX_set_tmp_ecdh(self._context, ecdh)
+
 
 class T2WSSLContextFactory(ContextFactory):
     _context = None
@@ -61,18 +87,12 @@ class T2WSSLContextFactory(ContextFactory):
         if self._context is None:
             ctx = SSL.Context(self.sslmethod)
 
-            # Disallow SSLv2! It's insecure!
-            ctx.set_options(SSL.OP_NO_SSLv2)
-
-            # https://bugs.launchpad.net/pyopenssl/+bug/1244201
-            # SSL_OP_CIPHER_SERVER_PREFERENCE = 0x00400000L
-            ctx.set_options(0x00400000L)
-
-            ctx.set_options(SSL.OP_SINGLE_DH_USE)
-
-            # https://twistedmatrix.com/trac/ticket/5487
-            # SSL_OP_NO_COMPRESSION = 0x00020000L
-            ctx.set_options(0x00020000)
+            # disallow insecure features
+            ctx.set_options(SSL.OP_NO_SSLv2 |
+                            SSL.OP_SINGLE_DH_USE |
+                            SSL.MODE_RELEASE_BUFFERS |
+                            SSL.OP_NO_COMPRESSION |
+                            SSL.OP_NO_TICKET)
 
             ctx.use_certificate_chain_file(self.certificateChainFileName)
             ctx.use_privatekey_file(self.privateKeyFileName)
