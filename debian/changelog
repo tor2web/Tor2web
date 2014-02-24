@@ -1,3 +1,9 @@
+tor2web (3.1.6-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.6
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 24 Feb 2013 01:35:42 +0002
+
 tor2web (3.1.5-0) unstable; urgency=low
 
   * Tor2web 3.0 - 3.1.5 Added support for TLSv1.1 and TLSv1.2 thanks to pyOpenSSL 0.14
