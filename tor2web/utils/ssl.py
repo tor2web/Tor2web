@@ -87,8 +87,8 @@ class T2WSSLContextFactory(ContextFactory):
         if self._context is None:
             ctx = SSL.Context(self.sslmethod)
 
-            # disallow insecure features
-            ctx.set_options(SSL.OP_NO_SSLv2 |
+            ctx.set_options(SSL.OP_CIPHER_SERVER_PREFERENCE |
+                            SSL.OP_NO_SSLv2 |
                             SSL.OP_SINGLE_DH_USE |
                             SSL.MODE_RELEASE_BUFFERS |
                             SSL.OP_NO_COMPRESSION |
