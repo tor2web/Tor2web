@@ -90,9 +90,10 @@ class T2WSSLContextFactory(ContextFactory):
             ctx.set_options(SSL.OP_CIPHER_SERVER_PREFERENCE |
                             SSL.OP_NO_SSLv2 |
                             SSL.OP_SINGLE_DH_USE |
-                            SSL.MODE_RELEASE_BUFFERS |
                             SSL.OP_NO_COMPRESSION |
                             SSL.OP_NO_TICKET)
+
+            ctx.set_mode(SSL.MODE_RELEASE_BUFFERS)
 
             ctx.use_certificate_chain_file(self.certificateChainFileName)
             ctx.use_privatekey_file(self.privateKeyFileName)
