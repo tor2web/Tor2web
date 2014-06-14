@@ -87,28 +87,27 @@ class T2WRPCServer(pb.Root):
     def __init__(self, config):
         self.config = config
         self.stats = T2WStats()
+        self.white_list = []
+        self.black_list = []
+
         self.load_lists()
 
     def load_lists(self):
-        self.access_list = []
-        if config.mode == "TRANSLATION":
-            pass
-
-        elif config.mode == "WHITELIST":
-            self.access_list = List(config.t2w_file_path('lists/whitelist.txt'))
+        if config.mode == "WHITELIST":
+            self.white_list = List(config.t2w_file_path('lists/whitelist.txt'))
 
         elif config.mode == "BLACKLIST":
-            self.access_list = List(config.t2w_file_path('lists/blocklist_hashed.txt'),
-                                    config.automatic_blocklist_updates_source,
-                                    config.automatic_blocklist_updates_refresh)
+            self.black_list = List(config.t2w_file_path('lists/blocklist_hashed.txt'),
+                                   config.automatic_blocklist_updates_source,
+                                   config.automatic_blocklist_updates_refresh)
 
             # clear local cleartext list
             # (load -> hash -> clear feature; for security reasons)
             self.blocklist_cleartext = List(config.t2w_file_path('lists/blocklist_cleartext.txt'))
             for i in self.blocklist_cleartext:
-                self.access_list.add(hashlib.md5(i).hexdigest())
+                self.black_list.add(hashlib.md5(i).hexdigest())
 
-            self.access_list.dump()
+            self.black_list.dump()
 
             self.blocklist_cleartext.clear()
             self.blocklist_cleartext.dump()
@@ -130,8 +129,11 @@ class T2WRPCServer(pb.Root):
     def remote_get_blocked_ua_list(self):
         return list(self.blocked_ua)
 
-    def remote_get_access_list(self):
-        return list(self.access_list)
+    def remote_get_white_list(self):
+        return list(self.white_list)
+
+    def remote_get_black_list(self):
+        return list(self.black_list)
 
     def remote_get_tor_exits_list(self):
         return list(self.TorExitNodes)
@@ -707,6 +709,18 @@ class T2WRequest(http.Request):
                     content = yield rpc("get_yesterday_stats")
                     defer.returnValue(self.contentFinish(content))
 
+                elif config.expose_lists and staticpath == "lists/whitelist":
+                    self.setHeader(b'content-type', 'text/plain')
+                    content = yield rpc("get_white_list")
+                    content = "\n".join(item for item in content)
+                    defer.returnValue(self.contentFinish(content))
+
+                elif config.expose_lists and staticpath == "lists/blacklist":
+                    self.setHeader(b'content-type', 'text/plain')
+                    content = yield rpc("get_black_list")
+                    content = "\n".join(item for item in content)
+                    defer.returnValue(self.contentFinish(content))
+
                 elif staticpath == "notification":
 
                     #################################################################
@@ -787,17 +801,17 @@ class T2WRequest(http.Request):
                     self.sendError(406, 'error_invalid_hostname.tpl')
                     defer.returnValue(NOT_DONE_YET)
 
-                if config.mode == "ACCESSLIST":
-                    if not hashlib.md5(self.obj.onion) in access_list:
+                if config.mode == "WHITELIST":
+                    if not self.obj.onion in white_list:
                         self.sendError(403, 'error_hs_completely_blocked.tpl')
                         defer.returnValue(NOT_DONE_YET)
 
                 elif config.mode == "BLACKLIST":
-                    if hashlib.md5(self.obj.onion).hexdigest() in access_list:
+                    if hashlib.md5(self.obj.onion).hexdigest() in black_list:
                         self.sendError(403, 'error_hs_completely_blocked.tpl')
                         defer.returnValue(NOT_DONE_YET)
 
-                    if hashlib.md5(self.obj.onion + self.obj.uri).hexdigest() in access_list:
+                    if hashlib.md5(self.obj.onion + self.obj.uri).hexdigest() in black_list:
                         self.sendError(403, 'error_hs_specific_page_blocked.tpl')
                         defer.returnValue(NOT_DONE_YET)
 
@@ -1164,9 +1178,13 @@ def start_worker():
     sys.excepthook = MailException
 
 def updateListsTask():
-    def set_access_list(l):
-        global access_list
-        access_list = l
+    def set_white_list(l):
+        global white_list
+        white_list = l
+
+    def set_black_list(l):
+        global black_list
+        black_list = l
 
     def set_blocked_ua_list(l):
         global blocked_ua_list
@@ -1176,7 +1194,10 @@ def updateListsTask():
         global tor_exits_list
         tor_exits_list = l
 
-    rpc("get_access_list").addCallback(set_access_list)
+    global config
+
+    rpc("get_white_list").addCallback(set_white_list)
+    rpc("get_black_list").addCallback(set_black_list)
     rpc("get_blocked_ua_list").addCallback(set_blocked_ua_list)
     rpc("get_tor_exits_list").addCallback(set_tor_exits_list)
 
@@ -1367,7 +1388,8 @@ else:
 
      set_proctitle("tor2web-worker")
 
-     access_list = []
+     white_list = []
+     black_list = []
      blocked_ua_list = []
      tor_exits_list = []
      ports = []
