@@ -1,3 +1,9 @@
+tor2web (3.1.8-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.8 (Added blacklist/whitelist expose capability in order to support Ahmia.fi)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sat, 14 Jun 2013 11:01:42 +0002
+
 tor2web (3.1.7-0) unstable; urgency=low
 
   * Tor2web 3.0 - 3.1.7
