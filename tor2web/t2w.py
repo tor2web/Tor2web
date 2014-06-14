@@ -709,13 +709,13 @@ class T2WRequest(http.Request):
                     content = yield rpc("get_yesterday_stats")
                     defer.returnValue(self.contentFinish(content))
 
-                elif config.expose_lists and staticpath == "lists/whitelist":
+                elif config.publish_lists and staticpath == "lists/whitelist":
                     self.setHeader(b'content-type', 'text/plain')
                     content = yield rpc("get_white_list")
                     content = "\n".join(item for item in content)
                     defer.returnValue(self.contentFinish(content))
 
-                elif config.expose_lists and staticpath == "lists/blacklist":
+                elif config.publish_lists and staticpath == "lists/blacklist":
                     self.setHeader(b'content-type', 'text/plain')
                     content = yield rpc("get_black_list")
                     content = "\n".join(item for item in content)

@@ -58,9 +58,14 @@ smtpport = 587
 # Exit nodes list refresh period (in seconds)
 exit_node_list_refresh = 600
 
-# The following configurations parametes permits to enable automatic fetching of blocklists
+# The following configuration parameters permits to enable automatic fetching of the hashed blacklist
 # automatic_blocklist_updates_source = https://ahmia.fi/bannedMD5.txt
 # automatic_blocklist_updates_refresh = 600
+
+# The following configuration parameter permit to publish whitelist/blacklist
+# lists will be available at /antanistaticmap/lists/whitelist 
+#                            /antanistaticmap/lists/blacklist
+publish_lists = False
 
 # List of mirrors shown in Tor2web banner
 # By default the list of mirrors is empty to avoid liability for the mirrors.
