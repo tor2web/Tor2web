@@ -7,7 +7,7 @@
 <div id="tor2web-header">
   <div id="tor2web-visible">
     <div id="tor2web_logo">
-      <a href="http://www.tor2web.org"><img src="/antanistaticmap/tor2web-small.png" alt="tor2web logo" /></a>
+      <a href="https://www.tor2web.org"><img src="/antanistaticmap/tor2web-small.png" alt="tor2web logo" /></a>
     </div>
     <div id="tor2web_disclaimer">
     <div><b>tor2web.org does not host this content</b>; we are simply a conduit connecting Internet users to content hosted inside <a href="https://www.torproject.org/docs/hidden-services.html.en">the Tor network.</a></div>
