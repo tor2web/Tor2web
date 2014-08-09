@@ -22,7 +22,7 @@
 =====================================================
 
 .. automodule:: Tor2Web
-   :synopsis: [GLOBALEAKS_MODULE_DESCRIPTION]
+   :synopsis: SSL/TLS Hacks
 
 .. moduleauthor:: Arturo Filasto' <art@globaleaks.org>
 .. moduleauthor:: Giovanni Pellerano <evilaliv3@globaleaks.org>

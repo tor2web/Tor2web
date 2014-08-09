@@ -1,68 +1,74 @@
+tor2web (3.1.11-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.11 (initial implementation of access disclaimer)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sat, 9 Aug 2014 17:43:42 +0002
+
 tor2web (3.1.10-0) unstable; urgency=low
 
   * Tor2web 3.0 - 3.1.10 (added support for Ubuntu 14.04)
 
- -- GlobaLeaks software signing key <info@globaleaks.org>  Tue, 29 Jul 2013 00:35:42 +0002
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Tue, 29 Jul 2014 00:35:42 +0002
 
 tor2web (3.1.9-0) unstable; urgency=low
 
   * Tor2web 3.0 - 3.1.9 (Packaging fix: added configuration example for publish_lists)
 
- -- GlobaLeaks software signing key <info@globaleaks.org>  Sat, 14 Jun 2013 11:30:42 +0002
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sat, 14 Jun 2014 11:30:42 +0002
 
 tor2web (3.1.8-0) unstable; urgency=low
 
   * Tor2web 3.0 - 3.1.8 (Added blacklist/whitelist expose capability in order to support Ahmia.fi)
 
- -- GlobaLeaks software signing key <info@globaleaks.org>  Sat, 14 Jun 2013 11:01:42 +0002
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sat, 14 Jun 2014 11:01:42 +0002
 
 tor2web (3.1.7-0) unstable; urgency=low
 
   * Tor2web 3.0 - 3.1.7
 
- -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 24 Feb 2013 02:08:42 +0002
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 24 Feb 2014 02:08:42 +0002
 
 tor2web (3.1.6-0) unstable; urgency=low
 
   * Tor2web 3.0 - 3.1.6
 
- -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 24 Feb 2013 01:35:42 +0002
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 24 Feb 2014 01:35:42 +0002
 
 tor2web (3.1.5-0) unstable; urgency=low
 
   * Tor2web 3.0 - 3.1.5 Added support for TLSv1.1 and TLSv1.2 thanks to pyOpenSSL 0.14
 
- -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 24 Feb 2013 01:01:42 +0002
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 24 Feb 2014 01:01:42 +0002
 
 tor2web (3.1.4-0) unstable; urgency=low
 
   * Tor2web 3.0 - 3.1.4 Minor fixes.
 
- -- GlobaLeaks software signing key <info@globaleaks.org>  Sat, 22 Feb 2013 16:10:42 +0002
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sat, 22 Feb 2014 16:10:42 +0002
 
 tor2web (3.1.3-0) unstable; urgency=low
 
   * Tor2web 3.0 - 3.1.3 Minor fixes.
 
- -- GlobaLeaks software signing key <info@globaleaks.org>  Thu, 04 Feb 2013 09:48:42 +0002
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Thu, 04 Feb 2014 09:48:42 +0002
 
 tor2web (3.1.2-0) unstable; urgency=low
 
   * Tor2web 3.0 - 3.1.2 Minor fixes.
 
- -- GlobaLeaks software signing key <info@globaleaks.org>  Thu, 30 Jan 2013 18:06:42 +0002
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Thu, 30 Jan 2014 18:06:42 +0002
 
 tor2web (3.1.1-0) unstable; urgency=low
 
   * Tor2web 3.0 - 3.1.1 Banner updated
 
- -- GlobaLeaks software signing key <info@globaleaks.org>  Tue, 17 Jan 2013 15:22:42 +0002
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Tue, 17 Jan 2014 15:22:42 +0002
 
 tor2web (3.1.0-0) unstable; urgency=low
 
   * Tor2web 3.0 - 3.1.0 Stable Release
 
- -- GlobaLeaks software signing key <info@globaleaks.org>  Tue, 17 Jan 2013 15:00:42 +0002
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Tue, 17 Jan 2014 15:00:42 +0002
 
 tor2web (3.0.77-0) unstable; urgency=low
 
