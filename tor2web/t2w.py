@@ -456,13 +456,15 @@ class T2WRequest(http.Request):
             data = re_sub(rexp['t2w'], r'https://\2.' + config.basehost, data)
 
             forward = data[:-500]
-            if not self.header_injected and forward.find("<body") != -1:
+            if not self.header_injected and forward.find("<head") != -1:
                 banner = yield flattenString(self, templates['banner.tpl'])
-                forward = re.sub(rexp['body'], partial(self.add_banner, banner), forward)
+                forward = re.sub(rexp['head'], partial(self.add_banner, banner), forward)
                 self.header_injected = True
 
             self.forwardData(self.handleCleartextForwardPart(forward))
+
             self.stream = data[-500:]
+
         else:
             self.stream = data
 
@@ -475,9 +477,9 @@ class T2WRequest(http.Request):
 
         data = re_sub(rexp['t2w'], r'https://\2.' + config.basehost, data)
 
-        if not self.header_injected and data.find("<body") != -1:
+        if not self.header_injected and data.find("<head") != -1:
             banner = yield flattenString(self, templates['banner.tpl'])
-            data = re.sub(rexp['body'], partial(self.add_banner, banner), data)
+            data = re.sub(rexp['head'], partial(self.add_banner, banner), data)
             self.header_injected = True
 
         data = self.handleCleartextForwardPart(data, True)
@@ -785,17 +787,49 @@ class T2WRequest(http.Request):
             self.sendError(404)
             defer.returnValue(NOT_DONE_YET)
 
-        else:
-            self.obj.uri = request.uri
+        else: # the requested resource is remote, we act as proxy
 
-            if not request.host:
-                self.sendError(406, 'error_invalid_hostname.tpl')
-                defer.returnValue(NOT_DONE_YET)
+            self.obj.uri = request.uri
 
             if config.mode == "TRANSLATION":
                 self.obj.onion = config.onion
             else:
                 self.obj.onion = request.host.split(".")[0] + ".onion"
+
+            if not request.host:
+                self.sendError(406, 'error_invalid_hostname.tpl')
+                defer.returnValue(NOT_DONE_YET)
+
+            # we need to verify if the user is using tor;
+            # on this condition it's better to redirect on the .onion
+            if self.getClientIP() in tor_exits_list:
+                self.redirect("http://" + self.obj.onion + request.uri)
+
+                try:
+                    self.finish()
+                except Exception:
+                    pass
+
+                defer.returnValue(None)
+
+            self.process_request(request)
+
+            parsed = urlparse(self.obj.address)
+
+            self.var['address'] = self.obj.address
+            self.var['onion'] = self.obj.onion.replace(".onion", "")
+            self.var['path'] = parsed[2]
+            if parsed[3] is not None and parsed[3] != '':
+                self.var['path'] += '?' + parsed[3]
+
+            if not config.disable_disclaimer and not self.getCookie("disclaimer_accepted"):
+                self.setResponseCode(401)
+                self.setHeader(b'content-type', 'text/html')
+                self.var['url'] = self.obj.uri
+                flattenString(self, templates['disclaimer.tpl']).addCallback(self.contentFinish)
+                defer.returnValue(NOT_DONE_YET)
+
+            if config.mode != "TRANSLATION":
                 rpc_log("detected <onion_url>.tor2web Hostname: %s" % self.obj.onion)
                 if not verify_onion(self.obj.onion):
                     self.sendError(406, 'error_invalid_hostname.tpl')
@@ -815,36 +849,12 @@ class T2WRequest(http.Request):
                         self.sendError(403, 'error_hs_specific_page_blocked.tpl')
                         defer.returnValue(NOT_DONE_YET)
 
-            # we need to verify if the user is using tor;
-            # on this condition it's better to redirect on the .onion
-            if self.getClientIP() in tor_exits_list:
-                self.redirect("http://" + self.obj.onion + request.uri)
-
-                try:
-                    self.finish()
-                except Exception:
-                    pass
-
-                defer.returnValue(None)
-
             # Avoid image hotlinking
             if request.uri.lower().endswith(('gif','jpg','png')):
                 if request.headers.getRawHeaders(b'referer') is not None and \
                    not config.basehost in request.headers.getRawHeaders(b'referer')[0].lower():
                     self.sendError(403)
                     defer.returnValue(NOT_DONE_YET)
-
-            # the requested resource is remote, we act as proxy
-
-            self.process_request(request)
-
-            parsed = urlparse(self.obj.address)
-
-            self.var['address'] = self.obj.address
-            self.var['onion'] = self.obj.onion.replace(".onion", "")
-            self.var['path'] = parsed[2]
-            if parsed[3] is not None and parsed[3] != '':
-                self.var['path'] += '?' + parsed[3]
 
             agent = Agent(reactor, sockhost=config.sockshost, sockport=config.socksport, pool=self.pool)
 
@@ -994,6 +1004,7 @@ class T2WProxy(http.HTTPChannel):
         Overridden to reduce the function actions
         """
         req = self.requests[-1]
+        req.parseCookies()
         self.persistent = self.checkPersistence(req, self._version)
 
         req.requestReceived(self._command, self._path, self._version)
@@ -1075,7 +1086,7 @@ def start_worker():
     lc.start(600)
 
     rexp = {
-        'body': re.compile(r'(<body.*?\s*>)', re.I),
+        'head': re.compile(r'(<head.*?\s*>)', re.I),
         'w2t': re.compile(r'(http.?:)?//([a-z0-9]{16}).' + config.basehost + '(?!:\d+)', re.I),
         't2w': re.compile(r'(http.?:)?//([a-z0-9]{16}).(?!' + config.basehost + ')onion(?!:\d+)', re.I)
     }

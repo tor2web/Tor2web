@@ -43,6 +43,9 @@ onion = None
 blockcrawl = True
 overriderobotstxt = True
 
+# If set to True will disable the tor2web disclaimer
+disable_disclaimer = False
+
 # If set to True will disable the tor2web banner
 disable_banner = False
 
@@ -67,7 +70,7 @@ exit_node_list_refresh = 600
 #                            /antanistaticmap/lists/blacklist
 publish_lists = False
 
-# List of mirrors shown in Tor2web banner
+# List of mirrors shown in Tor2web disclaimer and banner
 # By default the list of mirrors is empty to avoid liability for the mirrors.
 # An updated list of know mirrors can be found at: http://wiki.tor2web.org/
 # mirror = [tor2web.org, mirror2.tld, mirror3.tld, ...]

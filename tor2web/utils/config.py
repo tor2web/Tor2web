@@ -96,6 +96,7 @@ class Config(Storage):
         self.__dict__['onion'] = None
         self.__dict__['blockcrawl'] = True
         self.__dict__['overriderobotstxt'] = True
+        self.__dict__['disable_disclaimer'] = False
         self.__dict__['disable_banner'] = False
         self.__dict__['smtp_user'] = ''
         self.__dict__['smtp_pass'] = ''

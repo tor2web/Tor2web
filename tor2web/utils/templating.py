@@ -54,6 +54,12 @@ class PageTemplate(Element):
         return loader.load()
 
     @renderer
+    def resource(self, request, tag):
+        url = "https://%s.%s%s" % (request.var['onion'], request.var['basehost'], request.var['path'])
+        js = 'javascript:accept_disclaimer()'
+        return tags.a(href=js, title=url)(url)
+
+    @renderer
     def mirror(self, request, tag):
         if 'mirror' in request.var and request.var['mirror'] != '':
             url = "https://%s.%s%s" % (request.var['onion'], request.var['mirror'], request.var['path'])

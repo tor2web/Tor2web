@@ -1,6 +1,11 @@
 /** This is a cookie handling library from: http://code.google.com/p/cookies/wiki/License **/
 (function(global){"use strict";var document=global.document,Object=global.Object,JSON=global.JSON,jaaulde=global.jaaulde=(global.jaaulde||{});jaaulde.utils=jaaulde.utils||{};jaaulde.utils.cookies=(function(){var defaultOptions,resolveOptions,assembleOptionsString,isNaN,trim,parseCookies,Constructor;defaultOptions={expiresAt:null,path:'/',domain:null,secure:false};resolveOptions=function(options){var returnValue,expireDate;if(typeof options!=='object'||options===null){returnValue=defaultOptions}else{returnValue={expiresAt:defaultOptions.expiresAt,path:defaultOptions.path,domain:defaultOptions.domain,secure:defaultOptions.secure};if(typeof options.expiresAt==='object'&&options.expiresAt instanceof Date){returnValue.expiresAt=options.expiresAt}else if(typeof options.hoursToLive==='number'&&options.hoursToLive!==0){expireDate=new global.Date();expireDate.setTime(expireDate.getTime()+(options.hoursToLive*60*60*1000));returnValue.expiresAt=expireDate}if(typeof options.path==='string'&&options.path!==''){returnValue.path=options.path}if(typeof options.domain==='string'&&options.domain!==''){returnValue.domain=options.domain}if(options.secure===true){returnValue.secure=options.secure}}return returnValue};assembleOptionsString=function(options){options=resolveOptions(options);return((typeof options.expiresAt==='object'&&options.expiresAt instanceof Date?'; expires='+options.expiresAt.toGMTString():'')+'; path='+options.path+(typeof options.domain==='string'?'; domain='+options.domain:'')+(options.secure===true?'; secure':''))};trim=global.String.prototype.trim?function(data){return global.String.prototype.trim.call(data)}:(function(){var trimLeft,trimRight;trimLeft=/^\s+/;trimRight=/\s+$/;return function(data){return data.replace(trimLeft,'').replace(trimRight,'')}}());isNaN=(function(){var rdigit=/\d/,isNaN=global.isNaN;return function(obj){return(obj===null||!rdigit.test(obj)||isNaN(obj))}}());parseCookies=(function(){var parseJSON,rbrace;parseJSON=JSON&&JSON.parse?function(data){var returnValue=null;if(typeof data==='string'&&data!==''){data=trim(data);if(data!==''){try{returnValue=JSON.parse(data)}catch(e1){returnValue=null}}}return returnValue}:function(){return null};rbrace=/^(?:\{.*\}|\[.*\])$/;return function(){var cookies,splitOnSemiColons,cookieCount,i,splitOnEquals,name,rawValue,value;cookies={};splitOnSemiColons=document.cookie.split(';');cookieCount=splitOnSemiColons.length;for(i=0;i<cookieCount;i=i+1){splitOnEquals=splitOnSemiColons[i].split('=');name=trim(splitOnEquals.shift());if(splitOnEquals.length>=1){rawValue=splitOnEquals.join('=')}else{rawValue=''}try{value=decodeURIComponent(rawValue)}catch(e2){value=rawValue}try{value=value==='true'?true:value==='false'?false:!isNaN(value)?parseFloat(value):rbrace.test(value)?parseJSON(value):value}catch(e3){}cookies[name]=value}return cookies}}());Constructor=function(){};Constructor.prototype.get=function(cookieName){var returnValue,item,cookies;cookies=parseCookies();if(typeof cookieName==='string'){returnValue=(typeof cookies[cookieName]!=='undefined')?cookies[cookieName]:null}else if(typeof cookieName==='object'&&cookieName!==null){returnValue={};for(item in cookieName){if(Object.prototype.hasOwnProperty.call(cookieName,item)){if(typeof cookies[cookieName[item]]!=='undefined'){returnValue[cookieName[item]]=cookies[cookieName[item]]}else{returnValue[cookieName[item]]=null}}}}else{returnValue=cookies}return returnValue};Constructor.prototype.filter=function(cookieNameRegExp){var cookieName,returnValue,cookies;returnValue={};cookies=parseCookies();if(typeof cookieNameRegExp==='string'){cookieNameRegExp=new RegExp(cookieNameRegExp)}for(cookieName in cookies){if(Object.prototype.hasOwnProperty.call(cookies,cookieName)&&cookieName.match(cookieNameRegExp)){returnValue[cookieName]=cookies[cookieName]}}return returnValue};Constructor.prototype.set=function(cookieName,value,options){if(typeof options!=='object'||options===null){options={}}if(typeof value==='undefined'||value===null){value='';options.hoursToLive=-8760}else{value=value===true?'true':value===false?'false':!isNaN(value)?''+value:value;if(typeof value!=='string'){if(typeof JSON==='object'&&JSON!==null&&typeof JSON.stringify==='function'){value=JSON.stringify(value)}else{throw new Error('cookies.set() received value which could not be serialized.');}}}var optionsString=assembleOptionsString(options);document.cookie=cookieName+'='+encodeURIComponent(value)+optionsString};Constructor.prototype.del=function(cookieName,options){var allCookies,name;allCookies={};if(typeof options!=='object'||options===null){options={}}if(typeof cookieName==='boolean'&&cookieName===true){allCookies=this.get()}else if(typeof cookieName==='string'){allCookies[cookieName]=true}for(name in allCookies){if(Object.prototype.hasOwnProperty.call(allCookies,name)&&typeof name==='string'&&name!==''){this.set(name,null,options)}}};Constructor.prototype.test=function(){var returnValue,testName,testValue;testName='cookiesCT';testValue='data';this.set(testName,testValue);if(this.get(testName)===testValue){this.del(testName);returnValue=true}return returnValue};Constructor.prototype.setOptions=function(options){if(typeof options!=='object'){options=null}defaultOptions=resolveOptions(options)};return new Constructor()}())}(window));
 
+function t2w() {
+  jaaulde.utils.cookies.set('disclaimer_accepted', 'true');
+  location.reload();
+}
+
 function getHTTPObject() {
   var http = false;
   if (XMLHttpRequest) {
@@ -59,14 +64,59 @@ function show_hide_notification_form() {
   }
 }
 
+
 var tor2web_notification_form_visible = true;
 var http = getHTTPObject();
 
+var banner = '' +
+'<style type="text/css">@import url(/antanistaticmap/tor2web.css);</style>' +
+'<div id="tor2web-banner">' +
+'  <div id="tor2web-visible">' +
+'    <div id="tor2web_logo">' +
+'      <a href="https://www.tor2web.org"><img src="/antanistaticmap/tor2web-small.png" alt="tor2web logo" /></a>' +
+'    </div>' +
+'    <div id="tor2web_disclaimer">' +
+'      <div><b>tor2web.org does not host this content</b>; the service is simply a proxy connecting Internet users to content hosted inside the <a href="https://www.torproject.org/docs/hidden-services.html.en">Tor network.</a></div>' +
+'      <div>Please be aware that when you access this site through a Tor2web proxy you are not anonymous. To obtain anonymity, you are strongly advised to <a href="https://www.torproject.org/download/">download the Tor Browser Bundle</a> and access this content over Tor.</div>' +
+'      <div>Please send us your <a href="javascript:show_hide_notification_form()">feedback</a> and if you have concerns with this content, send us an <a href="javascript:show_hide_notification_form()">abuse notice</a>.</div>' +
+'      <div><t:transparent t:render="mirror" /></div>' +
+'    </div>' +
+'    <div id="tor2web_notification_form">' +
+'      <fieldset>' +
+'        <legend>Notification:</legend>' +
+'        BY:' +
+'        <div><input type="text" id="by" name="by" /></div>' +
+'        URL:' +
+'        <div><input type="text" id="url" name="url" /></div>' +
+'        COMMENT:' +
+'        <div><textarea type="text" id="comment" name="comment" rows="10" cols="20"></textarea></div>' +
+'        <div><input type="button" value="Send" onclick="sendNotification()" /></div>' +
+'      </fieldset>' +
+'    </div>' +
+'    <div style="clear:both"></div>' +
+'    <div class="tor2web_showhide">' +
+'      <a href="javascript:show_hide_tor2web_header(true)">hide Tor2web header</a>' +
+'    </div>' +
+'  </div>' +
+'  <div id="tor2web-hidden">' +
+'    <div class="tor2web_showhide">' +
+'      <a href="javascript:show_hide_tor2web_header(false)">show Tor2web header</a>' +
+'    </div>' +
+'  </div>' +
+'</div>';
+
 window.onload = function() {
-  if(jaaulde.utils.cookies.get('tor2web_header_hidden') && jaaulde.utils.cookies.get('tor2web_header_hidden') == true) {
-    show_hide_tor2web_header(true);
-  }
-  if(document.getElementById('tor2web-header') != null) {
+  if(document.getElementById('tor2web') != null) {
+
     document.getElementById('url').value = document.location;
+
+  } else {
+
+    document.body.innerHTML = banner + "<div style='position:relative'>" + document.body.innerHTML + "</div>";
+
+    if(jaaulde.utils.cookies.get('tor2web_header_hidden') && jaaulde.utils.cookies.get('tor2web_header_hidden') == true) {
+      show_hide_tor2web_header(true);
+    }
+
   }
 }
