@@ -45,6 +45,8 @@
 # onion = None
 # blockcrawl = True
 # overriderobotstxt = True
+# blockhotlinking = True
+# blockhotlinking_exts = [jpg, png, gif]
 
 # If set to True will disable the tor2web disclaimer
 # disable_disclaimer = False

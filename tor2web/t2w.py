@@ -848,7 +848,7 @@ class T2WRequest(http.Request):
                         defer.returnValue(NOT_DONE_YET)
 
             # Avoid image hotlinking
-            if request.uri.lower().endswith(('gif','jpg','png')):
+            if config.blockhotlinking and request.uri.lower().endswith(tuple(config.blockhotlinking_exts)):
                 if request.headers.getRawHeaders(b'referer') is not None and \
                    not config.basehost in request.headers.getRawHeaders(b'referer')[0].lower():
                     self.sendError(403)
