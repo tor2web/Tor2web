@@ -82,22 +82,32 @@ class SOCKSv5ClientProtocol(ProtocolWrapper):
             self.error(Failure(SOCKSError(0x00)))
             return
 
-        if not self._optimistic:
-            self.transport.write(struct.pack("!BBBBB", 5, 1, 0, 3, len(self._host)) + self._host + struct.pack("!H", self._port))
-
         self._buf = self._buf[2:]
 
-        self.state += 1
+        self.state = 2 
+
+        if not self._optimistic:
+            self.transport.write(struct.pack("!BBBBB", 5, 1, 0, 3, len(self._host)) + self._host + struct.pack("!H", self._port))
+        else:
+            socks_state_2()
 
     def socks_state_2(self):
-        if len(self._buf) < 10:
+        if len(self._buf) < 2:
             return
 
         if self._buf[:2] != "\x05\x00":
             self.error(Failure(SOCKSError(ord(self._buf[1]))))
             return
 
-        self._buf = self._buf[10:]
+        self._buf = self._buf[2:]
+
+        self.state = 3
+
+    def socks_state_3(self):
+        if len(self._buf) < 8:
+            return
+
+        self._buf = self._buf[8:]
 
         if not self._optimistic:
             self.wrappedProtocol.makeConnection(self)
@@ -109,7 +119,7 @@ class SOCKSv5ClientProtocol(ProtocolWrapper):
         self.wrappedProtocol.dataReceived(self._buf)
         self._buf = ''
 
-        self.state += 1
+        self.state = 4
 
     def makeConnection(self, transport):
         """
@@ -132,10 +142,10 @@ class SOCKSv5ClientProtocol(ProtocolWrapper):
             except Exception:
                 pass
 
-        self.state += 1
+        self.state = 1
 
     def dataReceived(self, data):
-        if self.state != 3:
+        if self.state != 4:
             self._buf = ''.join([self._buf, data])
             getattr(self, 'socks_state_%s' % self.state)()
         else:
