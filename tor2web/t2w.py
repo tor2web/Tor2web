@@ -99,6 +99,7 @@ class T2WRPCServer(pb.Root):
         elif config.mode == "BLACKLIST":
             self.black_list = List(config.t2w_file_path('lists/blocklist_hashed.txt'),
                                    config.automatic_blocklist_updates_source,
+                                   config.automatic_blocklist_updates_mode,
                                    config.automatic_blocklist_updates_refresh)
 
             # clear local cleartext list
@@ -150,7 +151,7 @@ class T2WRPCServer(pb.Root):
     def remote_log_debug(self, line):
         date = datetimeToString()
         # noinspection PyCallByClass
-        t2w_daemon.logfile_debug.write(date+" "+str(line)+"\n")
+        t2w_daemon.logfile_debug.write(date + " " + str(line) + "\n")
 
 
 @defer.inlineCallbacks

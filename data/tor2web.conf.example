@@ -64,6 +64,7 @@ exit_node_list_refresh = 600
 # The following configuration parameters permits to enable automatic fetching of the hashed blacklist
 # automatic_blocklist_updates_source = https://ahmia.fi/bannedMD5.txt
 # automatic_blocklist_updates_refresh = 600
+# automatic_blocklist_updates_mode = MERGE
 
 # The following configuration parameter permit to publish whitelist/blacklist
 # lists will be available at /antanistaticmap/lists/whitelist 

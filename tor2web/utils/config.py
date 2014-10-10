@@ -108,6 +108,7 @@ class Config(Storage):
         self.__dict__['exit_node_list_refresh'] = 600
         self.__dict__['automatic_blocklist_updates_source'] = ''
         self.__dict__['automatic_blocklist_updates_refresh'] = 600
+        self.__dict__['automatic_blocklist_updates_mode'] = "MERGE"
         self.__dict__['publish_lists'] = False
         self.__dict__['mirror'] = []
         self.__dict__['dummyproxy'] = None

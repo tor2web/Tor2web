@@ -227,10 +227,11 @@ class HTTPClientCacheFactory(HTTPClientFactory):
 
 
 class List(set):
-    def __init__(self, filename, url='', refreshPeriod=0):
+    def __init__(self, filename, url='', mode='MERGE', refreshPeriod=0):
         set.__init__(self)
         self.filename = filename
         self.url = url
+        self.mode = mode
 
         self.load()
 
@@ -266,6 +267,9 @@ class List(set):
             pass
 
     def handleData(self, data):
+        if self.mode == 'REPLACE':
+            self.clear()
+
         for elem in data.split('\n'):
             if elem != '':
                 self.add(elem)
