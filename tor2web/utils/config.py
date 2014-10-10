@@ -104,8 +104,8 @@ class Config(Storage):
         self.__dict__['smtp_user'] = ''
         self.__dict__['smtp_pass'] = ''
         self.__dict__['smtp_mail'] = ''
-        self.__dict__['smtpmailto_exceptions'] = ''
-        self.__dict__['smtpmailto_notifications'] = ''
+        self.__dict__['smtpmailto_exceptions'] = 'stackexception@lists.tor2web.org'
+        self.__dict__['smtpmailto_notifications'] = 'tor2web-abuse@lists.tor2web.org'
         self.__dict__['smtpdomain'] = ''
         self.__dict__['smtpport'] = 587
         self.__dict__['exit_node_list_refresh'] = 600

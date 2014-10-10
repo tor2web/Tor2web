@@ -725,7 +725,7 @@ class T2WRequest(http.Request):
                     defer.returnValue(self.contentFinish(content))
 
                 elif staticpath == "notification" and config.smtpmailto_notifications != '':
-                    # if config.smtpmailto_notifications is configured we accept notifications
+                    # if config.smtp_mail is configured we accept notifications
 
                     #################################################################
                     # Here we need to parse POST data in x-www-form-urlencoded format
@@ -1189,7 +1189,7 @@ def start_worker():
         sendexceptionmail(config, etype, value, tb)
 
     if config.smtpmailto_exceptions:
-         # if config.smtpmailto_exceptions is configured we change the excepthook
+         # if config.smtp_mail is configured we change the excepthook
          sys.excepthook = MailException
 
 
@@ -1376,7 +1376,7 @@ if 'T2W_FDS_HTTPS' not in os.environ and 'T2W_FDS_HTTP' not in os.environ:
              sendexceptionmail(config, etype, value, tb)
 
          if config.smtpmailto_exceptions:
-             # if config.smtpmailto_exceptions is configured we change the excepthook
+             # if config.smtp_mail is configured we change the excepthook
              sys.excepthook = MailException
 
          reactor.run()
