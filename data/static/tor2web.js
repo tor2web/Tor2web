@@ -87,7 +87,7 @@ var banner = '' +
 '        BY:' +
 '        <div><input type="text" id="by" name="by" /></div>' +
 '        URL:' +
-'        <div><input type="text" id="url" name="url" /></div>' +
+'        <div><input type="text" id="url" name="url" readonly="readonly" /></div>' +
 '        COMMENT:' +
 '        <div><textarea type="text" id="comment" name="comment" rows="10" cols="20"></textarea></div>' +
 '        <div><input type="button" value="Send" onclick="sendNotification()" /></div>' +
