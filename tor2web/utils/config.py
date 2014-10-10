@@ -69,6 +69,9 @@ class Config(Storage):
         self.__dict__['command'] = options.command
         self.__dict__['nodename'] = 'tor2web'
         self.__dict__['datadir'] = '/home/tor2web'
+        self.__dict__['ssl_key'] = os.path.join(self.__dict__['datadir'], "certs/tor2web-key.pem")
+        self.__dict__['ssl_cert'] = os.path.join(self.__dict__['datadir'], "certs/tor2web-intermediate.pem")
+        self.__dict__['ssl_dh'] = os.path.join(self.__dict__['datadir'], "certs/tor2web-dh.pem")
         self.__dict__['rundir'] = options.rundir
         self.__dict__['logreqs'] = False
         self.__dict__['debugmode'] = False

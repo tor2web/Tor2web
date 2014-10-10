@@ -1154,10 +1154,10 @@ def start_worker():
 
     factory = T2WLimitedRequestsFactory(factory, requests_countdown)
 
-    context_factory = T2WSSLContextFactory(os.path.join(config.datadir, "certs/tor2web-key.pem"),
-                                                       os.path.join(config.datadir, "certs/tor2web-intermediate.pem"),
-                                                       os.path.join(config.datadir, "certs/tor2web-dh.pem"),
-                                                       config.cipher_list)
+    context_factory = T2WSSLContextFactory(config.ssl_key,
+                                           config.ssl_cert,
+                                           config.ssl_dh,
+                                           config.cipher_list)
 
     fds_https = []
     if  'T2W_FDS_HTTPS' in os.environ:
@@ -1271,17 +1271,16 @@ for d in [ 'certs',  'logs']:
         print "Tor2web Startup Failure: unexistent directory (%s)" % path
         exit(1)
 
-files = ['certs/tor2web-key.pem', 'certs/tor2web-intermediate.pem', 'certs/tor2web-dh.pem']
+files = [config.ssl_key, config.ssl_cert, config.ssl_dh]
 for f in files:
-    path = os.path.join(config.datadir, f)
     try:
-        if (not os.path.exists(path) or
-            not os.path.isfile(path) or
-            not os.access(path, os.R_OK)):
-            print "Tor2web Startup Failure: unexistent file (%s)" % path
+        if (not os.path.exists(f) or
+            not os.path.isfile(f) or
+            not os.access(f, os.R_OK)):
+            print "Tor2web Startup Failure: unexistent file (%s)" % f
             exit(1)
     except Exception:
-        print "Tor2web Startup Failure: error while accessing file (%s)" % path
+        print "Tor2web Startup Failure: error while accessing file (%s)" % f
         exit(1)
 ###############################################################################
 
