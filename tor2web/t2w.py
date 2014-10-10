@@ -847,10 +847,6 @@ class T2WRequest(http.Request):
                         self.sendError(403, 'error_hs_completely_blocked.tpl')
                         defer.returnValue(NOT_DONE_YET)
 
-                    if hashlib.md5(self.obj.onion + self.obj.uri).hexdigest() in black_list:
-                        self.sendError(403, 'error_hs_specific_page_blocked.tpl')
-                        defer.returnValue(NOT_DONE_YET)
-
             # Avoid image hotlinking
             if request.uri.lower().endswith(('gif','jpg','png')):
                 if request.headers.getRawHeaders(b'referer') is not None and \
