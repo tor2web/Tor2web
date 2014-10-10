@@ -2,67 +2,67 @@
 [main]
 
 # unique nodename identifier
-nodename = [UNIQUE_IDENTIFIER]
+# nodename = [UNIQUE_IDENTIFIER]
 
 # path to Tor2web data directory
-datadir = /home/tor2web
+#datadir = /home/tor2web
 
 # debug and logging
-logreqs = False
-debugmode = False
-debugtostdout = False
+# logreqs = False
+# debugmode = False
+# debugtostdout = False
 
 # processes (suggested number of cores + 1)
-processes = 5
-requests_per_process = 100000
+# processes = 5
+# requests_per_process = 100000
 
 # ip addresses and ports
-transport = BOTH
-listen_ipv4 = [LISTENING_IPV4_ADDRESS]
-listen_ipv6 = [LISTENING_IPV6_ADDRESS]
-listen_port_http = 80
-listen_port_https = 443
+# transport = BOTH
+# listen_ipv4 = [LISTENING_IPV4_ADDRESS]
+# listen_ipv6 = [LISTENING_IPV6_ADDRESS]
+# listen_port_http = 80
+# listen_port_https = 443
 
 # This is the base hostname for the current tor2web node
-basehost = tor2web.org
+# basehost = tor2web.org
 
 # This is the SOCKS host and port on which Tor is listening
-sockshost = 127.0.0.1
-socksport = 9050
-socksoptimisticdata = True
-sockmaxpersistentperhost = 5
-sockcachedconnectiontimeout = 240
-sockretryautomatically = True
+# sockshost = 127.0.0.1
+# socksport = 9050
+# socksoptimisticdata = True
+# sockmaxpersistentperhost = 5
+# sockcachedconnectiontimeout = 240
+# sockretryautomatically = True
 
 # SSL configuration
-ssl_key = /home/tor2web/certs/tor2web-key.pem
-ssl_cert = /home/tor2web/certs/tor2web-intermediate.pem
-ssl_dh = /home/tor2web/certs/tor2web-dh.pem
-cipher_list = ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA:DHE-DSS-AES256-SHA:DHE-RSA-AES128-SHA:DES-CBC3-SHA
+# ssl_key = /home/tor2web/certs/tor2web-key.pem
+# ssl_cert = /home/tor2web/certs/tor2web-intermediate.pem
+# ssl_dh = /home/tor2web/certs/tor2web-dh.pem
+# cipher_list = ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA:DHE-DSS-AES256-SHA:DHE-RSA-AES128-SHA:DES-CBC3-SHA
 
 # Access Blocking
-mode = BLACKLIST
-onion = None
-blockcrawl = True
-overriderobotstxt = True
+# mode = BLACKLIST
+# onion = None
+# blockcrawl = True
+# overriderobotstxt = True
 
 # If set to True will disable the tor2web disclaimer
-disable_disclaimer = False
+# disable_disclaimer = False
 
 # If set to True will disable the tor2web banner
-disable_banner = False
+# disable_banner = False
 
 # Mail configuration for automatic exceptions notification and user abuse notice
-smtpuser = [USERNAME]
-smtppass = [PASSWORD]
-smtpmail = [EMAIL]
-smtpmailto_exceptions = stackexception@lists.tor2web.org
-smtpmailto_notifications = tor2web-abuse@lists.tor2web.org
-smtpdomain = smtp.gmail.com
-smtpport = 587
+# smtpuser = [USERNAME]
+# smtppass = [PASSWORD]
+# smtpmail = [EMAIL]
+# smtpmailto_exceptions = [EMAIL_FOR_ABUSES_EXCEPTIONS]
+# smtpmailto_notifications = [EMAIL_FOR_ABUSES_NOTIFICATION]
+# smtpdomain = [DOMAIN]
+# smtpport = [PORT]
 
 # Exit nodes list refresh period (in seconds)
-exit_node_list_refresh = 600
+# exit_node_list_refresh = 600
 
 # The following configuration parameters permits to enable automatic fetching of the hashed blacklist
 # automatic_blocklist_updates_source = https://ahmia.fi/bannedMD5.txt
@@ -72,7 +72,7 @@ exit_node_list_refresh = 600
 # The following configuration parameter permit to publish whitelist/blacklist
 # lists will be available at /antanistaticmap/lists/whitelist 
 #                            /antanistaticmap/lists/blacklist
-publish_lists = False
+# publish_lists = False
 
 # List of mirrors shown in Tor2web disclaimer and banner
 # By default the list of mirrors is empty to avoid liability for the mirrors.
