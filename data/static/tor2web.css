@@ -23,6 +23,7 @@
 #tor2web-visible { display: block; padding: 0 30px; }
 #tor2web-hidden { display: none; }
 #tor2web_logo { float: left; margin: 0 0 10px 10px; }
+#tor2web_disclaimer { float: left; }
 #tor2web_disclaimer_acceptance, #tor2web_terms, #tor2web_footer { margin-top: 30px; }
 #tor2web_notification_form { clear: both; display: none; clear: both; width: 600px; margin:0 auto; margin-bottom: 10px; }
 #tor2web_footer { text-align: center }

@@ -84,12 +84,11 @@ class SOCKSv5ClientProtocol(ProtocolWrapper):
 
         self._buf = self._buf[2:]
 
-        self.state = 2 
-
         if not self._optimistic:
             self.transport.write(struct.pack("!BBBBB", 5, 1, 0, 3, len(self._host)) + self._host + struct.pack("!H", self._port))
-        else:
-            self.socks_state_2()
+
+        self.state = 2
+        getattr(self, 'socks_state_%s' % self.state)()
 
     def socks_state_2(self):
         if len(self._buf) < 2:
@@ -102,6 +101,7 @@ class SOCKSv5ClientProtocol(ProtocolWrapper):
         self._buf = self._buf[2:]
 
         self.state = 3
+        getattr(self, 'socks_state_%s' % self.state)()
 
     def socks_state_3(self):
         if len(self._buf) < 8:

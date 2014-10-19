@@ -68,6 +68,7 @@ from twisted.internet.task import LoopingCall
 from tor2web import __version__
 from tor2web.utils.config import Config
 from tor2web.utils.daemon import T2WDaemon, set_pdeathsig, set_proctitle
+from tor2web.utils.hostsmap import HostsMap
 from tor2web.utils.lists import List, TorExitNodeList
 from tor2web.utils.mail import sendmail, sendexceptionmail
 from tor2web.utils.misc import listenTCPonExistingFD, listenSSLonExistingFD, re_sub, verify_onion
@@ -89,6 +90,9 @@ class T2WRPCServer(pb.Root):
         self.stats = T2WStats()
         self.white_list = []
         self.black_list = []
+        self.TorExitNodes = []
+        self.blocked_ua = []
+        self.hosts_map = {}
 
         self.load_lists()
 
@@ -120,9 +124,13 @@ class T2WRPCServer(pb.Root):
                 self.blocked_ua.append(ua.lower())
 
         # Load Exit Nodes list with the refresh rate configured  in config file
-        self.TorExitNodes = TorExitNodeList(os.path.join(config.datadir, 'lists', 'exitnodelist.txt'),
-                                            "https://onionoo.torproject.org/summary?type=relay",
+        self.TorExitNodes = TorExitNodeList(config.t2w_file_path('lists/exitnodelist.txt'),
+                                            'https://onionoo.torproject.org/summary?type=relay',
                                             config.exit_node_list_refresh)
+
+        self.hosts_map = HostsMap(config.t2w_file_path('lists/hosts_map.txt')).hosts
+        if config.mode == "TRANSLATION":
+            self.hosts_map[config.basehost] = config.onion
 
     def remote_get_config(self):
         return self.config.__dict__
@@ -138,6 +146,9 @@ class T2WRPCServer(pb.Root):
 
     def remote_get_tor_exits_list(self):
         return list(self.TorExitNodes)
+
+    def remote_get_hosts_map(self):
+        return dict(self.hosts_map)
 
     def remote_update_stats(self, onion):
         self.stats.update(onion)
@@ -454,7 +465,7 @@ class T2WRequest(http.Request):
         data = self.stream + data
 
         if len(data) >= 1000:
-            data = re_sub(rexp['t2w'], r'https://\2.' + config.basehost, data)
+            data = re_sub(rexp['t2w_from'], rexp['t2w_to'], data)
 
             forward = data[:-500]
             if not self.header_injected and forward.find("<head") != -1:
@@ -476,7 +487,7 @@ class T2WRequest(http.Request):
 
         data = self.stream + data
 
-        data = re_sub(rexp['t2w'], r'https://\2.' + config.basehost, data)
+        data = re_sub(rexp['t2w_from'], rexp['t2w_to'], data)
 
         if not self.header_injected and data.find("<head") != -1:
             banner = yield flattenString(self, templates['banner.tpl'])
@@ -624,7 +635,7 @@ class T2WRequest(http.Request):
         for key, values in self.obj.headers.getAllRawHeaders():
             fixed_values = []
             for value in values:
-                value = re_sub(rexp['w2t'], r'http://\2.onion', value)
+                value = re_sub(rexp['w2t_from'], rexp['w2t_to'], value)
                 fixed_values.append(value)
 
             self.obj.headers.setRawHeaders(key, fixed_values)
@@ -793,14 +804,19 @@ class T2WRequest(http.Request):
 
             self.obj.uri = request.uri
 
-            if config.mode == "TRANSLATION":
-                self.obj.onion = config.onion
-            else:
-                self.obj.onion = request.host.split(".")[0] + ".onion"
-
             if not request.host:
                 self.sendError(406, 'error_invalid_hostname.tpl')
                 defer.returnValue(NOT_DONE_YET)
+
+            if config.mode == 'TRANSLATION' and request.host in hosts_map:
+                self.obj.onion = hosts_map[request.host]
+            else:
+                self.obj.onion = request.host.split(".")[0] + ".onion"
+
+            rexp['w2t_from'] = re.compile(r'(http.?:)?//' + request.host + '(?!:\d+)', re.I)
+            rexp['w2t_to'] = r'http://' + self.obj.onion
+            rexp['t2w_from'] = re.compile(r'(http.?:)?//([a-z0-9]{16}).onion(?!:\d+)', re.I)
+            rexp['t2w_to'] = r'https://' + request.host
 
             # we need to verify if the user is using tor;
             # on this condition it's better to redirect on the .onion
@@ -850,7 +866,7 @@ class T2WRequest(http.Request):
             # Avoid image hotlinking
             if config.blockhotlinking and request.uri.lower().endswith(tuple(config.blockhotlinking_exts)):
                 if request.headers.getRawHeaders(b'referer') is not None and \
-                   not config.basehost in request.headers.getRawHeaders(b'referer')[0].lower():
+                   not request.host in request.headers.getRawHeaders(b'referer')[0].lower():
                     self.sendError(403)
                     defer.returnValue(NOT_DONE_YET)
 
@@ -925,7 +941,7 @@ class T2WRequest(http.Request):
         if keyLower in 'location':
             fixed_values = []
             for value in values:
-                value = re_sub(rexp['t2w'], r'https://\2.' + config.basehost, value)
+                value = re_sub(rexp['t2w_from'], rexp['t2w_to'], value)
                 fixed_values.append(value)
             values = fixed_values
 
@@ -1084,9 +1100,7 @@ def start_worker():
     lc.start(600)
 
     rexp = {
-        'head': re.compile(r'(<head.*?\s*>)', re.I),
-        'w2t': re.compile(r'(http.?:)?//([a-z0-9]{16}).' + config.basehost + '(?!:\d+)', re.I),
-        't2w': re.compile(r'(http.?:)?//([a-z0-9]{16}).(?!' + config.basehost + ')onion(?!:\d+)', re.I)
+        'head': re.compile(r'(<head.*?\s*>)', re.I)
     }
 
     ###############################################################################
@@ -1206,12 +1220,17 @@ def updateListsTask():
         global tor_exits_list
         tor_exits_list = l
 
+    def set_hosts_map(d):
+        global hosts_map
+        hosts_map = d
+
     global config
 
     rpc("get_white_list").addCallback(set_white_list)
     rpc("get_black_list").addCallback(set_black_list)
     rpc("get_blocked_ua_list").addCallback(set_blocked_ua_list)
     rpc("get_tor_exits_list").addCallback(set_tor_exits_list)
+    rpc("get_hosts_map").addCallback(set_hosts_map)
 
 def SigQUIT(SIG, FRM):
     try:
@@ -1405,6 +1424,7 @@ else:
      black_list = []
      blocked_ua_list = []
      tor_exits_list = []
+     hosts_map = {}
      ports = []
 
      rpc_factory = pb.PBClientFactory()
