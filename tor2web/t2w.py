@@ -804,19 +804,14 @@ class T2WRequest(http.Request):
 
             self.obj.uri = request.uri
 
-            if not request.host:
-                self.sendError(406, 'error_invalid_hostname.tpl')
-                defer.returnValue(NOT_DONE_YET)
-
             if config.mode == 'TRANSLATION' and request.host in hosts_map:
                 self.obj.onion = hosts_map[request.host]
             else:
                 self.obj.onion = request.host.split(".")[0] + ".onion"
 
-            rexp['w2t_from'] = re.compile(r'(http.?:)?//' + request.host + '(?!:\d+)', re.I)
-            rexp['w2t_to'] = r'http://' + self.obj.onion
-            rexp['t2w_from'] = re.compile(r'(http.?:)?//([a-z0-9]{16}).onion(?!:\d+)', re.I)
-            rexp['t2w_to'] = r'https://' + request.host
+            if not request.host or not verify_onion(self.obj.onion):
+                self.sendError(406, 'error_invalid_hostname.tpl')
+                defer.returnValue(NOT_DONE_YET)
 
             # we need to verify if the user is using tor;
             # on this condition it's better to redirect on the .onion
@@ -829,6 +824,18 @@ class T2WRequest(http.Request):
                     pass
 
                 defer.returnValue(None)
+
+            # Avoid image hotlinking
+            if config.blockhotlinking and request.uri.lower().endswith(tuple(config.blockhotlinking_exts)):
+                if request.headers.getRawHeaders(b'referer') is not None and \
+                   not request.host in request.headers.getRawHeaders(b'referer')[0].lower():
+                    self.sendError(403)
+                    defer.returnValue(NOT_DONE_YET)
+
+            rexp['w2t_from'] = re.compile(r'(http.?:)?//' + request.host + '(?!:\d+)', re.I)
+            rexp['w2t_to'] = r'http://' + self.obj.onion
+            rexp['t2w_from'] = re.compile(r'(http.?:)?//([a-z0-9]{16}).onion(?!:\d+)', re.I)
+            rexp['t2w_to'] = r'https://' + request.host
 
             self.process_request(request)
 
@@ -862,13 +869,6 @@ class T2WRequest(http.Request):
                     if hashlib.md5(self.obj.onion).hexdigest() in black_list:
                         self.sendError(403, 'error_hs_completely_blocked.tpl')
                         defer.returnValue(NOT_DONE_YET)
-
-            # Avoid image hotlinking
-            if config.blockhotlinking and request.uri.lower().endswith(tuple(config.blockhotlinking_exts)):
-                if request.headers.getRawHeaders(b'referer') is not None and \
-                   not request.host in request.headers.getRawHeaders(b'referer')[0].lower():
-                    self.sendError(403)
-                    defer.returnValue(NOT_DONE_YET)
 
             agent = Agent(reactor, sockhost=config.sockshost, sockport=config.socksport, pool=self.pool)
 
