@@ -50,7 +50,6 @@ class HostsMap(object):
             with open(path, 'r') as hosts_file:
                 for line in hosts_file.read().split('\n'):
                     if hostmapline.match(line):
-                        print line
                         parts = re.split('\s+', line)
                         host = parts[0]
                         onion = parts[1]
