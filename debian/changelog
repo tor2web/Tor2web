@@ -1,3 +1,12 @@
+tor2web (3.1.24) unstable; urgency=medium
+
+  * Use native source format.
+  * Fix Build-Dependencies, Dependencies fields.
+  * Add debian/copyright file
+  * Fix Description field with a short, and an extended description.
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Thu, 23 Oct 2014 15:05:49 +0200
+
 tor2web (3.1.23-0) unstable; urgency=low
 
   * Tor2web 3.0 - 3.1.23 (Packaging fixes)
