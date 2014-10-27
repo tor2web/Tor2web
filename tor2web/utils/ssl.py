@@ -74,7 +74,19 @@ class T2WSSLContextFactory(ContextFactory):
         """
         self.privateKeyFileName = privateKeyFileName
         self.certificateChainFileName = certificateChainFileName
+
+        # as discussed on https://trac.torproject.org/projects/tor/ticket/11598
+        # there is no way of enabling all TLS methods excluding SSL.
+        # the problem lies in the fact that SSL.TLSv1_METHOD | SSL.TLSv1_1_METHOD | SSL.TLSv1_2_METHOD
+        # is denied by OpenSSL.
+        #
+        # As spotted by nickm the only good solution right now is to enable SSL.SSLv23_METHOD then explicitly
+        # use options: SSL_OP_NO_SSLv2 and SSL_OP_NO_SSLv3
+        #
+        # This trick make openssl consider valid all TLS methods.
         self.sslmethod = SSL.SSLv23_METHOD
+
+
         self.dhFileName = dhFileName
         self.cipherList = cipherList
 

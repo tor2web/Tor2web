@@ -126,6 +126,7 @@ class T2WRPCServer(pb.Root):
         # Load Exit Nodes list with the refresh rate configured  in config file
         self.TorExitNodes = TorExitNodeList(config.t2w_file_path('lists/exitnodelist.txt'),
                                             'https://onionoo.torproject.org/summary?type=relay',
+                                            'REPLACE',
                                             config.exit_node_list_refresh)
 
         self.hosts_map = HostsMap(config.t2w_file_path('lists/hosts_map.txt')).hosts

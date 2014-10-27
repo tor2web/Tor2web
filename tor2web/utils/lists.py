@@ -61,12 +61,16 @@ for certFileName in glob.glob("/etc/ssl/certs/*.pem"):
 class HTTPSVerifyingContextFactory(ssl.ClientContextFactory):
     def __init__(self, hostname):
         self.hostname = hostname
+        
+        # read in tor2web/utils/ssl.py why this settings ends in enabling only TLS
+        self.method = SSL.SSLv23_METHOD
 
     def getContext(self):
         ctx = self._contextFactory(self.method)
 
-        # Disallow SSLv2! It's insecure!
+        # Disallow SSL! It's insecure!
         ctx.set_options(SSL.OP_NO_SSLv2)
+        ctx.set_options(SSL.OP_NO_SSLv3)
 
         ctx.set_options(SSL.OP_SINGLE_DH_USE)
 
@@ -289,7 +293,9 @@ class List(set):
 
 class TorExitNodeList(List):
     def handleData(self, data):
-        self.clear()
+        if self.mode == 'REPLACE':
+            self.clear()
+
         data = json.loads(data)
         for relay in data['relays']:
             for ip in relay['a']:

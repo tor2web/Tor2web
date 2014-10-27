@@ -34,7 +34,6 @@
 import os
 import sys
 import time
-import glob
 import signal
 import pwd
 import grp
@@ -177,11 +176,17 @@ class T2WDaemon:
                 if c_gid not in c_groups:
                     c_groups.append(c_gid)
 
+            os.chown(self.config.datadir, c_uid, c_gid)
             os.chown(self.config.rundir, c_uid, c_gid)
             os.chown(self.config.pidfile, c_uid, c_gid)
 
-            for item in glob.glob(self.config.rundir + '/*'):
-                os.chown(item, c_uid, c_gid)
+            for root, dirnames, filenames in os.walk(self.config.datadir):
+                for filename in filenames:
+                    os.chown(os.path.join(root, filename), c_uid, c_gid)
+
+            for root, dirnames, filenames in os.walk(self.config.rundir):
+                for filename in filenames:
+                    os.chown(os.path.join(root, filename), c_uid, c_gid)
 
             os.setgid(c_gid)
             os.setgroups(c_groups)
