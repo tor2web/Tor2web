@@ -1,3 +1,9 @@
+tor2web (3.1.25-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.25 (Reverted changes related to new packaging)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 27 Oct 2014 19:49:42 +0002
+
 tor2web (3.1.24-0) unstable; urgency=low
 
   * Tor2web 3.0 - 3.1.24 (Fixed onionoo list fetching after SSLv3 has been disabled)
