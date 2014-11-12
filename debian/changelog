@@ -1,3 +1,9 @@
+tor2web (3.1.26-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.26 (Fixed Apparmor script)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Wed, 12 Dec 2014 18:29:42 +0002
+
 tor2web (3.1.25-0) unstable; urgency=low
 
   * Tor2web 3.0 - 3.1.25 (Reverted changes related to new packaging)
