@@ -20,6 +20,7 @@ profile usr.bin.tor2web {
     /proc/*/fd/* r,
 
     /usr/bin/ r,
+    /bin/dash ix,
     /usr/bin/tor2web r,
     /usr/bin/tor2web-worker rix,
     /usr/bin/python* ix,
@@ -34,7 +35,7 @@ profile usr.bin.tor2web {
     /etc/mime.types r,
 
     /etc/tor2web.conf r,
-    /home/tor2web/ r,
+    /home/tor2web/ rwk,
     /home/tor2web/** lrwk,
     /run/tor2web/ rw,
     /run/tor2web/** lrw,
