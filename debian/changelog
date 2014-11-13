@@ -1,3 +1,9 @@
+tor2web (3.1.28-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.28 (Fixed header injection twice bug)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Thu, 13 Nov 2014 13:22:42 +0002
+
 tor2web (3.1.27-0) unstable; urgency=low
 
   * Tor2web 3.0 - 3.1.27 (Fixed race condition bug)
