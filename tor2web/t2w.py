@@ -399,6 +399,11 @@ class T2WRequest(http.Request):
 
         self.pool = pool
 
+        self.rexp = {
+            'head': re.compile(r'(<head.*?\s*>)', re.I)
+        }
+
+
     def _cleanup(self):
         """
         Method overridden to avoid self.content actions.
@@ -466,12 +471,12 @@ class T2WRequest(http.Request):
         data = self.stream + data
 
         if len(data) >= 1000:
-            data = re_sub(rexp['t2w_from'], rexp['t2w_to'], data)
+            data = re_sub(self.rexp['t2w_from'], self.rexp['t2w_to'], data)
 
             forward = data[:-500]
             if not self.header_injected and forward.find("<head") != -1:
                 banner = yield flattenString(self, templates['banner.tpl'])
-                forward = re.sub(rexp['head'], partial(self.add_banner, banner), forward)
+                forward = re.sub(self.rexp['head'], partial(self.add_banner, banner), forward)
                 self.header_injected = True
 
             self.forwardData(self.handleCleartextForwardPart(forward))
@@ -488,11 +493,11 @@ class T2WRequest(http.Request):
 
         data = self.stream + data
 
-        data = re_sub(rexp['t2w_from'], rexp['t2w_to'], data)
+        data = re_sub(self.rexp['t2w_from'], self.rexp['t2w_to'], data)
 
         if not self.header_injected and data.find("<head") != -1:
             banner = yield flattenString(self, templates['banner.tpl'])
-            data = re.sub(rexp['head'], partial(self.add_banner, banner), data)
+            data = re.sub(self.rexp['head'], partial(self.add_banner, banner), data)
             self.header_injected = True
 
         data = self.handleCleartextForwardPart(data, True)
@@ -636,7 +641,7 @@ class T2WRequest(http.Request):
         for key, values in self.obj.headers.getAllRawHeaders():
             fixed_values = []
             for value in values:
-                value = re_sub(rexp['w2t_from'], rexp['w2t_to'], value)
+                value = re_sub(self.rexp['w2t_from'], self.rexp['w2t_to'], value)
                 fixed_values.append(value)
 
             self.obj.headers.setRawHeaders(key, fixed_values)
@@ -833,10 +838,10 @@ class T2WRequest(http.Request):
                     self.sendError(403)
                     defer.returnValue(NOT_DONE_YET)
 
-            rexp['w2t_from'] = re.compile(r'(http.?:)?//' + request.host + '(?!:\d+)', re.I)
-            rexp['w2t_to'] = r'http://' + self.obj.onion
-            rexp['t2w_from'] = re.compile(r'(http.?:)?//([a-z0-9]{16}).onion(?!:\d+)', re.I)
-            rexp['t2w_to'] = r'https://' + request.host
+            self.rexp['w2t_from'] = re.compile(r'(http.?:)?//' + request.host + '(?!:\d+)', re.I)
+            self.rexp['w2t_to'] = r'http://' + self.obj.onion
+            self.rexp['t2w_from'] = re.compile(r'(http.?:)?//([a-z0-9]{16}).onion(?!:\d+)', re.I)
+            self.rexp['t2w_to'] = r'https://' + request.host
 
             self.process_request(request)
 
@@ -942,7 +947,7 @@ class T2WRequest(http.Request):
         if keyLower in 'location':
             fixed_values = []
             for value in values:
-                value = re_sub(rexp['t2w_from'], rexp['t2w_to'], value)
+                value = re_sub(self.rexp['t2w_from'], self.rexp['t2w_to'], value)
                 fixed_values.append(value)
             values = fixed_values
 
@@ -1094,15 +1099,10 @@ def start_worker():
     global antanistaticmap
     global templates
     global pool
-    global rexp
     global ports
 
     lc = LoopingCall(updateListsTask)
     lc.start(600)
-
-    rexp = {
-        'head': re.compile(r'(<head.*?\s*>)', re.I)
-    }
 
     ###############################################################################
     # Static Data loading
