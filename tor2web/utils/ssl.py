@@ -35,6 +35,8 @@ import os
 
 from OpenSSL import SSL
 from OpenSSL.crypto import load_certificate, FILETYPE_PEM
+from pyasn1.type import univ, constraint, char, namedtype, tag
+from pyasn1.codec.der.decoder import decode
 from twisted.internet import ssl
 
 certificateAuthorityMap = {}
@@ -47,6 +49,30 @@ for certFileName in glob.glob("/etc/ssl/certs/*.pem"):
         digest = x509.digest('sha1')
         # Now, de-duplicate in case the same cert has multiple names.
         certificateAuthorityMap[digest] = x509
+
+class GeneralName(univ.Choice):
+    # We are only interested in dNSNames. We use a default handler to ignore
+    # other types.
+    componentType = namedtype.NamedTypes(
+        namedtype.NamedType('dNSName', char.IA5String().subtype(
+                implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 2)
+            )
+        ),
+    )
+
+class GeneralNames(univ.SequenceOf):
+    componentType = GeneralName()
+    sizeSpec = univ.SequenceOf.sizeSpec + constraint.ValueSizeConstraint(1, 1024)
+
+def altnames(cert):
+    altnames = []
+    for i in range(cert.get_extension_count()):
+        ext = cert.get_extension(i)
+        if ext.get_short_name() == "subjectAltName":
+            dec = decode(ext.get_data(), asn1Spec=GeneralNames())
+            for i in dec[0]:
+                altnames.append(i[0].asOctets())
+    return altnames
 
 class T2WSSLContext(SSL.Context):
 
@@ -169,6 +195,9 @@ class HTTPSVerifyingContextFactory(ssl.ClientContextFactory):
                 return True
 
             elif self.hostname == cn:
+                return True
+
+            elif self.hostname in altnames(x509):
                 return True
 
             return False

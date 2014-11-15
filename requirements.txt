@@ -1,3 +1,4 @@
 Twisted==13.2.0
 zope.interface==4.0.5
 pyopenssl==0.14
+pyasn1==0.1.7

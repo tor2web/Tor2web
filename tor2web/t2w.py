@@ -346,7 +346,7 @@ class Agent(client.Agent):
         elif scheme == 'https':
             torSockEndpoint = SOCKS5ClientEndpoint(self._reactor, self._sockhost,
                                                    self._sockport, host, port, config.socksoptimisticdata, **kwargs)
-            return TLSWrapClientEndpoint(ssl.ClientContextFactory(), torSockEndpoint)
+            return TLSWrapClientEndpoint(HTTPSVerifyingContextFactory(host), torSockEndpoint)
         else:
             raise SchemeNotSupported("Unsupported scheme: %r" % (scheme,))
 
@@ -641,7 +641,7 @@ class T2WRequest(http.Request):
         self.obj.headers.setRawHeaders(b'host', [self.obj.onion])
         self.obj.headers.setRawHeaders(b'connection', [b'keep-alive'])
         self.obj.headers.setRawHeaders(b'Accept-encoding', [b'gzip, chunked'])
-        self.obj.headers.setRawHeaders(b'x-mario', [b'encrypted'])
+        self.obj.headers.setRawHeaders(b'x-tor2web', [b'encrypted'])
 
         for key, values in self.obj.headers.getAllRawHeaders():
             fixed_values = []
