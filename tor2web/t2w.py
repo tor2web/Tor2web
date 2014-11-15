@@ -49,7 +49,7 @@ from cgi import parse_header
 
 from zope.interface import implements
 from twisted.spread import pb
-from twisted.internet import reactor, protocol, defer
+from twisted.internet import reactor, protocol, defer, ssl
 from twisted.internet.abstract import isIPAddress, isIPv6Address
 from twisted.internet.endpoints import TCP4ClientEndpoint, SSL4ClientEndpoint
 from twisted.protocols.policies import WrappingFactory
@@ -72,8 +72,8 @@ from tor2web.utils.hostsmap import HostsMap
 from tor2web.utils.lists import List, TorExitNodeList
 from tor2web.utils.mail import sendmail, sendexceptionmail
 from tor2web.utils.misc import listenTCPonExistingFD, listenSSLonExistingFD, re_sub, verify_onion
-from tor2web.utils.socks import SOCKS5ClientEndpoint, SOCKSError
-from tor2web.utils.ssl import T2WSSLContextFactory
+from tor2web.utils.socks import SOCKSError, SOCKS5ClientEndpoint, TLSWrapClientEndpoint
+from tor2web.utils.ssl import T2WSSLContextFactory, HTTPSVerifyingContextFactory
 from tor2web.utils.stats import T2WStats
 from tor2web.utils.storage import Storage
 from tor2web.utils.templating import PageTemplate
@@ -341,14 +341,12 @@ class Agent(client.Agent):
             kwargs['timeout'] = self._connectTimeout
         kwargs['bindAddress'] = self._bindAddress
         if scheme == 'http':
-            return TCP4ClientEndpoint(self._reactor, host, port, **kwargs)
-        elif scheme == 'shttp':
             return SOCKS5ClientEndpoint(self._reactor, self._sockhost,
                                         self._sockport, host, port, config.socksoptimisticdata, **kwargs)
         elif scheme == 'https':
-            return SSL4ClientEndpoint(self._reactor, host, port,
-                                      self._wrapContextFactory(host, port),
-                                      **kwargs)
+            torSockEndpoint = SOCKS5ClientEndpoint(self._reactor, self._sockhost,
+                                                   self._sockport, host, port, config.socksoptimisticdata, **kwargs)
+            return TLSWrapClientEndpoint(ssl.ClientContextFactory(), torSockEndpoint)
         else:
             raise SchemeNotSupported("Unsupported scheme: %r" % (scheme,))
 
@@ -643,7 +641,7 @@ class T2WRequest(http.Request):
         self.obj.headers.setRawHeaders(b'host', [self.obj.onion])
         self.obj.headers.setRawHeaders(b'connection', [b'keep-alive'])
         self.obj.headers.setRawHeaders(b'Accept-encoding', [b'gzip, chunked'])
-        self.obj.headers.setRawHeaders(b'x-tor2web', [b'encrypted'])
+        self.obj.headers.setRawHeaders(b'x-mario', [b'encrypted'])
 
         for key, values in self.obj.headers.getAllRawHeaders():
             fixed_values = []
@@ -882,15 +880,16 @@ class T2WRequest(http.Request):
                         defer.returnValue(NOT_DONE_YET)
 
             agent = Agent(reactor, sockhost=config.sockshost, sockport=config.socksport, pool=self.pool)
+            ragent = client.RedirectAgent(agent, 3)
 
             if config.dummyproxy is None:
-                proxy_url = 's' + self.obj.address
+                proxy_url = self.obj.address
             else:
                 proxy_url = config.dummyproxy + parsed[2] + '?' + parsed[3]
 
-            self.proxy_d = agent.request(self.method,
-                                         proxy_url,
-                                         self.obj.headers, bodyProducer=producer)
+            self.proxy_d = ragent.request(self.method,
+                                          proxy_url,
+                                          self.obj.headers, bodyProducer=producer)
 
             self.proxy_d.addCallback(self.cbResponse)
             self.proxy_d.addErrback(self.handleError)

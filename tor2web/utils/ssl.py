@@ -30,10 +30,23 @@
 """
 
 # -*- coding: utf-8 -*-
+import glob
+import os
 
 from OpenSSL import SSL
+from OpenSSL.crypto import load_certificate, FILETYPE_PEM
+from twisted.internet import ssl
 
-from twisted.internet.ssl import ContextFactory
+certificateAuthorityMap = {}
+
+for certFileName in glob.glob("/etc/ssl/certs/*.pem"):
+    # There might be some dead symlinks in there, so let's make sure it's real.
+    if os.path.exists(certFileName):
+        data = open(certFileName).read()
+        x509 = load_certificate(FILETYPE_PEM, data)
+        digest = x509.digest('sha1')
+        # Now, de-duplicate in case the same cert has multiple names.
+        certificateAuthorityMap[digest] = x509
 
 class T2WSSLContext(SSL.Context):
 
@@ -62,7 +75,7 @@ class T2WSSLContext(SSL.Context):
         _lib.SSL_CTX_set_tmp_ecdh(self._context, ecdh)
 
 
-class T2WSSLContextFactory(ContextFactory):
+class T2WSSLContextFactory(ssl.ContextFactory):
     _context = None
 
     def __init__(self, privateKeyFileName, certificateChainFileName, dhFileName, cipherList):
@@ -119,3 +132,46 @@ class T2WSSLContextFactory(ContextFactory):
         Return an SSL context.
         """
         return self._context
+
+
+class HTTPSVerifyingContextFactory(ssl.ClientContextFactory):
+    def __init__(self, hostname):
+        self.hostname = hostname
+        
+        # read in T2WSSLContextFactory why this settings ends in enabling only TLS
+        self.method = SSL.SSLv23_METHOD
+
+    def getContext(self):
+        ctx = self._contextFactory(self.method)
+
+        # Disallow SSL! It's insecure!
+        ctx.set_options(SSL.OP_NO_SSLv2)
+        ctx.set_options(SSL.OP_NO_SSLv3)
+
+        ctx.set_options(SSL.OP_SINGLE_DH_USE)
+
+        # http://en.wikipedia.org/wiki/CRIME_(security_exploit)
+        # https://twistedmatrix.com/trac/ticket/5487
+        # SSL_OP_NO_COMPRESSION = 0x00020000L
+        ctx.set_options(0x00020000)
+
+        store = ctx.get_cert_store()
+        for value in certificateAuthorityMap.values():
+            store.add_cert(value)
+        ctx.set_verify(SSL.VERIFY_PEER | SSL.VERIFY_FAIL_IF_NO_PEER_CERT, self.verifyHostname)
+        return ctx
+
+    def verifyHostname(self, connection, x509, errno, depth, preverifyOK):
+        if  depth == 0 and preverifyOK:
+            cn = x509.get_subject().commonName
+
+            if cn.startswith(b"*.") and self.hostname.split(b".")[1:] == cn.split(b".")[1:]:
+                return True
+
+            elif self.hostname == cn:
+                return True
+
+            return False
+
+        return preverifyOK
+
