@@ -34,6 +34,7 @@
 from twisted.web.template import Element, renderer, tags
 from twisted.web.error import MissingTemplateLoader
 
+
 class PageTemplate(Element):
     def lookupRenderMethod(self, name):
         method = renderer.get(self, name, None)
@@ -44,6 +45,7 @@ class PageTemplate(Element):
                     if var in request.var:
                         return tag('%s' % request.var[var])
                 return tag('undefined-var')
+
             return renderUsingDict
         return method
 
@@ -63,5 +65,6 @@ class PageTemplate(Element):
     def mirror(self, request, tag):
         if 'mirror' in request.var and request.var['mirror'] != '':
             url = "https://%s.%s%s" % (request.var['onion'], request.var['mirror'], request.var['path'])
-            return ["This page is accessible also on the following random mirror: "], tags.a(href=url, title=url)(request.var['mirror'])
+            return ["This page is accessible also on the following random mirror: "], tags.a(href=url, title=url)(
+                request.var['mirror'])
         return ""

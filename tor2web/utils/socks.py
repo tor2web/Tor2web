@@ -40,13 +40,15 @@ from twisted.protocols import tls
 from twisted.protocols.policies import ProtocolWrapper, WrappingFactory
 from twisted.python.failure import Failure
 
+
 class SOCKSError(Exception):
     def __init__(self, value):
         Exception.__init__(self)
         self.code = value
 
+
 class SOCKSv5ClientProtocol(ProtocolWrapper):
-    def __init__(self, factory, wrappedProtocol, connectedDeferred, host, port, optimistic = False):
+    def __init__(self, factory, wrappedProtocol, connectedDeferred, host, port, optimistic=False):
         ProtocolWrapper.__init__(self, factory, wrappedProtocol)
         self._connectedDeferred = connectedDeferred
         self._host = host
@@ -60,7 +62,7 @@ class SOCKSv5ClientProtocol(ProtocolWrapper):
             self._connectedDeferred.errback(error)
         else:
             errorcode = 600 + error.value.code
-            self.wrappedProtocol.dataReceived("HTTP/1.1 "+str(errorcode)+" ANTANI\r\n\r\n")
+            self.wrappedProtocol.dataReceived("HTTP/1.1 " + str(errorcode) + " ANTANI\r\n\r\n")
 
         self.transport.abortConnection()
         self.transport = None
@@ -82,7 +84,8 @@ class SOCKSv5ClientProtocol(ProtocolWrapper):
         self._buf = self._buf[2:]
 
         if not self._optimistic:
-            self.transport.write(struct.pack("!BBBBB", 5, 1, 0, 3, len(self._host)) + self._host + struct.pack("!H", self._port))
+            self.transport.write(
+                struct.pack("!BBBBB", 5, 1, 0, 3, len(self._host)) + self._host + struct.pack("!H", self._port))
 
         self.state = 2
         getattr(self, 'socks_state_%s' % self.state)()
@@ -134,7 +137,8 @@ class SOCKSv5ClientProtocol(ProtocolWrapper):
         self.transport.write(struct.pack("!BB", 5, len("\x00")) + "\x00")
 
         if self._optimistic:
-            self.transport.write(struct.pack("!BBBBB", 5, 1, 0, 3, len(self._host)) + self._host + struct.pack("!H", self._port))
+            self.transport.write(
+                struct.pack("!BBBBB", 5, 1, 0, 3, len(self._host)) + self._host + struct.pack("!H", self._port))
             self.wrappedProtocol.makeConnection(self)
             try:
                 self._connectedDeferred.callback(self.wrappedProtocol)
@@ -191,6 +195,7 @@ class SOCKS5ClientEndpoint(object):
     """
     SOCKS5 TCP client endpoint with an IPv4 configuration.
     """
+
     def __init__(self, reactor, sockhost, sockport,
                  host, port, optimistic, timeout=30, bindAddress=None):
         self._reactor = reactor

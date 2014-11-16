@@ -49,6 +49,7 @@ class Storage(dict):
         None
 
     """
+
     def __getattr__(self, key):
         try:
             return self[key]

@@ -40,10 +40,12 @@ from storage import Storage
 
 listpattern = re.compile(r'\s*("[^"]*"|.*?)\s*,')
 
+
 class Config(Storage):
     """
     A Storage-like class which loads each attribute into a portable conf file.
     """
+
     def __init__(self):
         Storage.__init__(self)
         self._section = 'main'
@@ -93,8 +95,9 @@ class Config(Storage):
         self.__dict__['cipher_list'] = 'ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:' \
                                        'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-SHA256:' \
                                        'ECDHE-RSA-AES256-SHA:DHE-DSS-AES256-SHA:DHE-RSA-AES128-SHA:' \
-                                       'DES-CBC3-SHA' # this last one (not FS) is kept only for
-                                                      # compatibility reasons :/
+                                       'DES-CBC3-SHA'  # this last one (not FS) is kept only for
+                                                       # compatibility reasons :/
+        self.__dict__['ssl_tofu_cache_size'] = 100
         self.__dict__['mode'] = 'BLACKLIST'
         self.__dict__['onion'] = None
         self.__dict__['blockcrawl'] = True
@@ -130,8 +133,8 @@ class Config(Storage):
     def load(self):
         try:
             if (not os.path.exists(self._file) or
-                not os.path.isfile(self._file) or
-                not os.access(self._file, os.R_OK)):
+                    not os.path.isfile(self._file) or
+                    not os.access(self._file, os.R_OK)):
                 print "Tor2web Startup Failure: cannot open config file (%s)" % self._file
                 exit(1)
         except Exception:
@@ -151,22 +154,22 @@ class Config(Storage):
 
     def splitlist(self, line):
         return [x[1:-1] if x[:1] == x[-1:] == '"' else x
-            for x in listpattern.findall(line.rstrip(',') + ',')]
+                for x in listpattern.findall(line.rstrip(',') + ',')]
 
     def parse(self, name):
         try:
 
-           value = self._parser.get(self._section, name)
-           if value.isdigit():
+            value = self._parser.get(self._section, name)
+            if value.isdigit():
                 value = int(value)
-           elif value.lower() in ('true', 'false'):
+            elif value.lower() in ('true', 'false'):
                 value = value.lower() == 'true'
-           elif value.lower() in ('', 'none'):
+            elif value.lower() in ('', 'none'):
                 value = None
-           elif value[0] == "[" and value[-1] == "]":
+            elif value[0] == "[" and value[-1] == "]":
                 value = self.splitlist(value[1:-1])
 
-           return value
+            return value
 
         except ConfigParser.NoOptionError:
             # if option doesn't exists returns None

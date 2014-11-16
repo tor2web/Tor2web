@@ -34,12 +34,7 @@
 import re
 import socket
 
-try:
-    from twisted.protocols import tls
-
-except ImportError:
-    raise Exception("tor2web: ssl hack for listenSSLonExistingFD not implemented (tls only)")
-
+from twisted.protocols import tls
 
 def listenTCPonExistingFD(reactor, fd, factory):
     return reactor.adoptStreamPort(fd, socket.AF_INET, factory)

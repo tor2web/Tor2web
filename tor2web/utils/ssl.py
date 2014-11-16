@@ -31,13 +31,14 @@
 
 # -*- coding: utf-8 -*-
 import glob
-import os
 
+import os
 from OpenSSL import SSL
-from OpenSSL.crypto import load_certificate, FILETYPE_PEM
+from OpenSSL.crypto import load_certificate, dump_certificate, FILETYPE_PEM
 from pyasn1.type import univ, constraint, char, namedtype, tag
 from pyasn1.codec.der.decoder import decode
 from twisted.internet import ssl
+
 
 certificateAuthorityMap = {}
 
@@ -70,8 +71,8 @@ def altnames(cert):
         ext = cert.get_extension(i)
         if ext.get_short_name() == "subjectAltName":
             dec = decode(ext.get_data(), asn1Spec=GeneralNames())
-            for i in dec[0]:
-                altnames.append(i[0].asOctets())
+            for j in dec[0]:
+                altnames.append(j[0].asOctets())
     return altnames
 
 class T2WSSLContext(SSL.Context):
@@ -161,8 +162,9 @@ class T2WSSLContextFactory(ssl.ContextFactory):
 
 
 class HTTPSVerifyingContextFactory(ssl.ClientContextFactory):
-    def __init__(self, hostname):
+    def __init__(self, hostname, verify_tofu=None):
         self.hostname = hostname
+        self.verify_tofu = verify_tofu
         
         # read in T2WSSLContextFactory why this settings ends in enabling only TLS
         self.method = SSL.SSLv23_METHOD
@@ -184,23 +186,27 @@ class HTTPSVerifyingContextFactory(ssl.ClientContextFactory):
         store = ctx.get_cert_store()
         for value in certificateAuthorityMap.values():
             store.add_cert(value)
-        ctx.set_verify(SSL.VERIFY_PEER | SSL.VERIFY_FAIL_IF_NO_PEER_CERT, self.verifyHostname)
+        ctx.set_verify(SSL.VERIFY_PEER | SSL.VERIFY_FAIL_IF_NO_PEER_CERT, self.verifyCert)
         return ctx
 
-    def verifyHostname(self, connection, x509, errno, depth, preverifyOK):
-        if  depth == 0 and preverifyOK:
+    def verifyCert(self, connection, x509, errno, depth, preverifyOK):
+        verify = preverifyOK
+
+        if  depth == 0 and verify:
             cn = x509.get_subject().commonName
 
             if cn.startswith(b"*.") and self.hostname.split(b".")[1:] == cn.split(b".")[1:]:
-                return True
+                verify = True
 
             elif self.hostname == cn:
-                return True
+                verify = True
 
             elif self.hostname in altnames(x509):
-                return True
+                verify = True
 
-            return False
+            if verify and self.verify_tofu is not None:
+                return self.verify_tofu(self.hostname, dump_certificate(FILETYPE_PEM, x509))
 
-        return preverifyOK
+        return verify
 
+CERTS_TOFU = {}

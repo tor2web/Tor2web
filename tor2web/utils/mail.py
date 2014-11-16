@@ -84,14 +84,12 @@ def sendexceptionmail(config, etype, value, tb):
 
     exc_type = re.sub("(<(type|class ')|'exceptions.|'>|__main__.)", "", str(etype))
 
-    tmp = []
-    tmp.append("From: Tor2web Node %s.%s <%s>\n" % (config.nodename, config.basehost, config.smtpmail))
-    tmp.append("To: %s\n" % config.smtpmailto_exceptions)
-    tmp.append("Subject: Tor2web Node Exception (IPV4: %s, IPv6: %s)\n" % (config.listen_ipv4, config.listen_ipv6))
-    tmp.append("Content-Type: text/plain; charset=ISO-8859-1\n")
-    tmp.append("Content-Transfer-Encoding: 8bit\n\n")
-    tmp.append("Exception from Node %s (IPV4: %s, IPv6: %s)\n" % (config.nodename, config.listen_ipv4, config.listen_ipv6))
-    tmp.append("Tor2web version: %s\n" % __version__)
+    tmp = ["From: Tor2web Node %s.%s <%s>\n" % (config.nodename, config.basehost, config.smtpmail),
+           "To: %s\n" % config.smtpmailto_exceptions,
+           "Subject: Tor2web Node Exception (IPV4: %s, IPv6: %s)\n" % (config.listen_ipv4, config.listen_ipv6),
+           "Content-Type: text/plain; charset=ISO-8859-1\n", "Content-Transfer-Encoding: 8bit\n\n",
+           "Exception from Node %s (IPV4: %s, IPv6: %s)\n" % (config.nodename, config.listen_ipv4, config.listen_ipv6),
+           "Tor2web version: %s\n" % __version__]
 
     error_message = "%s %s" % (exc_type.strip(), etype.__doc__)
     tmp.append(error_message)

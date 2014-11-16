@@ -34,6 +34,7 @@
 import re
 import gzip
 import json
+from collections import OrderedDict
 from StringIO import StringIO
 
 from OpenSSL import SSL
@@ -44,6 +45,20 @@ from twisted.web.client import HTTPPageGetter, HTTPClientFactory, _URI
 
 from tor2web.utils.ssl import HTTPSVerifyingContextFactory
 
+class LimitedSizeDict(OrderedDict):
+  def __init__(self, *args, **kwds):
+    self.size_limit = kwds.pop("size_limit", None)
+    OrderedDict.__init__(self, *args, **kwds)
+    self._check_size_limit()
+
+  def __setitem__(self, key, value):
+    OrderedDict.__setitem__(self, key, value)
+    self._check_size_limit()
+
+  def _check_size_limit(self):
+    if self.size_limit is not None:
+      while len(self) > self.size_limit:
+        self.popitem(last=False)
 
 def getPageCached(url, contextFactory=None, *args, **kwargs):
     """download a web page as a string, keep a cache of already downloaded pages
@@ -155,12 +170,10 @@ class HTTPClientCacheFactory(HTTPClientFactory):
     protocol = HTTPCacheDownloader
     cache = {}
 
-    def __init__(self, url, method='GET', postdata=None, headers=None,
+    def __init__(self, url, method='GET', postdata=None, headers={},
                  agent="Tor2Web (https://github.com/globaleaks/tor2web-3.0)",
                  timeout=0, cookies=None,
                  followRedirect=1):
-
-        headers = {}
 
         if url in self.cache:
             if 'etag' in self.cache[url]:

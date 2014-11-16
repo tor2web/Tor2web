@@ -31,14 +31,11 @@
 
 # -*- coding: utf-8 -*-
 
-import os
-import re
 import sys
 import mimetypes
 import random
 import signal
 import socket
-
 import zlib
 import hashlib
 from StringIO import StringIO
@@ -47,15 +44,17 @@ from functools import partial
 from urlparse import urlparse
 from cgi import parse_header
 
+import os
+import re
 from zope.interface import implements
 from twisted.spread import pb
-from twisted.internet import reactor, protocol, defer, ssl
+from twisted.internet import reactor, protocol, defer
 from twisted.internet.abstract import isIPAddress, isIPv6Address
-from twisted.internet.endpoints import TCP4ClientEndpoint, SSL4ClientEndpoint
 from twisted.protocols.policies import WrappingFactory
 from twisted.web import http, client, _newclient
 from twisted.web.error import SchemeNotSupported
-from twisted.web.http import datetimeToString, StringTransport, _IdentityTransferDecoder, _ChunkedTransferDecoder, parse_qs
+from twisted.web.http import datetimeToString, StringTransport, _IdentityTransferDecoder, _ChunkedTransferDecoder, \
+    parse_qs
 from twisted.web.http_headers import Headers
 from twisted.web.server import NOT_DONE_YET
 from twisted.web.template import flattenString, XMLString
@@ -64,12 +63,11 @@ from twisted.python import log, logfile
 from twisted.python.compat import networkString, intToBytes
 from twisted.python.filepath import FilePath
 from twisted.internet.task import LoopingCall
-
 from tor2web import __version__
 from tor2web.utils.config import Config
 from tor2web.utils.daemon import T2WDaemon, set_pdeathsig, set_proctitle
 from tor2web.utils.hostsmap import HostsMap
-from tor2web.utils.lists import List, TorExitNodeList
+from tor2web.utils.lists import LimitedSizeDict, List, TorExitNodeList
 from tor2web.utils.mail import sendmail, sendexceptionmail
 from tor2web.utils.misc import listenTCPonExistingFD, listenSSLonExistingFD, re_sub, verify_onion
 from tor2web.utils.socks import SOCKSError, SOCKS5ClientEndpoint, TLSWrapClientEndpoint
@@ -78,11 +76,13 @@ from tor2web.utils.stats import T2WStats
 from tor2web.utils.storage import Storage
 from tor2web.utils.templating import PageTemplate
 
+
 SOCKS_errors = {
     0x00: "error_sock_generic.tpl",
     0x23: "error_sock_hs_not_found.tpl",
     0x24: "error_sock_hs_not_reachable.tpl"
 }
+
 
 class T2WRPCServer(pb.Root):
     def __init__(self, config):
@@ -93,6 +93,7 @@ class T2WRPCServer(pb.Root):
         self.TorExitNodes = []
         self.blocked_ua = []
         self.hosts_map = {}
+        self.certs_tofu = LimitedSizeDict(size_limit=config.ssl_tofu_cache_size)
 
         self.load_lists()
 
@@ -151,6 +152,19 @@ class T2WRPCServer(pb.Root):
     def remote_get_hosts_map(self):
         return dict(self.hosts_map)
 
+    def remote_is_https(self, hostname):
+        return hostname in self.certs_tofu
+
+    def remote_verify_tls_tofu(self, hostname, cert):
+        h = hashlib.sha512(cert).hexdigest()
+        if hostname not in self.certs_tofu:
+            self.certs_tofu[hostname] = h
+        else:
+            if self.certs_tofu[hostname] != h:
+                return False
+
+        return True
+
     def remote_update_stats(self, onion):
         self.stats.update(onion)
 
@@ -162,14 +176,13 @@ class T2WRPCServer(pb.Root):
 
     def remote_log_debug(self, line):
         date = datetimeToString()
-        # noinspection PyCallByClass
         t2w_daemon.logfile_debug.write(date + " " + str(line) + "\n")
 
 
 @defer.inlineCallbacks
 def rpc(f, *args, **kwargs):
     d = rpc_factory.getRootObject()
-    d.addCallback(lambda obj: obj.callRemote(f,  *args, **kwargs))
+    d.addCallback(lambda obj: obj.callRemote(f, *args, **kwargs))
     ret = yield d
     defer.returnValue(ret)
 
@@ -314,11 +327,13 @@ class HTTPConnectionPool(client.HTTPConnectionPool):
 
     _factory.startedConnecting = startedConnecting
 
-    def __init__(self, reactor, persistent=True, maxPersistentPerHost=2, cachedConnectionTimeout=240, retryAutomatically=True):
+    def __init__(self, reactor, persistent=True, maxPersistentPerHost=2, cachedConnectionTimeout=240,
+                 retryAutomatically=True):
         client.HTTPConnectionPool.__init__(self, reactor, persistent)
         self.maxPersistentPerHost = maxPersistentPerHost
         self.cachedConnectionTimeout = cachedConnectionTimeout
         self.retryAutomatically = retryAutomatically
+
 
 class Agent(client.Agent):
     def __init__(self, reactor,
@@ -336,25 +351,61 @@ class Agent(client.Agent):
         self._sockport = sockport
 
     def _getEndpoint(self, scheme, host, port):
+        def verify_tofu(hostname, cert):
+            return rpc("verify_tls_tofu", hostname, cert)
+
         kwargs = {}
         if self._connectTimeout is not None:
             kwargs['timeout'] = self._connectTimeout
         kwargs['bindAddress'] = self._bindAddress
+
         if scheme == 'http':
-            return SOCKS5ClientEndpoint(self._reactor, self._sockhost,
-                                        self._sockport, host, port, config.socksoptimisticdata, **kwargs)
+            return SOCKS5ClientEndpoint(self._reactor, self._sockhost, self._sockport,
+                                        host, port, config.socksoptimisticdata, **kwargs)
         elif scheme == 'https':
             torSockEndpoint = SOCKS5ClientEndpoint(self._reactor, self._sockhost,
                                                    self._sockport, host, port, config.socksoptimisticdata, **kwargs)
-            return TLSWrapClientEndpoint(HTTPSVerifyingContextFactory(host), torSockEndpoint)
+            return TLSWrapClientEndpoint(HTTPSVerifyingContextFactory(host, verify_tofu), torSockEndpoint)
         else:
             raise SchemeNotSupported("Unsupported scheme: %r" % (scheme,))
+
+    @defer.inlineCallbacks
+    def request(self, method, uri, headers, bodyProducer=None):
+        """
+        Edited version of twisted Agent.request in order to make it asyncronous!
+        """
+        parsedURI = client._URI.fromBytes(uri)
+
+        is_https = yield rpc("is_https", parsedURI.host)
+
+        scheme = 'https' if is_https else 'http'
+
+        for key, values in headers.getAllRawHeaders():
+            fixed_values = []
+            for value in values:
+                value = re_sub(rexp['w2t'], r'' + scheme + '://\2.onion', value)
+                fixed_values.append(value)
+
+            headers.setRawHeaders(key, fixed_values)
+
+        try:
+            endpoint = self._getEndpoint(parsedURI.scheme, parsedURI.host,
+                                         parsedURI.port)
+        except SchemeNotSupported:
+            defer.returnValue(Failure())
+
+        key = (parsedURI.scheme, parsedURI.host, parsedURI.port)
+        ret = yield self._requestWithEndpoint(key, endpoint, method, parsedURI,
+                                              headers, bodyProducer,
+                                              parsedURI.originForm)
+        defer.returnValue(ret)
 
 
 class T2WRequest(http.Request):
     """
     Used by Tor2webProxy to implement a simple web proxy.
     """
+
     def __init__(self, channel, queued, reactor=reactor):
         """
         Method overridden to change some part of proxy.Request and of the base http.Request
@@ -366,7 +417,7 @@ class T2WRequest(http.Request):
         self.requestHeaders = Headers()
         self.received_cookies = {}
         self.responseHeaders = Headers()
-        self.cookies = [] # outgoing cookies
+        self.cookies = []  # outgoing cookies
         self.bodyProducer = BodyProducer()
         self.proxy_d = None
         self.proxy_response = None
@@ -397,11 +448,7 @@ class T2WRequest(http.Request):
 
         self.pool = pool
 
-        self.rexp = {
-            'body': re.compile(r'(<body.*?\s*>)', re.I),
-            'w2t': re.compile(r'(http.?:)?//([a-z0-9]{16}).' + config.basehost + '(?!:\d+)', re.I),
-            't2w': re.compile(r'(http.?:)?//([a-z0-9]{16}).(?!' + config.basehost + ')onion(?!:\d+)', re.I)
-        }
+        self.translation_rexp = {}
 
     def _cleanup(self):
         """
@@ -423,8 +470,8 @@ class T2WRequest(http.Request):
         """
         host = self.getHeader(b'host')
         if host:
-            if host[0]=='[':
-                return host.split(']',1)[0] + "]"
+            if host[0] == '[':
+                return host.split(']', 1)[0] + "]"
             return networkString(host.split(':', 1)[0])
         return networkString(self.getHost().host)
 
@@ -471,14 +518,14 @@ class T2WRequest(http.Request):
 
         if len(data) >= 1000:
             if config.mode == 'TRANSLATION':
-                data = re_sub(self.rexp['translation_from'], self.rexp['translation_to'], data)
+                data = re_sub(self.translation_rexp['from'], self.translation_rexp['to'], data)
 
-            data = re_sub(self.rexp['t2w'], r'https://\2.' + config.basehost, data)
+            data = re_sub(rexp['t2w'], r'https://\2.' + config.basehost, data)
 
             forward = data[:-500]
             if not self.header_injected and forward.find("<body") != -1:
                 banner = yield flattenString(self, templates['banner.tpl'])
-                forward = re.sub(self.rexp['body'], partial(self.add_banner, banner), forward)
+                forward = re.sub(rexp['body'], partial(self.add_banner, banner), forward)
                 self.header_injected = True
 
             self.forwardData(self.handleCleartextForwardPart(forward))
@@ -496,13 +543,13 @@ class T2WRequest(http.Request):
         data = self.stream + data
 
         if config.mode == 'TRANSLATION':
-            data = re_sub(self.rexp['translation_from'], self.rexp['translation_to'], data)
+            data = re_sub(self.translation_rexp['from'], self.translation_rexp['to'], data)
 
-        data = re_sub(self.rexp['t2w'], r'https://\2.' + config.basehost, data)
+        data = re_sub(rexp['t2w'], r'https://\2.' + config.basehost, data)
 
         if not self.header_injected and data.find("<body") != -1:
             banner = yield flattenString(self, templates['banner.tpl'])
-            data = re.sub(self.rexp['body'], partial(self.add_banner, banner), data)
+            data = re.sub(rexp['body'], partial(self.add_banner, banner), data)
             self.header_injected = True
 
         data = self.handleCleartextForwardPart(data, True)
@@ -523,7 +570,7 @@ class T2WRequest(http.Request):
 
     def handleCleartextForwardPart(self, data, end=False):
         if self.obj.client_supports_gzip:
-           data = self.zip(data, end)
+            data = self.zip(data, end)
 
         return data
 
@@ -633,26 +680,12 @@ class T2WRequest(http.Request):
 
         self.obj.headers = req.headers
 
-        rpc_log("Headers before fix:")
-        rpc_log(self.obj.headers)
-
         self.obj.headers.removeHeader(b'if-modified-since')
         self.obj.headers.removeHeader(b'if-none-match')
         self.obj.headers.setRawHeaders(b'host', [self.obj.onion])
         self.obj.headers.setRawHeaders(b'connection', [b'keep-alive'])
         self.obj.headers.setRawHeaders(b'Accept-encoding', [b'gzip, chunked'])
         self.obj.headers.setRawHeaders(b'x-tor2web', [b'encrypted'])
-
-        for key, values in self.obj.headers.getAllRawHeaders():
-            fixed_values = []
-            for value in values:
-                value = re_sub(self.rexp['w2t'], r'http://\2.onion', value)
-                fixed_values.append(value)
-
-            self.obj.headers.setRawHeaders(key, fixed_values)
-
-        rpc_log("Headers after fix:")
-        rpc_log(self.obj.headers)
 
         return True
 
@@ -749,9 +782,9 @@ class T2WRequest(http.Request):
                 elif staticpath == "notification" and config.smtpmailto_notifications != '':
                     # if config.smtp_mail is configured we accept notifications
 
-                    #################################################################
+                    # ################################################################
                     # Here we need to parse POST data in x-www-form-urlencoded format
-                    #################################################################
+                    # ################################################################
                     content_receiver = BodyReceiver(defer.Deferred())
                     self.bodyProducer.startProducing(content_receiver)
                     yield self.bodyProducer.finished
@@ -767,18 +800,16 @@ class T2WRequest(http.Request):
                         key, pdict = parse_header(ctype)
                         if key == b'application/x-www-form-urlencoded':
                             args.update(parse_qs(content, 1))
-                    #################################################################
+                    # ################################################################
 
                     if 'by' in args and 'url' in args and 'comment' in args:
-                        tmp = []
-                        tmp.append("From: Tor2web Node %s.%s <%s>\n" % (config.nodename, config.basehost, config.smtpmail))
-                        tmp.append("To: %s\n" % config.smtpmailto_notifications)
-                        tmp.append("Subject: Tor2web Node (IPv4 %s, IPv6 %s): notification for %s\n" % (config.listen_ipv4, config.listen_ipv6, args['url'][0]))
-                        tmp.append("Content-Type: text/plain; charset=ISO-8859-1\n")
-                        tmp.append("Content-Transfer-Encoding: 8bit\n\n")
-                        tmp.append("BY: %s\n" % (args['by'][0]))
-                        tmp.append("URL: %s\n" % (args['url'][0]))
-                        tmp.append("COMMENT: %s\n" % (args['comment'][0]))
+                        tmp = ["From: Tor2web Node %s.%s <%s>\n" % (config.nodename, config.basehost, config.smtpmail),
+                               "To: %s\n" % config.smtpmailto_notifications,
+                               "Subject: Tor2web Node (IPv4 %s, IPv6 %s): notification for %s\n" % (
+                                   config.listen_ipv4, config.listen_ipv6, args['url'][0]),
+                               "Content-Type: text/plain; charset=ISO-8859-1\n", "Content-Transfer-Encoding: 8bit\n\n",
+                               "BY: %s\n" % (args['by'][0]), "URL: %s\n" % (args['url'][0]),
+                               "COMMENT: %s\n" % (args['comment'][0])]
                         message = StringIO(''.join(tmp))
 
                         try:
@@ -803,7 +834,8 @@ class T2WRequest(http.Request):
                         defer.returnValue(self.contentFinish(content))
 
                     elif type(antanistaticmap[staticpath]) == PageTemplate:
-                        defer.returnValue(flattenString(self, antanistaticmap[staticpath]).addCallback(self.contentFinish))
+                        defer.returnValue(
+                            flattenString(self, antanistaticmap[staticpath]).addCallback(self.contentFinish))
 
             except Exception:
                 pass
@@ -811,7 +843,7 @@ class T2WRequest(http.Request):
             self.sendError(404)
             defer.returnValue(NOT_DONE_YET)
 
-        else: # the requested resource is remote, we act as proxy
+        else:  # the requested resource is remote, we act as proxy
 
             self.obj.uri = request.uri
 
@@ -839,12 +871,12 @@ class T2WRequest(http.Request):
             # Avoid image hotlinking
             if config.blockhotlinking and request.uri.lower().endswith(tuple(config.blockhotlinking_exts)):
                 if request.headers.getRawHeaders(b'referer') is not None and \
-                   not request.host in request.headers.getRawHeaders(b'referer')[0].lower():
+                        not request.host in request.headers.getRawHeaders(b'referer')[0].lower():
                     self.sendError(403)
                     defer.returnValue(NOT_DONE_YET)
 
-            self.rexp['translation_from'] = re.compile(r'(http.?:)?//' + self.obj.onion + '(?!:\d+)', re.I)
-            self.rexp['translation_to'] = r'https://' + request.host
+            self.translation_rexp['from'] = re.compile(r'(http.?:)?//' + self.obj.onion + '(?!:\d+)', re.I)
+            self.translation_rexp['to'] = r'https://' + request.host
 
             self.process_request(request)
 
@@ -902,7 +934,8 @@ class T2WRequest(http.Request):
             self.setResponseCode(500)
             self.var['errorcode'] = int(response.code) - 600
             if self.var['errorcode'] in SOCKS_errors:
-                return flattenString(self, templates[SOCKS_errors[self.var['errorcode']]]).addCallback(self.contentFinish)
+                return flattenString(self, templates[SOCKS_errors[self.var['errorcode']]]).addCallback(
+                    self.contentFinish)
             else:
                 return flattenString(self, templates[SOCKS_errors[0x00]]).addCallback(self.contentFinish)
 
@@ -952,7 +985,7 @@ class T2WRequest(http.Request):
             fixed_values = []
             for value in values:
                 if config.mode == 'TRANSLATION':
-                    data = re_sub(self.rexp['translation_from'], self.rexp['translation_to'], data)
+                    value = re_sub(self.rexp['translation_from'], self.rexp['translation_to'], value)
 
                 value = re_sub(self.rexp['t2w'], r'https://\2.' + config.basehost, value)
                 fixed_values.append(value)
@@ -991,6 +1024,7 @@ class T2WRequest(http.Request):
             http.Request.finish(self)
         except Exception:
             pass
+
 
 class T2WProxy(http.HTTPChannel):
     requestFactory = T2WRequest
@@ -1053,11 +1087,13 @@ class T2WProxy(http.HTTPChannel):
         if self.timeOut:
             self._savedTimeOut = self.setTimeout(None)
 
+
 class T2WProxyFactory(http.HTTPFactory):
     protocol = T2WProxy
 
     def _openLogFile(self, path):
         return log.NullFile()
+
     def log(self, request):
         """
         Log a request's result to the logfile, by default in combined log format.
@@ -1075,6 +1111,7 @@ class T2WProxyFactory(http.HTTPFactory):
                 self._escape(request.getHeader(b'user-agent') or "-"))
 
             rpc("log_access", str(line))
+
 
 class T2WLimitedRequestsFactory(WrappingFactory):
     def __init__(self, wrappedFactory, allowedRequests):
@@ -1094,13 +1131,14 @@ class T2WLimitedRequestsFactory(WrappingFactory):
             # bai bai mai friend
             #
             # known bug: currently when the limit is reached all
-            #            the active requests are trashed.
-            #            this simple solution is used to achieve
-            #            stronger stability.
+            # the active requests are trashed.
+            # this simple solution is used to achieve
+            # stronger stability.
             try:
                 reactor.stop()
             except Exception:
                 pass
+
 
 def start_worker():
     global antanistaticmap
@@ -1111,11 +1149,11 @@ def start_worker():
     lc = LoopingCall(updateListsTask)
     lc.start(600)
 
-    ###############################################################################
+    # ##############################################################################
     # Static Data loading
-    #    Here we make a file caching to not handle I/O
-    #    at run-time and achieve better performance
-    ###############################################################################
+    # Here we make a file caching to not handle I/O
+    # at run-time and achieve better performance
+    # ##############################################################################
     antanistaticmap = {}
 
     # system default static files
@@ -1135,13 +1173,13 @@ def start_worker():
                 filename = os.path.join(root, basename)
                 f = FilePath(filename)
                 antanistaticmap[filename.replace(usr_static_dir, "")] = f.getContent()
-    ###############################################################################
+    # ##############################################################################
 
-    ###############################################################################
+    # ##############################################################################
     # Templates loading
-    #    Here we make a templates cache in order to not handle I/O
-    #    at run-time and achieve better performance
-    ###############################################################################
+    # Here we make a templates cache in order to not handle I/O
+    # at run-time and achieve better performance
+    # ##############################################################################
     templates = {}
 
     # system default templates
@@ -1159,7 +1197,7 @@ def start_worker():
         for f in files:
             f = FilePath(config.t2w_file_path(os.path.join('templates', f.basename())))
             templates[f.basename()] = PageTemplate(XMLString(f.getContent()))
-    ###############################################################################
+    # ##############################################################################
 
     pool = HTTPConnectionPool(reactor, True,
                               config.sockmaxpersistentperhost,
@@ -1179,15 +1217,14 @@ def start_worker():
                                            config.cipher_list)
 
     fds_https = []
-    if  'T2W_FDS_HTTPS' in os.environ:
+    if 'T2W_FDS_HTTPS' in os.environ:
         fds_https = filter(None, os.environ['T2W_FDS_HTTPS'].split(","))
         fds_https = [int(i) for i in fds_https]
 
     fds_http = []
-    if  'T2W_FDS_HTTP' in os.environ:
+    if 'T2W_FDS_HTTP' in os.environ:
         fds_http = filter(None, os.environ['T2W_FDS_HTTP'].split(","))
         fds_http = [int(i) for i in fds_http]
-
 
     reactor.listenTCPonExistingFD = listenTCPonExistingFD
     reactor.listenSSLonExistingFD = listenSSLonExistingFD
@@ -1207,8 +1244,8 @@ def start_worker():
         sendexceptionmail(config, etype, value, tb)
 
     if config.smtpmailto_exceptions:
-         # if config.smtp_mail is configured we change the excepthook
-         sys.excepthook = MailException
+        # if config.smtp_mail is configured we change the excepthook
+        sys.excepthook = MailException
 
 
 def updateListsTask():
@@ -1240,30 +1277,34 @@ def updateListsTask():
     rpc("get_tor_exits_list").addCallback(set_tor_exits_list)
     rpc("get_hosts_map").addCallback(set_hosts_map)
 
+
 def SigQUIT(SIG, FRM):
     try:
         reactor.stop()
     except Exception:
         pass
 
+
 sys.excepthook = None
 set_pdeathsig(signal.SIGINT)
 
-##########################
+# #########################
 # Security UMASK hardening
 os.umask(077)
 
 orig_umask = os.umask
 
+
 def umask(mask):
     return orig_umask(077)
 
-os.umask = umask
-##########################
 
-###############################################################################
+os.umask = umask
+# #########################
+
+# ##############################################################################
 # Basic Safety Checks
-###############################################################################
+# ##############################################################################
 
 config = Config()
 
@@ -1283,7 +1324,7 @@ if not os.path.exists(config.datadir):
     print "Tor2web Startup Failure: unexistent directory (%s)" % config.datadir
     exit(1)
 
-if config.mode not in [ 'TRANSLATION', 'WHITELIST', 'BLACKLIST' ]:
+if config.mode not in ['TRANSLATION', 'WHITELIST', 'BLACKLIST']:
     print "Tor2web Startup Failure: config.mode must be one of: TRANSLATION / WHITELIST / BLACKLIST"
     exit(1)
 
@@ -1292,7 +1333,7 @@ if config.mode == "TRANSLATION":
         print "Tor2web Startup Failure: TRANSLATION config.mode require config.onion configuration"
         exit(1)
 
-for d in [ 'certs',  'logs']:
+for d in ['certs', 'logs']:
     path = os.path.join(config.datadir, d)
     if not os.path.exists(path):
         print "Tor2web Startup Failure: unexistent directory (%s)" % path
@@ -1302,15 +1343,13 @@ files = [config.ssl_key, config.ssl_cert, config.ssl_dh]
 for f in files:
     try:
         if (not os.path.exists(f) or
-            not os.path.isfile(f) or
-            not os.access(f, os.R_OK)):
+                not os.path.isfile(f) or
+                not os.access(f, os.R_OK)):
             print "Tor2web Startup Failure: unexistent file (%s)" % f
             exit(1)
     except Exception:
         print "Tor2web Startup Failure: error while accessing file (%s)" % f
         exit(1)
-###############################################################################
-
 
 if config.listen_ipv6 == "::" or config.listen_ipv4 == config.listen_ipv6:
     # fix for incorrect configurations
@@ -1319,131 +1358,140 @@ else:
     ipv4 = config.listen_ipv4
 ipv6 = config.listen_ipv6
 
+# ##############################################################################
+
+rexp = {
+    'body': re.compile(r'(<body.*?\s*>)', re.I),
+    'w2t': re.compile(r'(http.?:)?//([a-z0-9]{16}).' + config.basehost + '(?!:\d+)', re.I),
+    't2w': re.compile(r'(http.?:)?//([a-z0-9]{16}).(?!' + config.basehost + ')onion(?!:\d+)', re.I)
+}
+
 if 'T2W_FDS_HTTPS' not in os.environ and 'T2W_FDS_HTTP' not in os.environ:
 
-     set_proctitle("tor2web")
+    set_proctitle("tor2web")
 
-     def open_listenin_socket(ip, port):
-         try:
-             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-             s.setblocking(False)
-             s.bind((ip, port))
-             s.listen(1024)
-             return s
-         except Exception as e:
-             print "Tor2web Startup Failure: error while binding on %s %s (%s)" % (ip, port, e)
-             exit(1)
+    def open_listenin_socket(ip, port):
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.setblocking(False)
+            s.bind((ip, port))
+            s.listen(1024)
+            return s
+        except Exception as e:
+            print "Tor2web Startup Failure: error while binding on %s %s (%s)" % (ip, port, e)
+            exit(1)
 
-     def daemon_init(self):
+    def daemon_init(self):
 
-         self.quitting = False
-         self.subprocesses = []
+        self.quitting = False
+        self.subprocesses = []
 
-         self.socket_rpc = open_listenin_socket('127.0.0.1', 8789)
+        self.socket_rpc = open_listenin_socket('127.0.0.1', 8789)
 
-         self.childFDs = {0: 0, 1: 1, 2: 2}
+        self.childFDs = {0: 0, 1: 1, 2: 2}
 
-         self.fds = []
+        self.fds = []
 
-         self.fds_https = self.fds_http = ''
+        self.fds_https = self.fds_http = ''
 
-         i_https = i_http = 0
+        i_https = i_http = 0
 
-         for ip in [ipv4, ipv6]:
-             if ip is not None:
-                 if config.transport in ('HTTPS', 'BOTH'):
-                     if i_https != 0:
-                         self.fds_https += ','
-                     s = open_listenin_socket(ip, config.listen_port_https)
-                     self.fds.append(s)
-                     self.childFDs[s.fileno()] = s.fileno()
-                     self.fds_https += str(s.fileno())
-                     i_https += 1
+        for ip in [ipv4, ipv6]:
+            if ip is not None:
+                if config.transport in ('HTTPS', 'BOTH'):
+                    if i_https != 0:
+                        self.fds_https += ','
+                    s = open_listenin_socket(ip, config.listen_port_https)
+                    self.fds.append(s)
+                    self.childFDs[s.fileno()] = s.fileno()
+                    self.fds_https += str(s.fileno())
+                    i_https += 1
 
-                 if config.transport in ('HTTP', 'BOTH'):
-                     if i_http != 0:
-                         self.fds_http += ','
-                     s = open_listenin_socket(ip, config.listen_port_http)
-                     self.fds.append(s)
-                     self.childFDs[s.fileno()] = s.fileno()
-                     self.fds_http += str(s.fileno())
-                     i_http += 1
+                if config.transport in ('HTTP', 'BOTH'):
+                    if i_http != 0:
+                        self.fds_http += ','
+                    s = open_listenin_socket(ip, config.listen_port_http)
+                    self.fds.append(s)
+                    self.childFDs[s.fileno()] = s.fileno()
+                    self.fds_http += str(s.fileno())
+                    i_http += 1
 
 
-     def daemon_main(self):
-         if config.logreqs:
-             self.logfile_access = logfile.DailyLogFile.fromFullPath(os.path.join(config.datadir, 'logs', 'access.log'))
-         else:
-             self.logfile_access = log.NullFile()
+    def daemon_main(self):
+        if config.logreqs:
+            self.logfile_access = logfile.DailyLogFile.fromFullPath(os.path.join(config.datadir, 'logs', 'access.log'))
+        else:
+            self.logfile_access = log.NullFile()
 
-         if config.debugmode:
-             if config.debugtostdout and config.nodaemon:
-                 self.logfile_debug = sys.stdout
-             else:
-                 self.logfile_debug = logfile.DailyLogFile.fromFullPath(os.path.join(config.datadir, 'logs', 'debug.log'))
-         else:
-             self.logfile_debug = log.NullFile()
+        if config.debugmode:
+            if config.debugtostdout and config.nodaemon:
+                self.logfile_debug = sys.stdout
+            else:
+                self.logfile_debug = logfile.DailyLogFile.fromFullPath(
+                    os.path.join(config.datadir, 'logs', 'debug.log'))
+        else:
+            self.logfile_debug = log.NullFile()
 
-         log.startLogging(self.logfile_debug)
+        log.startLogging(self.logfile_debug)
 
-         reactor.listenTCPonExistingFD = listenTCPonExistingFD
+        reactor.listenTCPonExistingFD = listenTCPonExistingFD
 
-         reactor.listenUNIX(os.path.join(config.rundir, 'rpc.socket'), factory=pb.PBServerFactory(self.rpc_server))
+        reactor.listenUNIX(os.path.join(config.rundir, 'rpc.socket'), factory=pb.PBServerFactory(self.rpc_server))
 
-         for i in range(config.processes):
-             subprocess = spawnT2W(self, self.childFDs, self.fds_https, self.fds_http)
-             self.subprocesses.append(subprocess.pid)
+        for i in range(config.processes):
+            subprocess = spawnT2W(self, self.childFDs, self.fds_https, self.fds_http)
+            self.subprocesses.append(subprocess.pid)
 
-         def MailException(etype, value, tb):
-             sendexceptionmail(config, etype, value, tb)
+        def MailException(etype, value, tb):
+            sendexceptionmail(config, etype, value, tb)
 
-         if config.smtpmailto_exceptions:
-             # if config.smtp_mail is configured we change the excepthook
-             sys.excepthook = MailException
+        if config.smtpmailto_exceptions:
+            # if config.smtp_mail is configured we change the excepthook
+            sys.excepthook = MailException
 
-         reactor.run()
+        reactor.run()
 
-     def daemon_reload(self):
-         self.rpc_server.load_lists()
+    def daemon_reload(self):
+        self.rpc_server.load_lists()
 
-     def daemon_shutdown(self):
-         self.quitting = True
+    def daemon_shutdown(self):
+        self.quitting = True
 
-         for pid in self.subprocesses:
-             os.kill(pid, signal.SIGINT)
+        for pid in self.subprocesses:
+            os.kill(pid, signal.SIGINT)
 
-         self.subprocesses = []
+        self.subprocesses = []
 
-     t2w_daemon = T2WDaemon(config)
-     t2w_daemon.daemon_init = daemon_init
-     t2w_daemon.daemon_main = daemon_main
-     t2w_daemon.daemon_reload = daemon_reload
-     t2w_daemon.daemon_shutdown = daemon_shutdown
-     t2w_daemon.rpc_server = T2WRPCServer(config)
+    t2w_daemon = T2WDaemon(config)
+    t2w_daemon.daemon_init = daemon_init
+    t2w_daemon.daemon_main = daemon_main
+    t2w_daemon.daemon_reload = daemon_reload
+    t2w_daemon.daemon_shutdown = daemon_shutdown
+    t2w_daemon.rpc_server = T2WRPCServer(config)
 
-     t2w_daemon.run(config)
+    t2w_daemon.run(config)
 
 else:
 
-     set_proctitle("tor2web-worker")
+    set_proctitle("tor2web-worker")
 
-     white_list = []
-     black_list = []
-     blocked_ua_list = []
-     tor_exits_list = []
-     hosts_map = {}
-     ports = []
+    white_list = []
+    black_list = []
+    blocked_ua_list = []
+    tor_exits_list = []
+    hosts_map = {}
+    ports = []
 
-     rpc_factory = pb.PBClientFactory()
+    rpc_factory = pb.PBClientFactory()
 
-     reactor.connectUNIX(os.path.join(config.rundir, "rpc.socket"),  rpc_factory)
-     os.chmod(os.path.join(config.rundir, "rpc.socket"), 0600)
+    reactor.connectUNIX(os.path.join(config.rundir, "rpc.socket"), rpc_factory)
+    os.chmod(os.path.join(config.rundir, "rpc.socket"), 0600)
 
-     signal.signal(signal.SIGUSR1, SigQUIT)
-     signal.signal(signal.SIGTERM, SigQUIT)
-     signal.signal(signal.SIGINT, SigQUIT)
+    signal.signal(signal.SIGUSR1, SigQUIT)
+    signal.signal(signal.SIGTERM, SigQUIT)
+    signal.signal(signal.SIGINT, SigQUIT)
 
-     start_worker()
+    start_worker()
 
-     reactor.run()
+    reactor.run()
