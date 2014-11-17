@@ -159,11 +159,9 @@ class T2WRPCServer(pb.Root):
         h = hashlib.sha512(cert).hexdigest()
         if hostname not in self.certs_tofu:
             self.certs_tofu[hostname] = h
-        else:
-            if self.certs_tofu[hostname] != h:
-                return False
+            return True
 
-        return True
+        return self.certs_tofu[hostname] == h
 
     def remote_update_stats(self, onion):
         self.stats.update(onion)
