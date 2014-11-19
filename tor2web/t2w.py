@@ -50,6 +50,7 @@ from zope.interface import implements
 from twisted.spread import pb
 from twisted.internet import reactor, protocol, defer
 from twisted.internet.abstract import isIPAddress, isIPv6Address
+from twisted.internet.endpoints import TCP4ClientEndpoint, SSL4ClientEndpoint
 from twisted.protocols.policies import WrappingFactory
 from twisted.web import http, client, _newclient
 from twisted.web.error import SchemeNotSupported
@@ -364,6 +365,12 @@ class Agent(client.Agent):
             torSockEndpoint = SOCKS5ClientEndpoint(self._reactor, self._sockhost,
                                                    self._sockport, host, port, config.socksoptimisticdata, **kwargs)
             return TLSWrapClientEndpoint(HTTPSVerifyingContextFactory(host, verify_tofu), torSockEndpoint)
+        elif scheme == 'normal-http':
+             return TCP4ClientEndpoint(self._reactor, host, port, **kwargs)
+        elif scheme == 'normal-https':
+            return SSL4ClientEndpoint(self._reactor, host, port,
+                                      self._wrapContextFactory(host, port),
+                                      **kwargs)
         else:
             raise SchemeNotSupported("Unsupported scheme: %r" % (scheme,))
 
@@ -915,7 +922,7 @@ class T2WRequest(http.Request):
             if config.dummyproxy is None:
                 proxy_url = self.obj.address
             else:
-                proxy_url = config.dummyproxy + parsed[2] + '?' + parsed[3]
+                proxy_url = 'normal-' + config.dummyproxy + parsed[2] + '?' + parsed[3]
 
             self.proxy_d = ragent.request(self.method,
                                           proxy_url,
