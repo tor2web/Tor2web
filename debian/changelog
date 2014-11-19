@@ -1,3 +1,9 @@
+tor2web (3.1.31-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.31 (more explicit/safe handling of dummyproxy urls with support for https)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 17 Nov 2014 21:48:42 +0002
+
 tor2web (3.1.30-0) unstable; urgency=low
 
   * Tor2web 3.0 - 3.1.30 (added support for TLS hidden services)
