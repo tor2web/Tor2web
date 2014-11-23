@@ -388,7 +388,7 @@ class Agent(client.Agent):
         for key, values in headers.getAllRawHeaders():
             fixed_values = []
             for value in values:
-                value = re_sub(rexp['w2t'], r'' + scheme + '://\2.onion', value)
+                value = re_sub(rexp['w2t'], r'' + scheme + r'://\2.onion', value)
                 fixed_values.append(value)
 
             headers.setRawHeaders(key, fixed_values)
@@ -1367,8 +1367,8 @@ ipv6 = config.listen_ipv6
 
 rexp = {
     'body': re.compile(r'(<body.*?\s*>)', re.I),
-    'w2t': re.compile(r'(http.?:)?//([a-z0-9]{16}).' + config.basehost + '(?!:\d+)', re.I),
-    't2w': re.compile(r'(http.?:)?//([a-z0-9]{16}).(?!' + config.basehost + ')onion(?!:\d+)', re.I)
+    'w2t': re.compile(r'(https.?:)?//([a-z0-9]{16}).' + config.basehost, re.I),
+    't2w': re.compile(r'(http.?:)?//([a-z0-9]{16}).' + config.basehost, re.I)
 }
 
 if 'T2W_FDS_HTTPS' not in os.environ and 'T2W_FDS_HTTP' not in os.environ:
