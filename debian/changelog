@@ -1,3 +1,9 @@
+tor2web (3.1.32-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.32 (fixed bug related to wrong header fix)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 24 Nov 2014 00:40:42 +0002
+
 tor2web (3.1.31-0) unstable; urgency=low
 
   * Tor2web 3.0 - 3.1.31 (more explicit/safe handling of dummyproxy urls with support for https)
