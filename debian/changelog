@@ -1,3 +1,9 @@
+tor2web (3.1.33-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.33 (fixed regression related to automatic following of redirects)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 8 Dec 2014 21:27:42 +0002
+
 tor2web (3.1.32-0) unstable; urgency=low
 
   * Tor2web 3.0 - 3.1.32 (fixed bug related to wrong header fix)
