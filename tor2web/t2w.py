@@ -405,6 +405,20 @@ class Agent(client.Agent):
                                               parsedURI.originForm)
         defer.returnValue(ret)
 
+class RedirectAgent(client.RedirectAgent):
+    """
+    Overridden client.RedirectAgent version where we evaluate and handle automatically only HTTPS redirects
+    """
+
+    def _handleResponse(self, response, method, uri, headers, redirectCount):
+        locationHeaders = response.headers.getRawHeaders('location', [])
+        if locationHeaders:
+            location = self._resolveLocation(uri, locationHeaders[0])
+            parsed = client._URI.fromBytes(location)
+            if parsed.scheme == 'https':
+                return client.RedirectAgent._handleResponse(self, response, method, uri, header, redirectCount)
+
+        return response
 
 class T2WRequest(http.Request):
     """
@@ -917,7 +931,7 @@ class T2WRequest(http.Request):
                         defer.returnValue(NOT_DONE_YET)
 
             agent = Agent(reactor, sockhost=config.sockshost, sockport=config.socksport, pool=self.pool)
-            ragent = client.RedirectAgent(agent, 3)
+            ragent = RedirectAgent(agent, 1)
 
             if config.dummyproxy is None:
                 proxy_url = self.obj.address
@@ -992,7 +1006,7 @@ class T2WRequest(http.Request):
                 if config.mode == 'TRANSLATION':
                     value = re_sub(self.rexp['translation_from'], self.rexp['translation_to'], value)
 
-                value = re_sub(self.rexp['t2w'], r'https://\2.' + config.basehost, value)
+                value = re_sub(rexp['t2w'], r'https://\2.' + config.basehost, value)
                 fixed_values.append(value)
             values = fixed_values
 
