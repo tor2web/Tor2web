@@ -1001,15 +1001,12 @@ class T2WRequest(http.Request):
             return
 
         if keyLower in 'location':
-            fixed_values = []
-            for value in values:
-                if config.mode == 'TRANSLATION':
-                    value = re_sub(self.translation_rexp['from'], self.translation_rexp['to'], value)
 
-                value = re_sub(rexp['t2w'], r'https://\2.' + config.basehost, value)
-                fixed_values.append(value)
+            if config.mode == 'TRANSLATION':
+                values = [ re_sub(self.translation_rexp['from'], self.translation_rexp['to'], x) for x in values ]
+            
+            values = [ re_sub(rexp['t2w'], r'https://\2.' + config.basehost, x) for x in values ]
 
-            values = fixed_values
         self.responseHeaders.setRawHeaders(key, values)
 
     def processResponseHeaders(self, headers):
