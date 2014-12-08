@@ -855,7 +855,28 @@ class T2WRequest(http.Request):
             if config.mode == 'TRANSLATION' and request.host in hosts_map:
                 self.obj.onion = hosts_map[request.host]
             else:
-                self.obj.onion = request.host.split(".")[0] + ".onion"
+                # remove the basehost from the request.host
+                self.obj.onion = request.host[:-len(config.basehost) - 1 ] + '.onion'
+
+
+            # if you want to do any fancy special subdomains, do those here.
+            '''
+            if self.obj.onion == 'blocked-example.onion':
+                self.sendError(451, 'error_hs_completely_blocked.tpl')
+                defer.returnValue(NOT_DONE_YET)
+            '''
+            
+            # currently subdomains (dots) are not permitted in onion-sites. 
+            # If the client puts in extra subdomains they should be pruned and redirected.
+            if (self.obj.onion).count('.') > 1:
+                self.obj.onion = self.obj.onion.split('.')[0]
+                self.redirect("http://" + self.obj.onion + '.' + config.basehost + request.uri)
+                try:
+                    self.finish()
+                except Exception:
+                    pass
+
+                defer.returnValue(None)
 
             if not request.host or not verify_onion(self.obj.onion):
                 self.sendError(406, 'error_invalid_hostname.tpl')
