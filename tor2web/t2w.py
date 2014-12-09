@@ -871,6 +871,9 @@ class T2WRequest(http.Request):
             else:
                 self.obj.onion = request.host.split(".")[0] + ".onion"
 
+            # do any redirecting to appropriate subdomain/protocol
+            self.ensure_canonical_url( request )
+
             if not request.host or not verify_onion(self.obj.onion):
                 self.sendError(406, 'error_invalid_hostname.tpl')
                 defer.returnValue(NOT_DONE_YET)
@@ -946,6 +949,32 @@ class T2WRequest(http.Request):
             self.proxy_d.addErrback(self.handleError)
 
             defer.returnValue(NOT_DONE_YET)
+
+    def ensure_canonical_url(self, request):
+        '''If we're not at a canonical URL, redirect to it.'''
+        proto = 'http://' if config.transport == 'HTTP' else 'https://'
+
+        subdomain = (request.host[:-len(config.basehost) - 1 ])
+        onion_pieces = [ x for x in subdomain.split('.') if verify_onion(x + '.onion') ]
+
+        # if there's no valid onion_piece, hostname error.
+        if not onion_pieces:
+            self.sendError(406, 'error_invalid_hostname.tpl')
+            defer.returnValue(NOT_DONE_YET)
+
+        redirect_host = onion_pieces[0] + '.' + config.basehost
+
+        # if the redirect host is the same as the request.host, then we're done!
+        if redirect_host == request.host:
+            return
+
+        self.redirect(proto + redirect_host + request.uri)
+
+        try:
+            self.finish()
+        finally:
+            defer.returnValue(None)
+
 
     def cbResponse(self, response):
         self.proxy_response = response
