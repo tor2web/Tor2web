@@ -152,6 +152,25 @@ class Config(Storage):
             print e
             raise Exception("Tor2web Error: invalid config file (%s)" % self._file)
 
+
+        self.verify_config_in_sane()
+        
+    def verify_config_is_sane(self):
+        '''checks that the config values are all allowed values.'''
+
+        self.verify_values('transport', ['HTTP','HTTPS','BOTH'])
+        self.verify_values('disable_banner', [True, False])
+
+        # TODO: Add a bunch more here to ensure sane config file
+
+
+    def verify_values(self, key, allowed_values ):
+        '''asserts that the key is one of the allowed values.  If not, spits out an error message.'''
+        value = self.__dict__[key]
+        allowed_values_string = '{' + ', '.join([ "'" + str(x) + "'" for x in allowed_values]) + '}'
+        assert self.__dict__[key] in allowed_values, "config.%s='%s' (%s) is invalid.  Allowed values: %s" % (key, value, type(value), allowed_values_string)
+
+
     def splitlist(self, line):
         return [x[1:-1] if x[:1] == x[-1:] == '"' else x
                 for x in listpattern.findall(line.rstrip(',') + ',')]
