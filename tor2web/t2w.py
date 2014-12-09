@@ -882,10 +882,10 @@ class T2WRequest(http.Request):
 
                 try:
                     self.finish()
-                except Exception:
-                    pass
+                finally:
+                    defer.returnValue(None)
 
-                defer.returnValue(None)
+                
 
             # Avoid image hotlinking
             if config.blockhotlinking and request.uri.lower().endswith(tuple(config.blockhotlinking_exts)):
