@@ -651,13 +651,13 @@ class T2WRequest(http.Request):
             self.sendError()
 
     def unzip(self, data, end=False):
-        data1 = data2 = ''
+        data1, data2 = '', ''
 
         try:
             if self.decoderGzip is None:
                 self.decoderGzip = zlib.decompressobj(16 + zlib.MAX_WBITS)
 
-            if data != '':
+            if data:
                 data1 = self.decoderGzip.decompress(data)
 
             if end:
@@ -669,13 +669,13 @@ class T2WRequest(http.Request):
         return data1 + data2
 
     def zip(self, data, end=False):
-        data1 = data2 = ''
+        data1, data2 = '', ''
 
         try:
             if self.encoderGzip is None:
                 self.encoderGzip = zlib.compressobj(6, zlib.DEFLATED, 16 + zlib.MAX_WBITS)
 
-            if data != '':
+            if data:
                 data1 = self.encoderGzip.compress(data)
 
             if end:
