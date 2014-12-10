@@ -106,7 +106,6 @@ class Config(Storage):
         self.__dict__['blockhotlinking_exts'] = ['jpg', 'png', 'gif']
         self.__dict__['disable_disclaimer'] = False
         self.__dict__['disable_banner'] = False
-        self.__dict__['rewrite_links_serverside'] = True
         self.__dict__['smtp_user'] = ''
         self.__dict__['smtp_pass'] = ''
         self.__dict__['smtp_mail'] = ''
@@ -157,16 +156,16 @@ class Config(Storage):
 
     def verify_config_is_sane(self):
         '''Checks that the specified config values are allowed.'''
-        self.verify_values('transport', ['HTTP','HTTPS','BOTH'])
+        self.verify_values('transport', ['HTTP', 'HTTPS', 'BOTH'])
         self.verify_values('disable_banner', [True, False])
-        self.verify_values('logreqs', [True,False])
-        self.verify_values('debugmode', [True,False])
-        self.verify_values('debugtostdout', [True,False])
-        self.verify_values('blockcrawl', [True,False])
-        self.verify_values('overriderobotstxt', [True,False])
-        self.verify_values('blockhotlinking', [True,False])
-        self.verify_values('disable_banner', [True,False])
-        self.verify_values('rewrite_links_serverside', [True,False])
+        self.verify_values('logreqs', [True, False])
+        self.verify_values('debugmode', [True, False])
+        self.verify_values('debugtostdout', [True, False])
+        self.verify_values('blockcrawl', [True, False])
+        self.verify_values('overriderobotstxt', [True, False])
+        self.verify_values('blockhotlinking', [True, False])
+        self.verify_values('disable_banner', [True, False])
+        self.verify_values('rewrite_links_serverside', [True, False])
 
 
     def verify_values(self, key, allowed_values ):
