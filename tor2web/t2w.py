@@ -959,22 +959,23 @@ class T2WRequest(http.Request):
                 return flattenString(self, templates[SOCKS_errors[0x00]]).addCallback(self.contentFinish)
 
         self.setResponseCode(response.code)
-
         self.processResponseHeaders(response.headers)
 
-        if response.length is not 0:
-            finished = defer.Deferred()
-            if self.obj.html:
-                response.deliverBody(BodyStreamer(self.handleFixPart, finished))
-                finished.addCallback(self.handleFixEnd)
-            else:
-                response.deliverBody(BodyStreamer(self.handleForwardPart, finished))
-                finished.addCallback(self.handleForwardEnd)
-
-            return finished
-        else:
+        # if there's no response, we're done.
+        if not response.length:
             self.contentFinish('')
             return defer.succeed
+
+        finished = defer.Deferred()
+        if self.obj.html:
+            response.deliverBody(BodyStreamer(self.handleFixPart, finished))
+            finished.addCallback(self.handleFixEnd)
+        else:
+            response.deliverBody(BodyStreamer(self.handleForwardPart, finished))
+            finished.addCallback(self.handleForwardEnd)
+
+        return finished
+
 
     def handleHeader(self, key, values):
         keyLower = key.lower()
