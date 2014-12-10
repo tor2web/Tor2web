@@ -106,6 +106,7 @@ class Config(Storage):
         self.__dict__['blockhotlinking_exts'] = ['jpg', 'png', 'gif']
         self.__dict__['disable_disclaimer'] = False
         self.__dict__['disable_banner'] = False
+        self.__dict__['rewrite_links_serverside'] = True
         self.__dict__['smtp_user'] = ''
         self.__dict__['smtp_pass'] = ''
         self.__dict__['smtp_mail'] = ''
@@ -151,6 +152,34 @@ class Config(Storage):
         except Exception as e:
             print e
             raise Exception("Tor2web Error: invalid config file (%s)" % self._file)
+            
+        self.verify_config_is_sane()
+
+    def verify_config_is_sane(self):
+        '''Checks that the specified config values are allowed.'''
+        self.verify_values('transport', ['HTTP','HTTPS','BOTH'])
+        self.verify_values('disable_banner', [True, False])
+        self.verify_values('logreqs', [True,False])
+        self.verify_values('debugmode', [True,False])
+        self.verify_values('debugtostdout', [True,False])
+        self.verify_values('blockcrawl', [True,False])
+        self.verify_values('overriderobotstxt', [True,False])
+        self.verify_values('blockhotlinking', [True,False])
+        self.verify_values('disable_banner', [True,False])
+        self.verify_values('rewrite_links_serverside', [True,False])
+
+
+    def verify_values(self, key, allowed_values ):
+        '''asserts that the key is one of the allowed values.  If not, spits out an error message.'''
+
+        # if key is not in the dict, don't bother.
+        if key not in self.__dict__:
+            return
+
+        value = self.__dict__[key]
+        allowed_values_string = '{' + ', '.join([ "'" + str(x) + "'" for x in allowed_values]) + '}'
+        assert self.__dict__[key] in allowed_values, "config.%s='%s' (%s) is invalid.  Allowed values: %s" % (key, value, type(value), allowed_values_string)
+
 
 
         self.verify_config_in_sane()
