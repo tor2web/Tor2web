@@ -201,11 +201,11 @@ class T2WPP(protocol.ProcessProtocol):
         self.pid = self.transport.pid
 
     def processExited(self, reason):
-        for x in range(len(self.father.subprocesses)):
-            if self.father.subprocesses[x] == self.pid:
-                del self.father.subprocesses[x]
+        for i, subprocess in enumerate(self.father.subprocesses):
+            if subprocess == self.pid:
+                del self.father.subprocesses[i]
                 break
-
+        
         if not self.father.quitting:
             subprocess = spawnT2W(self.father, self.childFDs, self.fds_https, self.fds_http)
             self.father.subprocesses.append(subprocess.pid)
@@ -499,10 +499,10 @@ class T2WRequest(http.Request):
             if self.obj.client_supports_gzip:
                 self.setHeader(b'content-encoding', b'gzip')
 
-            if data != '' and end:
+            if data and end:
                 self.setHeader(b'content-length', intToBytes(len(data)))
 
-        if data != '':
+        if data:
             try:
                 self.write(data)
             except Exception:
