@@ -205,7 +205,7 @@ class T2WPP(protocol.ProcessProtocol):
             if subprocess == self.pid:
                 del self.father.subprocesses[i]
                 break
-        
+
         if not self.father.quitting:
             subprocess = spawnT2W(self.father, self.childFDs, self.fds_https, self.fds_http)
             self.father.subprocesses.append(subprocess.pid)
