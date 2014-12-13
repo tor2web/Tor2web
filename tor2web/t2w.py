@@ -539,7 +539,8 @@ class T2WRequest(http.Request):
             if config.mode == 'TRANSLATION':
                 data = re_sub(self.translation_rexp['from'], self.translation_rexp['to'], data)
 
-            data = re_sub(rexp['t2w'], r'https://\2.' + config.basehost, data)
+            proto = 'http://' if config.transport == 'HTTP' else 'https://'
+            data = re_sub(rexp['t2w'], proto + r'\2.' + config.basehost, data)
 
             forward = data[:-500]
             if not self.header_injected and forward.find("<body") != -1:
@@ -564,7 +565,8 @@ class T2WRequest(http.Request):
         if config.mode == 'TRANSLATION':
             data = re_sub(self.translation_rexp['from'], self.translation_rexp['to'], data)
 
-        data = re_sub(rexp['t2w'], r'https://\2.' + config.basehost, data)
+        proto = 'http://' if config.transport == 'HTTP' else 'https://'
+        data = re_sub(rexp['t2w'], proto + r'\2.' + config.basehost, data)
 
         if not self.header_injected and data.find("<body") != -1:
             banner = yield flattenString(self, templates['banner.tpl'])
@@ -1006,7 +1008,8 @@ class T2WRequest(http.Request):
             if config.mode == 'TRANSLATION':
                 values = [ re_sub(self.translation_rexp['from'], self.translation_rexp['to'], x) for x in values ]
             
-            values = [ re_sub(rexp['t2w'], r'https://\2.' + config.basehost, x) for x in values ]
+            proto = 'http://' if config.transport == 'HTTP' else 'https://'
+            values = [ re_sub(rexp['t2w'], proto + r'\2.' + config.basehost, x) for x in values ]
 
         self.responseHeaders.setRawHeaders(key, values)
 
