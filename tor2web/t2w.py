@@ -627,6 +627,11 @@ class T2WRequest(http.Request):
         if self.isSecure():
             self.setHeader(b'strict-transport-security', b'max-age=31536000')
 
+        # if there are special headers to inject into the response, inject those here at the end
+        if config.extra_HTTP_response_headers:
+            for header, value in extra_HTTP_response_headers.iteritems():
+                self.setHeader( header, value )
+
         try:
             self.write(data)
             self.finish()
