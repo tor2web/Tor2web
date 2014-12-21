@@ -31,9 +31,8 @@
 
 # -*- coding: utf-8 -*-
 
-import os
-import re
-import sys
+import os, re, sys
+import json
 import ConfigParser
 from optparse import OptionParser
 from storage import Storage
@@ -104,6 +103,7 @@ class Config(Storage):
         self.__dict__['overriderobotstxt'] = True
         self.__dict__['blockhotlinking'] = True
         self.__dict__['blockhotlinking_exts'] = ['jpg', 'png', 'gif']
+        self.__dict__['extra_HTTP_response_headers'] = None
         self.__dict__['disable_disclaimer'] = False
         self.__dict__['disable_banner'] = False
         self.__dict__['smtp_user'] = ''
@@ -205,16 +205,19 @@ class Config(Storage):
 
     def parse(self, name):
         try:
+            # remove any whitespace from beginning/end.
+            value = self._parser.get(self._section, name).strip()
 
-            value = self._parser.get(self._section, name)
             if value.isdigit():
-                value = int(value)
-            elif value.lower() in ('true', 'false'):
-                value = value.lower() == 'true'
-            elif value.lower() in ('', 'none'):
-                value = None
-            elif value[0] == "[" and value[-1] == "]":
-                value = self.splitlist(value[1:-1])
+                return int(value)
+            if value.lower() in ['true', 'false']:
+                return value.lower() == 'true'
+            if value.lower() in ['','none']:
+                return None
+            if value.startswith('[') and value.endswith(']'):
+                return self.splitlist(value[1:-1])
+            if value.startswith('{') and value.endswith('}'):
+                return json.loads(line)
 
             return value
 
