@@ -49,6 +49,11 @@
 # blockhotlinking = True
 # blockhotlinking_exts = [jpg, png, gif]
 
+
+# extra HTTP headers to be appended to the response. Format is a JSON dictionary
+# extra_http_response_headers = {"Cache-Control": "max-age=600", "Surrogate-Control": "max-age=86400"}
+
+
 # If set to True will disable the tor2web disclaimer
 # disable_disclaimer = False
 
