@@ -104,6 +104,7 @@ class Config(Storage):
         self.__dict__['overriderobotstxt'] = True
         self.__dict__['blockhotlinking'] = True
         self.__dict__['blockhotlinking_exts'] = ['jpg', 'png', 'gif']
+        self.__dict__['extra_http_response_headers'] = None
         self.__dict__['disable_disclaimer'] = False
         self.__dict__['disable_banner'] = False
         self.__dict__['smtp_user'] = ''
@@ -151,6 +152,17 @@ class Config(Storage):
         except Exception as e:
             print e
             raise Exception("Tor2web Error: invalid config file (%s)" % self._file)
+
+        # set any http headers to raw ascii
+        if self.extra_http_response_headers:
+            for key, value in self.extra_http_response_headers.iteritems():
+                # delete the old key
+                del self.extra_http_response_headers[key]
+                #make the ascii equivalents, and save those.
+                key, value = key.encode('ascii', 'ignore'), value.encode('ascii','ignore')
+                self.extra_http_response_headers[key] = value
+
+
             
         self.verify_config_is_sane()
 
@@ -205,23 +217,28 @@ class Config(Storage):
 
     def parse(self, name):
         try:
-
             value = self._parser.get(self._section, name)
+
+            # remove any whitespace from beginning/end.
+            value = value.strip()
+
             if value.isdigit():
-                value = int(value)
-            elif value.lower() in ('true', 'false'):
-                value = value.lower() == 'true'
-            elif value.lower() in ('', 'none'):
-                value = None
-            elif value[0] == "[" and value[-1] == "]":
-                value = self.splitlist(value[1:-1])
+                return int(value)
+            if value.lower() in ['true', 'false']:
+                return value.lower() == 'true'
+            if value.lower() in ['','none']:
+                return None
+            if value.startswith('[') and value.endswith(']'):
+                return self.splitlist(value[1:-1])
+            if value.startswith('{') and value.endswith('}'):
+                return json.loads(value)
 
             return value
 
         except ConfigParser.NoOptionError:
             # if option doesn't exists returns None
             return None
-
+            
     def __getattr__(self, name):
         return self.__dict__.get(name, None)
 
