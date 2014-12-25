@@ -3,7 +3,7 @@
 
 import os
 import re
-from setuptools import setup
+from setuptools import find_packages, setup
 
 from tor2web import __version__
 
@@ -28,7 +28,8 @@ data_files = [
     ('/usr/share/tor2web/static',
     list_files(os.path.join('data', 'static'))),
     ('/usr/share/tor2web/templates',
-    list_files(os.path.join('data', 'templates')))
+    list_files(os.path.join('data', 'templates'))),
+    ('/usr/share/tor2web/', ['requirements.txt'])
 ]
 
 setup(
@@ -37,7 +38,7 @@ setup(
     author="Random GlobaLeaks developers",
     author_email = "info@globaleaks.org",
     url="https://tor2web.org/",
-    packages=["tor2web", "tor2web.utils"],
+    packages=find_packages(exclude=['*.tests', '*.tests.*']),
     scripts=["bin/tor2web"],
     data_files=data_files,
     install_requires=get_requires()

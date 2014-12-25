@@ -1,0 +1,31 @@
+#!/bin/sh
+# This is the post installation script for tor2web
+set -e
+
+if ! id -u tor2web >/dev/null 2>&1; then
+  useradd tor2web -b /home/tor2web -s /bin/false
+fi
+
+if [ ! -d /home/tor2web ]; then
+  mkdir -p /home/tor2web
+  mkdir -p /home/tor2web/certs
+  mkdir -p /home/tor2web/lists
+  mkdir -p /home/tor2web/logs
+  chown tor2web:tor2web /home/tor2web/ -R
+fi
+
+# XXX. Hardcore installation of tor2web dependencies using pip.
+# This is needed until tor2web will be packaged removing the need
+# for Twisted==13.2.0 and pyopenssl==0.14
+CHECK_PIP_VERSION="
+import pip
+from pkg_resources import parse_version as v
+exit(v(pip.__version__) < v('1.3'))
+"
+
+if ! python -c "$CHECK_PIP_VERSION" 2>/dev/null; then
+  curl https://bootstrap.pypa.io/get-pip.py | python
+fi
+pip install -r /usr/share/tor2web/requirements.txt
+
+#DEBHELPER#

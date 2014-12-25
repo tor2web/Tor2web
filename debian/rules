@@ -1,7 +1,10 @@
 #!/usr/bin/make -f
 
+export PYBUILD_NAME=tor2web
+export PYBUILD_DISABLE=test
+
 %:
-	dh $@ --with python2 --buildsystem=python_distutils
+	dh $@ --with python2 --buildsystem=pybuild
 
 override_dh_install:
 	mkdir -p debian/tor2web/etc
