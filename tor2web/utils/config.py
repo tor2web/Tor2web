@@ -104,6 +104,7 @@ class Config(Storage):
         self.__dict__['overriderobotstxt'] = True
         self.__dict__['blockhotlinking'] = True
         self.__dict__['blockhotlinking_exts'] = ['jpg', 'png', 'gif']
+        self.__dict__['extra_http_response_headers'] = None
         self.__dict__['disable_disclaimer'] = False
         self.__dict__['disable_banner'] = False
         self.__dict__['smtp_user'] = ''
@@ -148,10 +149,19 @@ class Config(Storage):
             for name in self._parser.options(self._section):
                 self.__dict__[name] = self.parse(name)
 
+            # set any http headers to raw ascii
+            if self.extra_http_response_headers:
+                for key, value in self.extra_http_response_headers.iteritems():
+                    # delete the old key
+                    del self.extra_http_response_headers[key]
+                    #make the ascii equivalents, and save those.
+                    key, value = key.encode('ascii', 'ignore'), value.encode('ascii','ignore')
+                    self.extra_http_response_headers[key] = value
+
         except Exception as e:
             print e
             raise Exception("Tor2web Error: invalid config file (%s)" % self._file)
-            
+
         self.verify_config_is_sane()
 
     def verify_config_is_sane(self):
@@ -178,8 +188,6 @@ class Config(Storage):
         value = self.__dict__[key]
         allowed_values_string = '{' + ', '.join([ "'" + str(x) + "'" for x in allowed_values]) + '}'
         assert self.__dict__[key] in allowed_values, "config.%s='%s' (%s) is invalid.  Allowed values: %s" % (key, value, type(value), allowed_values_string)
-
-
 
         self.verify_config_in_sane()
         
