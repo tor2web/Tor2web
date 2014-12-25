@@ -174,6 +174,8 @@ class Config(Storage):
         self.verify_values('disable_banner', [True, False])
         self.verify_values('rewrite_links_serverside', [True, False])
 
+        # TODO: Add a bunch more here to ensure sane config file
+
 
     def verify_values(self, key, allowed_values ):
         '''asserts that the key is one of the allowed values.  If not, spits out an error message.'''
@@ -186,22 +188,6 @@ class Config(Storage):
         allowed_values_string = '{' + ', '.join([ "'" + str(x) + "'" for x in allowed_values]) + '}'
         assert self.__dict__[key] in allowed_values, "config.%s='%s' (%s) is invalid.  Allowed values: %s" % (key, value, type(value), allowed_values_string)
 
-        self.verify_config_in_sane()
-        
-    def verify_config_is_sane(self):
-        '''checks that the config values are all allowed values.'''
-
-        self.verify_values('transport', ['HTTP','HTTPS','BOTH'])
-        self.verify_values('disable_banner', [True, False])
-
-        # TODO: Add a bunch more here to ensure sane config file
-
-
-    def verify_values(self, key, allowed_values ):
-        '''asserts that the key is one of the allowed values.  If not, spits out an error message.'''
-        value = self.__dict__[key]
-        allowed_values_string = '{' + ', '.join([ "'" + str(x) + "'" for x in allowed_values]) + '}'
-        assert self.__dict__[key] in allowed_values, "config.%s='%s' (%s) is invalid.  Allowed values: %s" % (key, value, type(value), allowed_values_string)
 
 
     def splitlist(self, line):
