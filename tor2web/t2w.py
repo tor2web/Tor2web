@@ -1236,15 +1236,13 @@ def start_worker():
                                            config.ssl_dh,
                                            config.cipher_list)
 
-    fds_https = []
-    if 'T2W_FDS_HTTPS' in os.environ:
-        fds_https = filter(None, os.environ['T2W_FDS_HTTPS'].split(","))
-        fds_https = [int(i) for i in fds_https]
 
-    fds_http = []
+    fds_https, fds_http = [], []
+    if 'T2W_FDS_HTTPS' in os.environ:
+        fds_https = [ int(x) for x in os.environ['T2W_FDS_HTTPS'].split(",") if x ]
+
     if 'T2W_FDS_HTTP' in os.environ:
-        fds_http = filter(None, os.environ['T2W_FDS_HTTP'].split(","))
-        fds_http = [int(i) for i in fds_http]
+        fds_http = [ int(x) for x in os.environ['T2W_FDS_HTTP'].split(",") if x ]
 
     reactor.listenTCPonExistingFD = listenTCPonExistingFD
     reactor.listenSSLonExistingFD = listenSSLonExistingFD
