@@ -49,6 +49,11 @@
 # blockhotlinking = True
 # blockhotlinking_exts = [jpg, png, gif]
 
+# add any special HTTP headers (raw) that you want to add the response sent to the client.
+# if you don't know what this you don't need it.
+# extra_HTTP_headers_to_response = [ 'Cache-Control: max-age=600', 'Surrogate-Control: max-age=86400' ]
+
+
 # If set to True will disable the tor2web disclaimer
 # disable_disclaimer = False
 
