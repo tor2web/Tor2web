@@ -206,15 +206,16 @@ class Config(Storage):
     def parse(self, name):
         try:
 
-            value = self._parser.get(self._section, name)
+            value = self._parser.get(self._section, name).trim()
+
             if value.isdigit():
-                value = int(value)
-            elif value.lower() in ('true', 'false'):
-                value = value.lower() == 'true'
-            elif value.lower() in ('', 'none'):
-                value = None
-            elif value[0] == "[" and value[-1] == "]":
-                value = self.splitlist(value[1:-1])
+                return int(value)
+            if value.lower() in ['true', 'false']:
+                return value.lower() == 'true'
+            if value.lower() in ['','none']:
+                return None
+            if value[0] == "[" and value[-1] == "]":
+                return self.splitlist(value[1:-1])
 
             return value
 
