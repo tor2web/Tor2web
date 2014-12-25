@@ -501,8 +501,7 @@ class T2WRequest(http.Request):
 
             if config.extra_http_response_headers:
                 for header, value in config.extra_http_response_headers.iteritems():
-                    self.setHeader( header, value )
-
+                    self.setHeader(header, value)
 
             if data and end:
                 self.setHeader(b'content-length', intToBytes(len(data)))
@@ -628,7 +627,6 @@ class T2WRequest(http.Request):
         self.setHeader(b'content-length', intToBytes(len(data)))
         self.setHeader(b'cache-control', b'no-cache')
         
-        
         if config.blockcrawl:
             self.setHeader(b'X-Robots-Tag', b'noindex')
 
@@ -637,8 +635,7 @@ class T2WRequest(http.Request):
 
         if config.extra_http_response_headers:
             for header, value in config.extra_http_response_headers.iteritems():
-                self.setHeader( header, value )
-
+                self.setHeader(header, value)
 
         try:
             self.write(data)
