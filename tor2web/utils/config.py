@@ -31,9 +31,7 @@
 
 # -*- coding: utf-8 -*-
 
-import os
-import re
-import sys
+import os, re, sys
 import ConfigParser
 from optparse import OptionParser
 from storage import Storage
@@ -159,8 +157,7 @@ class Config(Storage):
                     self.extra_http_response_headers[key] = value
 
         except Exception as e:
-            print e
-            raise Exception("Tor2web Error: invalid config file (%s)" % self._file)
+            raise Exception("Tor2web Error: invalid config file (%s): %s" % (self._file, e))
 
         self.verify_config_is_sane()
 
@@ -214,7 +211,7 @@ class Config(Storage):
     def parse(self, name):
         try:
 
-            value = self._parser.get(self._section, name).trim()
+            value = self._parser.get(self._section, name)
 
             if value.isdigit():
                 return int(value)
