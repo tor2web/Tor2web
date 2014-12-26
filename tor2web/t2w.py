@@ -308,46 +308,19 @@ class BodyProducer(object):
     def allDataReceived(self):
         self.finished.callback(None)
 
-    def resumeProducing(self):
-        pass
-
-    def pauseProducing(self):
-        pass
-
-    def stopProducing(self):
-        pass
-
-
-class HTTPConnectionPool(client.HTTPConnectionPool):
-    _factory = client._HTTP11ClientFactory
-
-    def startedConnecting(self, connector):
-        pass
-
-    _factory.startedConnecting = startedConnecting
-
-    def __init__(self, reactor, persistent=True, maxPersistentPerHost=2, cachedConnectionTimeout=240,
-                 retryAutomatically=True):
-        client.HTTPConnectionPool.__init__(self, reactor, persistent)
-        self.maxPersistentPerHost = maxPersistentPerHost
-        self.cachedConnectionTimeout = cachedConnectionTimeout
-        self.retryAutomatically = retryAutomatically
-
+    def resumeProducing(self): pass
+    def pauseProducing(self): pass
+    def stopProducing(self): pass
 
 class Agent(client.Agent):
     def __init__(self, reactor,
                  contextFactory=client.WebClientContextFactory(),
                  connectTimeout=None, bindAddress=None,
                  pool=None, sockhost=None, sockport=None):
-        if pool is None:
-            pool = HTTPConnectionPool(reactor, False)
-        self._reactor = reactor
-        self._pool = pool
-        self._contextFactory = contextFactory
-        self._connectTimeout = connectTimeout
-        self._bindAddress = bindAddress
         self._sockhost = sockhost
         self._sockport = sockport
+        client.Agent.__init__(self, reactor, contextFactory,
+                               connectTimeout, bindAddress, pool)
 
     def _getEndpoint(self, scheme, host, port):
         def verify_tofu(hostname, cert):
@@ -469,18 +442,11 @@ class T2WRequest(http.Request):
 
         self.translation_rexp = {}
 
-    def _cleanup(self):
-        """
-        Method overridden to avoid self.content actions.
-        """
-        if self.producer:
-            log.err(RuntimeError("Producer was not unregistered for %s" % self.uri))
-            self.unregisterProducer()
-        self.channel.requestDone(self)
-        del self.channel
-        for d in self.notifications:
-            d.callback(None)
-        self.notifications = []
+    def finish(self):
+        try:
+            http.Request.finish()
+        except Exception:
+            pass
 
     def getRequestHostname(self):
         """
@@ -507,10 +473,7 @@ class T2WRequest(http.Request):
                 self.setHeader(b'content-length', intToBytes(len(data)))
 
         if data:
-            try:
-                self.write(data)
-            except Exception:
-                pass
+            self.write(data)
 
     def requestReceived(self, command, path, version):
         """
@@ -583,10 +546,7 @@ class T2WRequest(http.Request):
 
         self.stream = ''
 
-        try:
-            self.finish()
-        except Exception:
-            pass
+        self.finish()
 
     def handleGzippedForwardPart(self, data, end=False):
         if not self.obj.client_supports_gzip:
@@ -615,10 +575,7 @@ class T2WRequest(http.Request):
             data = self.handleCleartextForwardPart(data, True)
 
         self.forwardData(data, True)
-        try:
-            self.finish()
-        except Exception:
-            pass
+        self.finish()
 
     def contentFinish(self, data):
         if self.obj.client_supports_gzip:
@@ -638,11 +595,8 @@ class T2WRequest(http.Request):
             for header, value in config.extra_http_response_headers.iteritems():
                 self.setHeader(header, value)
 
-        try:
-            self.write(data)
-            self.finish()
-        except Exception:
-            pass
+        self.write(data)
+        self.finish()
 
     def sendError(self, error=500, errortemplate='error_generic.tpl'):
         self.setResponseCode(error)
@@ -691,6 +645,7 @@ class T2WRequest(http.Request):
 
             if end:
                 data2 = self.encoderGzip.flush()
+
         except Exception:
             pass
 
@@ -890,12 +845,7 @@ class T2WRequest(http.Request):
             # on this condition it's better to redirect on the .onion
             if self.getClientIP() in tor_exits_list:
                 self.redirect("http://" + self.obj.onion + request.uri)
-
-                try:
-                    self.finish()
-                except Exception:
-                    pass
-
+                self.finish()
                 defer.returnValue(None)
 
             # Avoid image hotlinking
@@ -1015,10 +965,10 @@ class T2WRequest(http.Request):
         if keyLower in 'location':
 
             if config.mode == 'TRANSLATION':
-                values = [ re_sub(self.translation_rexp['from'], self.translation_rexp['to'], x) for x in values ]
+                values = [re_sub(self.translation_rexp['from'], self.translation_rexp['to'], x) for x in values]
             
             proto = 'http://' if config.transport == 'HTTP' else 'https://'
-            values = [ re_sub(rexp['t2w'], proto + r'\2.' + config.basehost, x) for x in values ]
+            values = [re_sub(rexp['t2w'], proto + r'\2.' + config.basehost, x) for x in values]
 
         self.responseHeaders.setRawHeaders(key, values)
 
@@ -1228,10 +1178,12 @@ def start_worker():
             templates[f.basename()] = PageTemplate(XMLString(f.getContent()))
     # ##############################################################################
 
-    pool = HTTPConnectionPool(reactor, True,
-                              config.sockmaxpersistentperhost,
-                              config.sockcachedconnectiontimeout,
-                              config.sockretryautomatically)
+    pool = client.HTTPConnectionPool(reactor, True)
+    pool.maxPersistentPerHost = config.sockmaxpersistentperhost
+    pool.cachedConnectionTimeout = config.sockcachedconnectiontimeout
+    pool.retryAutomatically = config.sockretryautomatically
+    def nullStartedConnecting(self, connector): pass
+    pool._factory.startedConnecting = nullStartedConnecting
 
     factory = T2WProxyFactory()
 
@@ -1248,10 +1200,10 @@ def start_worker():
 
     fds_https, fds_http = [], []
     if 'T2W_FDS_HTTPS' in os.environ:
-        fds_https = [ int(x) for x in os.environ['T2W_FDS_HTTPS'].split(",") if x ]
+        fds_https = [int(x) for x in os.environ['T2W_FDS_HTTPS'].split(",") if x]
 
     if 'T2W_FDS_HTTP' in os.environ:
-        fds_http = [ int(x) for x in os.environ['T2W_FDS_HTTP'].split(",") if x ]
+        fds_http = [int(x) for x in os.environ['T2W_FDS_HTTP'].split(",") if x]
 
     reactor.listenTCPonExistingFD = listenTCPonExistingFD
     reactor.listenSSLonExistingFD = listenSSLonExistingFD
