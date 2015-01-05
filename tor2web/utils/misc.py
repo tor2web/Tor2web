@@ -34,6 +34,10 @@
 import re
 import socket
 
+# for URL-rewriting
+from bs4 import BeautifulSoup
+
+
 from twisted.protocols import tls
 
 def listenTCPonExistingFD(reactor, fd, factory):
@@ -82,3 +86,53 @@ def verify_onion(address):
         pass
 
     return False
+
+
+def rewrite_urls_in_html( html_doc, basehost, proto ):
+    '''returns a html_doc with all of the .onion URLs replaced with tor2web URLs'''
+
+    soup = BeautifulSoup(html_doc)
+
+
+    for link in soup.find_all('a'):
+        # spec says 'href' should always be there, but we check just in-case.
+        if link.has_attr('href'):
+            link['href'] = rewrite_url( link['href'], basehost, proto )
+
+    return str(soup)
+
+oniondomain_pattern = re.compile(r'^([a-z0-9]{16})\.onion$', re.IGNORECASE)
+
+def rewrite_url( href, basehost, proto ):
+    '''convert any .onion href to a tor2web url'''
+
+    global oniondomain_pattern
+
+    # 1. If there's not http:// or https://, skip it.
+    if not href.lower().startswith('http://') and not href.lower().startswith('https://'):
+        return href
+
+    # remove any weird whitespace from the beginning and end (have seen this before)
+    href = href.strip()
+
+    # we know it's either http or https.  Find the :// and remove everything before it.
+    two_parts = href.split( '://', 1 )
+    assert len(two_parts) == 2, "had an error.  This error should be impossible"
+    domain_and_path = two_parts[1] # domain_and_path is everything after the first '://'
+
+    # domain is everything before the first '/', and path is everything after it
+    two_parts = domain_and_path.split('/', 1)
+    domain, path = two_parts[0], two_parts[1] if len(two_parts) == 2 else ''
+
+
+    # the final '/' here in replacement is REQUIRED.  It ensures we do the right thing
+    # even if a clearweb subdomain is called 'onion'
+
+    replacement = r'\1' + '.' + basehost
+    new_domain = re.sub( oniondomain_pattern, replacement, domain, count=1)
+
+    z = [proto, new_domain]
+    if path:
+        z.extend(['/',path])
+
+    return ''.join(z)
