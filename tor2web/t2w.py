@@ -467,7 +467,9 @@ class T2WRequest(http.Request):
 
             if config.extra_http_response_headers:
                 for header, value in config.extra_http_response_headers.iteritems():
-                    self.setHeader(header, value)
+                    # only use the extra_http_header if that header isn't already set
+                    if self.getHeader(header) is None:
+                        self.setHeader( header, value )
 
             if data and end:
                 self.setHeader(b'content-length', intToBytes(len(data)))
@@ -593,7 +595,10 @@ class T2WRequest(http.Request):
 
         if config.extra_http_response_headers:
             for header, value in config.extra_http_response_headers.iteritems():
-                self.setHeader(header, value)
+                # only use the extra_http_header if that header isn't already set
+                if self.getHeader(header) is None:
+                    self.setHeader( header, value )
+                
 
         self.write(data)
         self.finish()
