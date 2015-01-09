@@ -507,7 +507,7 @@ class T2WRequest(http.Request):
                 data = re_sub(self.translation_rexp['from'], self.translation_rexp['to'], data)
 
             proto = 'http://' if config.transport == 'HTTP' else 'https://'
-            data = re_sub(rexp['t2w'], proto + r'\2.' + config.basehost, data)
+            data = re_sub(rexp['t2w'], proto + r'\2.' + config.basehost+ r'\3', data)
 
             if not self.header_injected and forward.find("<body") != -1:
                 banner = yield flattenString(self, templates['banner.tpl'])
@@ -534,7 +534,7 @@ class T2WRequest(http.Request):
             data = re_sub(self.translation_rexp['from'], self.translation_rexp['to'], data)
 
         proto = 'http://' if config.transport == 'HTTP' else 'https://'
-        data = re_sub(rexp['t2w'], proto + r'\2.' + config.basehost, data)
+        data = re_sub(rexp['t2w'], proto + r'\2.' + config.basehost + r'\3', data)
 
         if not self.header_injected and data.find("<body") != -1:
             banner = yield flattenString(self, templates['banner.tpl'])
@@ -1342,7 +1342,7 @@ ipv6 = config.listen_ipv6
 rexp = {
     'body': re.compile(r'(<body.*?\s*>)', re.I),
     'w2t': re.compile(r'(https.?:)?//([a-z0-9]{16}).' + config.basehost, re.I),
-    't2w': re.compile(r'(http.?:)?//([a-z0-9]{16}).onion', re.I)
+    't2w': re.compile(r'(http.?:)?//([a-z0-9]{16}).onion([\'"/]{1})', re.I)
 }
 
 if 'T2W_FDS_HTTPS' not in os.environ and 'T2W_FDS_HTTP' not in os.environ:
