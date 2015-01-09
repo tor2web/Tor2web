@@ -359,11 +359,7 @@ class Agent(client.Agent):
         scheme = 'https' if is_https else 'http'
 
         for key, values in headers.getAllRawHeaders():
-            fixed_values = []
-            for value in values:
-                value = re_sub(rexp['w2t'], r'' + scheme + r'://\2.onion', value)
-                fixed_values.append(value)
-
+            fixed_values = [re_sub(rexp['w2t'], r'' + scheme + r'://\2.onion', value) for value in values]
             headers.setRawHeaders(key, fixed_values)
 
         try:
