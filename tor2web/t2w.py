@@ -63,6 +63,7 @@ from twisted.web.iweb import IBodyProducer
 from twisted.python import log, logfile
 from twisted.python.compat import networkString, intToBytes
 from twisted.python.filepath import FilePath
+from twisted.python.log import err
 from twisted.internet.task import LoopingCall
 from tor2web import __version__
 from tor2web.utils.config import Config
@@ -76,6 +77,7 @@ from tor2web.utils.ssl import T2WSSLContextFactory, HTTPSVerifyingContextFactory
 from tor2web.utils.stats import T2WStats
 from tor2web.utils.storage import Storage
 from tor2web.utils.templating import PageTemplate
+from tor2web.utils.gettor import getRedirectURL, getOSandLC, processGetTorRequest
 
 
 SOCKS_errors = {
@@ -647,102 +649,6 @@ class T2WRequest(http.Request):
 
         return data1 + data2
 
-    def sendFile(self, filename, filepath, ctype):
-        """Send file to user.
-        
-        Send file to user using producers and consumers system.
-        
-        :param: filename (string)
-        :param: filepath (string)
-        :param: ctype (string) the value for content-type HTTP header
-        
-        """
-        self.setHeader(b'content-type', ctype)
-        self.setHeader(
-            b'content-disposition', 'attachment; filename=%s' %
-            filename
-        )
-
-        fp = open(filepath, 'rb')
-        d = FileSender().beginFileTransfer(fp, self)
-        def cbFinished(ignored):
-            fp.close()
-            self.finish()
-        d.addErrback(err).addCallback(cbFinished)
-
-    def processGetTor(self):
-        """Process a request to download Tor Browser.
-
-        We guess the user's operating system and locale from the user-agent
-        and accept-language of the request. This is enough to handle our
-        use cases.
-        """
-        agent = str(self.requestHeaders.getRawHeaders(b'user-agent'))
-        alang = str(self.requestHeaders.getRawHeaders(b'accept-language'))
-
-        # list of supported locales for Tor Browser
-        locales = List(config.t2w_file_path('lists/gettor_locales.txt'))
-        client, lang = None, 'en'
-
-        # URL for Onion Browser (iPhone)
-        iurl = 'itunes.apple.com/us/app/onion-browser/id519296448'
-        # URL for Orbot (Android)
-        aurl = 'play.google.com/store/apps/details?id=org.torproject.android'
-        # URL for Tor Browser downloads page
-        tburl = 'www.torproject.org/projects/torbrowser.html.en#downloads'
-        # regex to detect if the user is using Tor Browser already
-        # taken from https://gitweb.torproject.org/check.git/tree/utils.go#n57
-        tbua = 'Mozilla/5\.0 \(Windows NT 6\.1; rv:[\d]+\.0\) Gecko/20100101 Firefox/[\d]+\.0'
-
-        if re.match('Windows', agent):
-            client = 'windows'
-
-        elif re.match('Mac OS X', agent):
-            client = 'osx'
-
-        elif re.match('iPhone', agent):
-            self.redirect("https://%s" % iurl)
-            self.finish()
-            defer.returnValue(None)
-
-        elif re.match('Android', agent):
-            self.redirect("https://%s" % aurl)
-            self.finish()
-            defer.returnValue(None)
-
-        elif re.match("^%s$" % tbua, agent):
-            self.redirect("https://%s" % tburl)
-            self.finish()
-            defer.returnValue(None)
-
-        # desktop users only (Windows and Mac OS X)
-        if not client:
-            self.setHeader(b'content-type', 'text/html')
-            flattenString(
-                self,
-                templates['error_gettor.tpl']
-            ).addCallback(self.contentFinish)
-
-            defer.returnValue(NOT_DONE_YET)  
-
-        # find out if the user language is supported by Tor Browser
-        # if not, we use English by default
-        for lc in locales:
-            if re.match("^\['%s[,;].*" % lc, alang):
-                lang = lc
-                break
-
-        # we should send Tor Browser and its signature
-        # still don't know how to do that
-        tb_file = 'torbrowser-%s-%s.zip' % (client, lang)
-        tb_sign = 'torbrowser-%s-%s.asc' % (client, lang)
-        tb_file_path = config.t2w_file_path('torbrowser/%s' % tb_file)
-        tb_sign_path = config.t2w_file_path('torbrowser/%s' % tb_sign)
-
-        # send one file for now
-        self.sendFile(tb_file, tb_file_path, 'application/zip')
-        defer.returnValue(NOT_DONE_YET)
-
     def process_request(self, req):
         """
         This function:
@@ -787,7 +693,7 @@ class T2WRequest(http.Request):
                             isIPAddress(request.host) or \
                             isIPv6Address(request.host) or \
                             (config.overriderobotstxt and request.uri == '/robots.txt') or \
-                            request.uri.startswith('/antanistaticmap/')
+                            request.uri.startswith('/antanistaticmap/') or \
                             request.uri.startswith('/GetTor')
 
         if content_length is not None:
@@ -904,8 +810,46 @@ class T2WRequest(http.Request):
                     self.setHeader(b'content-type', 'text/plain')
                     defer.returnValue(self.contentFinish(''))
 
-                elif staticpath == "GetTor":
-                    self.processGetTor()
+                elif staticpath.startswith('GetTor'):
+                    # handle GetTor requests (files and signatures)
+
+                    client, lang = getOSandLC(
+                        self.requestHeaders,
+                        config.t2w_file_path('lists')
+                    )
+
+                    if client == 'iphone' or \
+                       client == 'android' or \
+                       client == 'torbrowser':
+                        self.redirect(getRedirectURL(client))
+                        self.finish()
+                        defer.returnValue(None)
+
+                    # for now just desktop users (Windows and OS X)
+                    elif client == 'windows' or client == 'osx':
+                        if staticpath == 'GetTor/file':
+                            type_req = 'file'
+
+                        elif staticpath == 'GetTor/signature':
+                            type_req = 'signature'
+                        
+                        processGetTorRequest(
+                            self,
+                            client,
+                            lang,
+                            type_req,
+                            config.t2w_file_path('torbrowser')
+                        )
+
+                    # likely Linux, BSD, etc.
+                    elif not client:
+                        self.setHeader(b'content-type', 'text/html')
+                        flattenString(
+                            self,
+                            templates['error_gettor.tpl']
+                        ).addCallback(self.contentFinish)
+
+                        defer.returnValue(NOT_DONE_YET)
 
                 else:
                     if type(antanistaticmap[staticpath]) == str:
@@ -917,6 +861,8 @@ class T2WRequest(http.Request):
                     elif type(antanistaticmap[staticpath]) == PageTemplate:
                         defer.returnValue(
                             flattenString(self, antanistaticmap[staticpath]).addCallback(self.contentFinish))
+                
+                
 
             except Exception:
                 pass
