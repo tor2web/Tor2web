@@ -452,11 +452,14 @@ class T2WRequest(http.Request):
                 http://twistedmatrix.com/trac/ticket/6014
         """
         host = self.getHeader(b'host')
-        if host:
-            if host[0] == '[':
-                return host.split(']', 1)[0] + "]"
-            return networkString(host.split(':', 1)[0])
-        return networkString(self.getHost().host)
+        if not host:
+            return networkString(self.getHost().host)
+        if host[0] == '[':
+            return host.split(']', 1)[0] + "]"
+
+        # return everything before the ':'
+        return networkString( host.split(':', 1)[0] )
+
 
     def forwardData(self, data, end=False):
         if not self.startedWriting:
