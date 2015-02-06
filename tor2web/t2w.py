@@ -471,6 +471,32 @@ class T2WRequest(http.Request):
         if data:
             self.write(data)
 
+    def getForwarders(self):
+        forwarders = []
+
+        try:
+            port = self.channel.transport.getPeer().port
+
+            xForwardedFor = self.requestHeaders.getRawHeaders("X-Forwarded-For")
+            for forwardHeader in xForwardedFor or []:
+                forwardList = forwardHeader.replace(" ", "").split(",")
+
+                for ip in forwardList:
+                    if isIPAddress(ip):
+                        forwarders.append(address.IPv4Address("TCP",
+                                                              ip.strip(),
+                                                              port))
+                    elif isIPv6Address(ip):
+                        forwarders.append(address.IPv6Address("TCP",
+                                                              ip.strip(),
+                                                              port))
+                    else:
+                        raise Exception
+        except:
+            return []
+
+        return forwarders
+
     def requestReceived(self, command, path, version):
         """
         Method overridden to reduce the function actions
@@ -478,9 +504,15 @@ class T2WRequest(http.Request):
         self.method, self.uri = command, path
         self.clientproto = version
 
-        # cache the client and server information, we'll need this later to be
-        # serialized and sent with the request so CGIs will work remotely
-        self.client = self.channel.transport.getPeer()
+        # we get the ip address of the user that can be:
+        #  - written in the x-forwared-for header if a proxy is in between
+        #  - the ip address of the transport endpoint
+        forwarders = self.getForwarders()
+        if forwarders:
+            self.client = forwarders[0]
+        else:
+            self.client = self.channel.transport.getPeer()
+
         self.host = self.channel.transport.getHost()
 
         self.process()
