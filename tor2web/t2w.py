@@ -871,10 +871,11 @@ class T2WRequest(http.Request):
 
             # we need to verify if the user is using tor;
             # on this condition it's better to redirect on the .onion
-            if self.getClientIP() in tor_exits_list:
-                self.redirect("http://" + self.obj.onion + request.uri)
-                self.finish()
-                defer.returnValue(None)
+            if not config.disable_tor_redirection:
+                if self.getClientIP() in tor_exits_list:
+                    self.redirect("http://" + self.obj.onion + request.uri)
+                    self.finish()
+                    defer.returnValue(None)
 
             # Avoid image hotlinking
             if config.blockhotlinking and request.uri.lower().endswith(tuple(config.blockhotlinking_exts)):

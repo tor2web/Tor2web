@@ -54,6 +54,9 @@
 # if you don't know what this you don't need it.
 # extra_HTTP_headers_to_response = [ 'Cache-Control: max-age=600', 'Surrogate-Control: max-age=86400' ]
 
+# Disable the automagical redirect of Tor user on Tor HSs
+# disable_tor_redirection = False
+
 # If set to True will disable the tor2web disclaimer
 # disable_disclaimer = False
 
