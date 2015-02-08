@@ -78,6 +78,7 @@ from tor2web.utils.storage import Storage
 from tor2web.utils.templating import PageTemplate
 
 
+
 SOCKS_errors = {
     0x00: "error_sock_generic.tpl",
     0x23: "error_sock_hs_not_found.tpl",
@@ -991,6 +992,9 @@ class T2WRequest(http.Request):
         elif keyLower == 'cache-control':
             return
 
+        if keyLower == 'set-cookie':
+            values = [ re_sub( rexp['set-cookie_t2w'], r'domain=\1\2.' + config.basehost + r'\3', x) for x in values ]
+
         if keyLower in 'location':
 
             if config.mode == 'TRANSLATION':
@@ -1372,7 +1376,8 @@ rexp = {
     'body': re.compile(r'(<body.*?\s*>)', re.I),
     'w2t': re.compile(r'(https.?:)?//([a-z0-9]{16}).' + config.basehost, re.I),
     't2w': re.compile(r'(http.?:)?//([a-z0-9]{16})\.onion', re.I),
-    'html_t2w': re.compile( r'(href|src|url|action)[\ ]*(=[\ ]*[\'"])http[s]?://([a-z0-9]{16})\.onion([\'"/])', re.I)
+    'html_t2w': re.compile( r'(href|src|url|action)[\ ]*(=[\ ]*[\'"])http[s]?://([a-z0-9]{16})\.onion([\'"/])', re.I),
+    'set-cookie_t2w': re.compile(r'domain=(\.*)([a-z0-9]{16})\.onion(\b)?', re.I)
 }
 
 if 'T2W_FDS_HTTPS' not in os.environ and 'T2W_FDS_HTTP' not in os.environ:
