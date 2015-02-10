@@ -541,12 +541,11 @@ class T2WRequest(http.Request):
             proto = 'http://' if config.transport == 'HTTP' else 'https://'
             data = re_sub(rexp['html_t2w'], r'\1\2' + proto + r'\3.' + config.basehost + r'\4', data)
 
+            forward = data[:-500]
             if not self.header_injected and forward.find("<body") != -1:
                 banner = yield flattenString(self, templates['banner.tpl'])
                 forward = re.sub(rexp['body'], partial(self.add_banner, banner), forward)
                 self.header_injected = True
-
-            forward = data[:-500]
 
             self.forwardData(self.handleCleartextForwardPart(forward))
 
