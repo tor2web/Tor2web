@@ -457,7 +457,7 @@ class T2WRequest(http.Request):
             return host.split(']', 1)[0] + "]"
 
         # return everything before the ':'
-        return networkString( host.split(':', 1)[0] )
+        return networkString(host.split(':', 1)[0])
 
 
     def forwardData(self, data, end=False):
@@ -999,7 +999,8 @@ class T2WRequest(http.Request):
             return
 
         if keyLower == 'set-cookie':
-            values = [ re_sub( rexp['set-cookie_t2w'], r'domain=\1\2.' + config.basehost + r'\3', x) for x in values ]
+            values = [re_sub(rexp['set-cookie_t2w'],
+                             r'domain=\1\2.' + config.basehost + r'\3', x) for x in values]
 
         if keyLower in 'location':
 
