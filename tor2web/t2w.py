@@ -79,8 +79,6 @@ from tor2web.utils.storage import Storage
 from tor2web.utils.templating import PageTemplate
 from tor2web.utils.gettor import getRedirectURL, getOSandLC, processGetTorRequest
 
-
-
 SOCKS_errors = {
     0x00: "error_sock_generic.tpl",
     0x23: "error_sock_hs_not_found.tpl",
@@ -698,11 +696,12 @@ class T2WRequest(http.Request):
 
         self.obj.headers = req.headers
 
-        self.obj.headers.removeHeader(b'if-modified-since')
-        self.obj.headers.removeHeader(b'if-none-match')
+        # we remove the x-forwarded-for header that may contain a leaked ip
+        self.obj.headers.removeHeader(b'x-forwarded-for')
+
         self.obj.headers.setRawHeaders(b'host', [self.obj.onion])
         self.obj.headers.setRawHeaders(b'connection', [b'keep-alive'])
-        self.obj.headers.setRawHeaders(b'Accept-encoding', [b'gzip, chunked'])
+        self.obj.headers.setRawHeaders(b'accept-encoding', [b'gzip, chunked'])
         self.obj.headers.setRawHeaders(b'x-tor2web', [b'encrypted'])
 
         return True
