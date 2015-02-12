@@ -131,7 +131,7 @@ def getOSandLC(headers, t2w_lists_path):
     return client, lang
 
 
-def processGetTorRequest(request, client, lang, type, t2w_tb_path):
+def processGetTorRequest(request, client, lang, type, version, t2w_tb_path):
     """Process a GetTor request.
 
     Determine the file needed and send it to the user. Only requests for
@@ -141,28 +141,29 @@ def processGetTorRequest(request, client, lang, type, t2w_tb_path):
     :param: client (string) the user's operating system.
     :param: lang (string) the user's locale.
     :param: type (string) the type of request (file or signature).
+    :param: version (string) the latest version of Tor Browser to be served.
+    :param: t2w_tb_path (string): path to the latest Tor Browser files.
 
     """
-    # extension for signatures is standard
-    ext = None
-    if type == 'signature':
-        ext = 'asc'
-
     # windows and osx files have different names and extensions
-    # (although a standard format for the flename could be used)
     if client == 'windows':
-        if not ext:
+
+        if type == 'signature':
+            ext = 'exe.asc'
+        else:
             ext = 'exe'
 
-        tb_file = 'torbrowser-install-latest-%s.%s' % (lang, ext)
+        tb_file = 'torbrowser-install-%s_%s.%s' % (version, lang, ext)
 
     elif client == 'osx':
-        if not ext:
+
+        if type == 'signature':
+            ext = 'dmg.asc'
+        else:
             ext = 'dmg'
 
-        tb_file = 'TorBrowser-osx-latest-%s.%s' % (lang, ext)
+        tb_file = 'TorBrowser-%s-osx32_%s.%s' % (version, lang, ext)
 
-    # this folder should have the latest Tor Browser files
     tb_file_path = os.path.join(t2w_tb_path, tb_file)
 
     # send the file according to the request received
@@ -173,3 +174,4 @@ def processGetTorRequest(request, client, lang, type, t2w_tb_path):
         sendFile(request, tb_file, tb_file_path, 'text/plain')
 
     defer.returnValue(NOT_DONE_YET)
+

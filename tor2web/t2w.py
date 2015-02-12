@@ -866,13 +866,21 @@ class T2WRequest(http.Request):
 
                         elif staticpath == 'GetTor/signature':
                             type_req = 'signature'
+
+                        # latest version of Tor Browser
+                        latest_version = List(
+                            config.t2w_file_path(
+                                'lists/latest_torbrowser.txt'
+                            )
+                        )
                         
                         processGetTorRequest(
                             self,
                             client,
                             lang,
                             type_req,
-                            config.t2w_file_path('torbrowser')
+                            latest_version,
+                            config.t2w_file_path('torbrowser/latest/')
                         )
 
                     # likely Linux, BSD, etc.
