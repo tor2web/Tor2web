@@ -700,7 +700,9 @@ class T2WRequest(http.Request):
         self.obj.headers.setRawHeaders(b'host', [self.obj.onion])
         self.obj.headers.setRawHeaders(b'connection', [b'keep-alive'])
         self.obj.headers.setRawHeaders(b'accept-encoding', [b'gzip, chunked'])
-        self.obj.headers.setRawHeaders(b'x-tor2web', [b'encrypted'])
+
+        val = b'%s; %s' % (config.proto.rstrip(':/'), config.basehost)
+        self.obj.headers.setRawHeaders(b'x-tor2web', [val] )
 
         return True
 
