@@ -727,8 +727,7 @@ class T2WRequest(http.Request):
                             isIPAddress(request.host) or \
                             isIPv6Address(request.host) or \
                             (config.overriderobotstxt and request.uri == '/robots.txt') or \
-                            request.uri.startswith('/antanistaticmap/') or \
-                            request.uri.startswith('/GetTor')
+                            request.uri.startswith('/antanistaticmap/'):
 
         if content_length is not None:
             self.bodyProducer.length = int(content_length)
@@ -844,7 +843,7 @@ class T2WRequest(http.Request):
                     self.setHeader(b'content-type', 'text/plain')
                     defer.returnValue(self.contentFinish(''))
 
-                elif staticpath.startswith('GetTor'):
+                elif staticpath.startswith('gettor'):
                     # handle GetTor requests (files and signatures)
 
                     client, lang = getOSandLC(
