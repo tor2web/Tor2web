@@ -42,8 +42,7 @@ from tor2web.utils.lists import List
 
 REDIRECT_URLS = {
     'iphone': 'https://itunes.apple.com/us/app/onion-browser/id519296448',
-    'android': 'https://play.google.com/store/apps/details?id=org.torproject.android',
-    'torbrowser': 'https://www.torproject.org/projects/torbrowser.html.en#downloads'
+    'android': 'https://play.google.com/store/apps/details?id=org.torproject.android'
 }
 
 
@@ -98,10 +97,6 @@ def getOSandLC(headers, t2w_lists_path):
     agent = str(headers.getRawHeaders(b'user-agent'))
     alang = str(headers.getRawHeaders(b'accept-language'))
 
-    # regex to detect if the user is already using Tor Browser
-    # taken from https://gitweb.torproject.org/check.git/tree/utils.go#n57
-    tb_ua = 'Mozilla/5\.0 \(Windows NT 6\.1; rv:[\d]+\.0\) Gecko/20100101 Firefox/[\d]+\.0'
-
     # list of supported locales for Tor Browser
     locales = List('%s/gettor_locales.txt' % t2w_lists_path)
     client, lang = None, 'en'
@@ -117,9 +112,6 @@ def getOSandLC(headers, t2w_lists_path):
 
     elif re.match('Android', agent):
         client = 'android'
-
-    elif re.match(tb_ua, agent):
-        client = 'torbrowser'
 
     # find out if the user language is supported by Tor Browser
     # if not, we use English by default

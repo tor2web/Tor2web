@@ -853,8 +853,7 @@ class T2WRequest(http.Request):
                     )
 
                     if client == 'iphone' or \
-                       client == 'android' or \
-                       client == 'torbrowser':
+                       client == 'android':
                         self.redirect(getRedirectURL(client))
                         self.finish()
                         defer.returnValue(None)
