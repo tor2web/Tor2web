@@ -859,10 +859,10 @@ class T2WRequest(http.Request):
 
                     # for now just desktop users (Windows and OS X)
                     elif client == 'windows' or client == 'osx':
-                        if staticpath == 'GetTor/file':
+                        if staticpath == 'gettor/file':
                             type_req = 'file'
 
-                        elif staticpath == 'GetTor/signature':
+                        elif staticpath == 'gettor/signature':
                             type_req = 'signature'
                         
                         # latest version of Tor Browser
