@@ -727,7 +727,7 @@ class T2WRequest(http.Request):
                             isIPAddress(request.host) or \
                             isIPv6Address(request.host) or \
                             (config.overriderobotstxt and request.uri == '/robots.txt') or \
-                            request.uri.startswith('/antanistaticmap/'):
+                            request.uri.startswith('/antanistaticmap/')
 
         if content_length is not None:
             self.bodyProducer.length = int(content_length)
@@ -846,19 +846,19 @@ class T2WRequest(http.Request):
                 elif staticpath.startswith('gettor'):
                     # handle GetTor requests (files and signatures)
 
-                    client, lang = getOSandLC(
+                    clientOS, clientLang = getOSandLC(
                         self.requestHeaders,
                         config.t2w_file_path('lists')
                     )
 
-                    if client == 'iphone' or \
-                       client == 'android':
+                    if clientOS == 'iphone' or \
+                       clientOS == 'android':
                         self.redirect(getRedirectURL(client))
                         self.finish()
                         defer.returnValue(None)
 
                     # for now just desktop users (Windows and OS X)
-                    elif client == 'windows' or client == 'osx':
+                    elif clientOS == 'windows' or clientOS == 'osx':
                         if staticpath == 'gettor/file':
                             type_req = 'file'
 
@@ -871,21 +871,18 @@ class T2WRequest(http.Request):
                                 'lists/latest_torbrowser.txt'
                             )
                         )
-                        
-                        for version in versions:
-                            latest_version = str(version)
-                        
+
                         processGetTorRequest(
                             self,
-                            client,
-                            lang,
+                            clientOS,
+                            clientLang,
                             type_req,
-                            latest_version,
+                            versions.pop(), # latest version
                             config.t2w_file_path('torbrowser/latest/')
                         )
 
                     # likely Linux, BSD, etc.
-                    elif not client:
+                    elif not clientOS:
                         self.setHeader(b'content-type', 'text/html')
                         flattenString(
                             self,

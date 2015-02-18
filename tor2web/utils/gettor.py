@@ -34,6 +34,7 @@ import os
 import re
 
 from twisted.protocols.basic import FileSender
+from twisted.python.filepath import FilePath
 from twisted.python.log import err
 from twisted.internet import defer
 from twisted.web.server import NOT_DONE_YET
@@ -60,7 +61,7 @@ def getRedirectURL(client):
     return REDIRECT_URLS[client]
 
 
-def sendFile(request, filename, filepath, ctype):
+def sendFile(request, filename, tb_path, ctype):
     """Send file to user.
 
     Send file to user using producers and consumers system.
@@ -76,12 +77,14 @@ def sendFile(request, filename, filepath, ctype):
         filename
     )
 
-    fp = open(filepath, 'rb')
+    fp = FilePath(tb_path).child(filename).open()
+
     d = FileSender().beginFileTransfer(fp, request)
 
     def cbFinished(ignored):
         fp.close()
         request.finish()
+
     d.addErrback(err).addCallback(cbFinished)
 
 
@@ -156,14 +159,11 @@ def processGetTorRequest(request, client, lang, type, version, t2w_tb_path):
 
         tb_file = 'TorBrowser-%s-osx32_%s.%s' % (version, lang, ext)
 
-    tb_file_path = os.path.join(t2w_tb_path, tb_file)
-
     # send the file according to the request received
     if type == 'file':
-        sendFile(request, tb_file, tb_file_path, 'application/octet-stream')
+        sendFile(request, tb_file, t2w_tb_path, 'application/octet-stream')
 
     elif type == 'signature':
-        sendFile(request, tb_file, tb_file_path, 'text/plain')
+        sendFile(request, tb_file, t2w_tb_path, 'text/plain')
 
     defer.returnValue(NOT_DONE_YET)
-
