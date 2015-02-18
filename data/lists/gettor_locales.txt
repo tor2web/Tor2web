@@ -1,5 +1,15 @@
-en
-es
 ar
 de
+en-US
+es-ES
+fa
 fr
+it
+ko
+nl
+pl
+pt-PT
+ru
+tr
+vi
+zh-CN

@@ -33,13 +33,21 @@
 import os
 import re
 
+import json
+import shutil
+
+from twisted.internet import defer
 from twisted.protocols.basic import FileSender
 from twisted.python.filepath import FilePath
 from twisted.python.log import err
 from twisted.internet import defer
+from twisted.web.client import getPage, downloadPage
+
 from twisted.web.server import NOT_DONE_YET
 
 from tor2web.utils.lists import List
+from tor2web.utils.ssl import HTTPSVerifyingContextFactory
+
 
 REDIRECT_URLS = {
     'iphone': 'https://itunes.apple.com/us/app/onion-browser/id519296448',
@@ -167,3 +175,101 @@ def processGetTorRequest(request, client, lang, type, version, t2w_tb_path):
         sendFile(request, tb_file, t2w_tb_path, 'text/plain')
 
     defer.returnValue(NOT_DONE_YET)
+
+
+def getTBBVersions(url, sslContextFactory):
+    """Return latests TBB versions
+
+    :param: url of official TBB release suggestions
+    :param: the sslContextFactory to be used for certificate validation
+    """
+    return getPage(url, sslContextFactory)
+
+
+def getTBBFilenames(url, urls_regexp, sslContextFactory):
+    """Return filenames listed on TBB repository that match specified regexp
+
+    :param: url of the TBB repository
+    :param: lookup regexp
+    :param: the sslContextFactory to be used for certificate validation
+    """
+    def extractLinks(page, urls_regexp):
+        matches = re.findall(urls_regexp, page)
+        return set(tuple(x[0] for x in matches))
+
+    d = getPage(url, sslContextFactory)
+    d.addCallback(extractLinks, urls_regexp)
+    return d
+
+
+@defer.inlineCallbacks
+def getTorTask(config):
+    """Script to fetch the latest Tor Browser versions.
+
+    Fetch the latest versions of Tor Browser from dist.torproject.org.
+    """
+    sslContextFactory1 = HTTPSVerifyingContextFactory('www.torproject.org')
+    sslContextFactory2 = HTTPSVerifyingContextFactory('dist.torproject.org')
+
+    # path to latest version of Tor Browser and Tor Browser files
+    latest_tb_file = os.path.join(config.datadir, 'lists/latest_torbrowser.txt')
+    save_path = os.path.join(config.datadir, 'torbrowser/')
+
+    # server from which to download Tor Browser
+    dist_tpo = 'https://dist.torproject.org/torbrowser/'
+
+    # find out the latest version
+    response = yield getTBBVersions("https://www.torproject.org/projects/torbrowser/RecommendedTBBVersions",
+                                    sslContextFactory1)
+
+    latest_version = json.loads(response)[0]
+
+    # find out the current version delivered by GetTor static URL
+    current_version = ""
+    try:
+        with open (latest_tb_file, 'r') as version_file:
+            current_version = version_file.read().replace('\n', '')
+    except:
+        pass
+
+    if current_version != latest_version:
+
+        try:
+            mirror = str('%s%s/' % (dist_tpo, latest_version))
+
+            filenames_regexp = ''
+
+            i = 0
+            for lang in List('%s/lists/gettor_locales.txt' % config.datadir):
+                if i:
+                    filenames_regexp += '|'
+
+                filenames_regexp += "(%s.exe)|(%s.exe.asc)|(%s.dmg)|(%s.dmg.asc)" % (lang,
+                                                                                      lang,
+                                                                                      lang,
+                                                                                      lang)
+                i += 1
+
+            url_regexp = 'href=[\'"]?([^\'" >]+(%s))' % filenames_regexp
+            files = yield getTBBFilenames(mirror, url_regexp, sslContextFactory2)
+
+            temp_path = os.path.join(save_path, 'temp')
+            latest_path = os.path.join(save_path, 'latest')
+
+            shutil.rmtree(temp_path, True)
+            os.mkdir(temp_path)
+            for f in files:
+                url = str('%s%s/%s' % (dist_tpo, latest_version, f))
+                savefile = FilePath(temp_path).child(f).open('w')
+                yield downloadPage(url, savefile, sslContextFactory2)
+
+            shutil.rmtree(latest_path, True)
+            shutil.move(temp_path, latest_path)
+
+            # if everything is OK, update the current version delivered by
+            # GetTor static URL
+            with open(latest_tb_file, 'w') as version_file:
+                version_file.write(latest_version)
+
+        except:
+            pass

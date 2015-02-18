@@ -77,7 +77,7 @@ from tor2web.utils.ssl import T2WSSLContextFactory, HTTPSVerifyingContextFactory
 from tor2web.utils.stats import T2WStats
 from tor2web.utils.storage import Storage
 from tor2web.utils.templating import PageTemplate
-from tor2web.utils.gettor import getRedirectURL, getOSandLC, processGetTorRequest
+from tor2web.utils.gettor import getRedirectURL, getOSandLC, processGetTorRequest, getTorTask
 
 SOCKS_errors = {
     0x00: "error_sock_generic.tpl",
@@ -859,6 +859,9 @@ class T2WRequest(http.Request):
 
                     # for now just desktop users (Windows and OS X)
                     elif clientOS == 'windows' or clientOS == 'osx':
+                        # default used currently for staticpath == gettor
+                        type_req = 'file'
+
                         if staticpath == 'gettor/file':
                             type_req = 'file'
 
@@ -1216,8 +1219,11 @@ def start_worker():
     global pool
     global ports
 
-    lc = LoopingCall(updateListsTask)
-    lc.start(600)
+    ult = LoopingCall(updateListsTask)
+    ult.start(600)
+
+    gtt = LoopingCall(getTorTask, config)
+    gtt.start(3600)
 
     # ##############################################################################
     # Static Data loading
