@@ -25,6 +25,7 @@
    :synopsis: GetTor routines
 
 .. moduleauthor:: Israel Leiva <ilv@torproject.org>
+.. moduleauthor:: Giovanni Pellerano <evilaliv3@globaleaks.org>
 
 """
 
@@ -180,8 +181,8 @@ def processGetTorRequest(request, client, lang, type, version, t2w_tb_path):
 def getTBBVersions(url, sslContextFactory):
     """Return latests TBB versions
 
-    :param: url of official TBB release suggestions
-    :param: the sslContextFactory to be used for certificate validation
+    :param: url (string) the official TBB release suggestions
+    :param: sslContextFactory (object) factory to be used for certificate validation
     """
     return getPage(url, sslContextFactory)
 
@@ -189,9 +190,9 @@ def getTBBVersions(url, sslContextFactory):
 def getTBBFilenames(url, urls_regexp, sslContextFactory):
     """Return filenames listed on TBB repository that match specified regexp
 
-    :param: url of the TBB repository
-    :param: lookup regexp
-    :param: the sslContextFactory to be used for certificate validation
+    :param: url (string) the TBB repository
+    :param: urls_regexp (regexp) the url regexp pattern
+    :param: sslContextFactory (object) factory to be used for certificate validation
     """
     def extractLinks(page, urls_regexp):
         matches = re.findall(urls_regexp, page)
@@ -201,12 +202,13 @@ def getTBBFilenames(url, urls_regexp, sslContextFactory):
     d.addCallback(extractLinks, urls_regexp)
     return d
 
-
 @defer.inlineCallbacks
 def getTorTask(config):
     """Script to fetch the latest Tor Browser versions.
 
     Fetch the latest versions of Tor Browser from dist.torproject.org.
+
+    :param: config (object) The tor2web configuration
     """
     sslContextFactory1 = HTTPSVerifyingContextFactory('www.torproject.org')
     sslContextFactory2 = HTTPSVerifyingContextFactory('dist.torproject.org')
@@ -245,9 +247,9 @@ def getTorTask(config):
                     filenames_regexp += '|'
 
                 filenames_regexp += "(%s.exe)|(%s.exe.asc)|(%s.dmg)|(%s.dmg.asc)" % (lang,
-                                                                                      lang,
-                                                                                      lang,
-                                                                                      lang)
+                                                                                     lang,
+                                                                                     lang,
+                                                                                     lang)
                 i += 1
 
             url_regexp = 'href=[\'"]?([^\'" >]+(%s))' % filenames_regexp
