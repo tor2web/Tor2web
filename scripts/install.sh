@@ -1,3 +1,11 @@
+#!/bin/bash
+
+# user permission check
+if [ ! $(id -u) = 0 ]; then
+    echo "Error: Tor2web install script must be runned by root"
+    exit 1
+fi
+
 INSTALL_LOG="./install.log"
 DISTRO='unknown'
 DISTRO_VERSION='unknown'
