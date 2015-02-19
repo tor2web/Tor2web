@@ -37,6 +37,8 @@ import re
 import json
 import shutil
 
+from distutils.version import LooseVersion
+
 from twisted.internet import defer
 from twisted.protocols.basic import FileSender
 from twisted.python.filepath import FilePath
@@ -202,6 +204,26 @@ def getTBBFilenames(url, urls_regexp, sslContextFactory):
     d.addCallback(extractLinks, urls_regexp)
     return d
 
+
+def getLatestTBBVersion(versions):
+    """Return the latest TBB stable version among the version availables
+
+    :param: versions (list) an array containing version numbers
+    :return: return latest TBB stable version
+    """
+    version_numbers = []
+    for v in versions:
+        if '-' not in v:
+            version_numbers.append(v)
+
+    stable_version = version_numbers[0]
+    for v in version_numbers:
+        if LooseVersion(v) < LooseVersion(stable_version):
+            stable_version = v
+
+    return stable_version
+
+
 @defer.inlineCallbacks
 def getTorTask(config):
     """Script to fetch the latest Tor Browser versions.
@@ -224,7 +246,7 @@ def getTorTask(config):
     response = yield getTBBVersions("https://www.torproject.org/projects/torbrowser/RecommendedTBBVersions",
                                     sslContextFactory1)
 
-    latest_version = json.loads(response)[0]
+    latest_version = getLatestTBBVersion(json.loads(response))
 
     # find out the current version delivered by GetTor static URL
     current_version = ""
