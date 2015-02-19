@@ -115,7 +115,6 @@ def getOSandLC(headers, t2w_lists_path):
     locales = List('%s/gettor_locales.txt' % t2w_lists_path)
     client, lang = None, 'en-US'
 
-    print agent
     if re.search('Windows', agent):
         client = 'windows'
 
