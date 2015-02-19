@@ -115,16 +115,17 @@ def getOSandLC(headers, t2w_lists_path):
     locales = List('%s/gettor_locales.txt' % t2w_lists_path)
     client, lang = None, 'en-US'
 
-    if re.match('Windows', agent):
+    print agent
+    if re.search('Windows', agent):
         client = 'windows'
 
-    elif re.match('Mac OS X', agent):
+    elif re.search('Mac OS X', agent):
         client = 'osx'
 
-    elif re.match('iPhone', agent):
-        client = 'ihpone'
+    elif re.search('iPhone', agent):
+        client = 'iphone'
 
-    elif re.match('Android', agent):
+    elif re.search('Android', agent):
         client = 'android'
 
     # find out if the user language is supported by Tor Browser
