@@ -157,8 +157,10 @@ def processGetTorRequest(request, client, lang, type, version, t2w_tb_path):
 
         if type == 'signature':
             ext = 'exe.asc'
+            ctype = 'application/pgp-signature'
         else:
             ext = 'exe'
+            ctype = 'application/x-msdownload'
 
         tb_file = 'torbrowser-install-%s_%s.%s' % (version, lang, ext)
 
@@ -166,17 +168,14 @@ def processGetTorRequest(request, client, lang, type, version, t2w_tb_path):
 
         if type == 'signature':
             ext = 'dmg.asc'
+            ctype = 'application/pgp-signature'
         else:
             ext = 'dmg'
+            ctype = 'application/x-apple-diskimage'
 
         tb_file = 'TorBrowser-%s-osx32_%s.%s' % (version, lang, ext)
 
-    # send the file according to the request received
-    if type == 'file':
-        sendFile(request, tb_file, t2w_tb_path, 'application/octet-stream')
-
-    elif type == 'signature':
-        sendFile(request, tb_file, t2w_tb_path, 'text/plain')
+    sendFile(request, tb_file, t2w_tb_path, ctype)
 
     defer.returnValue(NOT_DONE_YET)
 
