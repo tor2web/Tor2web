@@ -110,7 +110,7 @@ def getOSandLC(headers, t2w_lists_path):
 
     # list of supported locales for Tor Browser
     locales = List('%s/gettor_locales.txt' % t2w_lists_path)
-    client, lang = None, 'en'
+    client, lang = None, 'en-US'
 
     if re.match('Windows', agent):
         client = 'windows'
