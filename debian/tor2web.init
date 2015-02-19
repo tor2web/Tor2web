@@ -98,12 +98,19 @@ else
 fi
 
 if [ "${APPARMOR_SANDBOXING}" -eq "1" ]; then
+    APPARMOR_STARTED=0
     test -x /usr/sbin/aa-status \
         && test -x /usr/sbin/aa-exec \
         && test -e /etc/apparmor.d/usr.bin.tor2web \
         && /usr/sbin/aa-status --enabled \
         && DAEMON_CMD="/usr/sbin/aa-exec --profile=usr.bin.tor2web -- ${DAEMON_CMD}" \
-        && echo "Enabling Tor2web Apparmor Sandboxing"
+        && echo "Enabling Tor2web Apparmor Sandboxing" \
+        && APPARMOR_STARTED=1
+
+        if [ "${APPARMOR_STARTED}" -eq "0" ]; then
+          log_action_end_msg 1 "Unable to initialized AppArmor! AppArmor is probably disabled, please enable it by following instructions at https://wiki.debian.org/AppArmor/HowToUse"
+          exit 1
+        fi
 fi
 
 do_t2w_start()
