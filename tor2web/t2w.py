@@ -1071,6 +1071,7 @@ class T2WProxy(http.HTTPChannel):
             self.length = None
             self._transferDecoder = _ChunkedTransferDecoder(
                 req.bodyProducer.dataReceived, self._finishRequestBody)
+
         reqHeaders = req.requestHeaders
         values = reqHeaders.getRawHeaders(header)
         if values is not None:
@@ -1142,10 +1143,9 @@ class T2WLimitedRequestsFactory(WrappingFactory):
         """
         WrappingFactory.registerProtocol(self, p)
 
-        if self.requests_countdown > 0:
-            self.requests_countdown -= 1
+        self.requests_countdown -= 1
 
-        if self.requests_countdown == 0:
+        if self.requests_countdown <= 0:
             # bai bai mai friend
             #
             # known bug: currently when the limit is reached all
@@ -1418,24 +1418,28 @@ if 'T2W_FDS_HTTPS' not in os.environ and 'T2W_FDS_HTTP' not in os.environ:
         i_https = i_http = 0
 
         for ip in [ipv4, ipv6]:
-            if ip is not None:
-                if config.transport in ('HTTPS', 'BOTH'):
-                    if i_https != 0:
-                        self.fds_https += ','
-                    s = open_listenin_socket(ip, config.listen_port_https)
-                    self.fds.append(s)
-                    self.childFDs[s.fileno()] = s.fileno()
-                    self.fds_https += str(s.fileno())
-                    i_https += 1
+            if ip is None:
+                continue
 
-                if config.transport in ('HTTP', 'BOTH'):
-                    if i_http != 0:
-                        self.fds_http += ','
-                    s = open_listenin_socket(ip, config.listen_port_http)
-                    self.fds.append(s)
-                    self.childFDs[s.fileno()] = s.fileno()
-                    self.fds_http += str(s.fileno())
-                    i_http += 1
+            if config.transport in ('HTTPS', 'BOTH'):
+                if i_https:
+                    self.fds_https += ','
+
+                s = open_listenin_socket(ip, config.listen_port_https)
+                self.fds.append(s)
+                self.childFDs[s.fileno()] = s.fileno()
+                self.fds_https += str(s.fileno())
+                i_https += 1
+
+            if config.transport in ('HTTP', 'BOTH'):
+                if i_http:
+                    self.fds_http += ','
+
+                s = open_listenin_socket(ip, config.listen_port_http)
+                self.fds.append(s)
+                self.childFDs[s.fileno()] = s.fileno()
+                self.fds_http += str(s.fileno())
+                i_http += 1
 
 
     def daemon_main(self):
