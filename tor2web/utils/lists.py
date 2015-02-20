@@ -204,6 +204,16 @@ class List(set):
             self.lc = LoopingCall(self.update)
             self.lc.start(refreshPeriod)
 
+    def extend(self, incoming):
+        '''calls the add() function for each element in the iterable'''
+
+        # if it's not an iterable, make a one-element list.
+        if not isinstance(incoming, collections.Iterable):
+            incoming = list(incoming)
+
+        for elem in incoming:
+            self.add( elem )
+
     def load(self):
         """
         Load the list from the specified file.
@@ -234,10 +244,9 @@ class List(set):
     def handleData(self, data):
         if self.mode == 'REPLACE':
             self.clear()
+        
+        self.extend( [ x for x in data.split('\n') if x ] )
 
-        for elem in data.split('\n'):
-            if elem != '':
-                self.add(elem)
 
     def processData(self, data):
         try:
@@ -258,7 +267,4 @@ class TorExitNodeList(List):
             self.clear()
 
         data = json.loads(data)
-        for relay in data['relays']:
-            for ip in relay['a']:
-                if ip != '':
-                    self.add(ip)
+        self.extend( [ ip for ip in relay['a'] for relay in data['relays'] if ip ] )
