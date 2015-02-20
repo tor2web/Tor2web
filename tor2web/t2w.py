@@ -808,8 +808,7 @@ class T2WRequest(http.Request):
                     args = {}
 
                     ctype = self.requestHeaders.getRawHeaders(b'content-type')
-                    if ctype is not None:
-                        ctype = ctype[0]
+                    ctype = ctype[0] if ctype is not None
 
                     if self.method == b"POST" and ctype:
                         key, pdict = parse_header(ctype)
@@ -1380,8 +1379,8 @@ ipv6 = config.listen_ipv6
 
 rexp = {
     'body': re.compile(r'(<body.*?\s*>)', re.I),
-    'w2t': re.compile(r'(https.?:)?//([a-z0-9]{16}).' + config.basehost, re.I),
-    't2w': re.compile(r'(http.?:)?//([a-z0-9]{16})\.onion', re.I),
+    'w2t': re.compile(r'(http:|https:)?//([a-z0-9]{16})\.' + config.basehost, re.I),
+    't2w': re.compile(r'(http:|https:)?//([a-z0-9]{16})\.onion', re.I),
     'html_t2w': re.compile( r'(href|src|url|action)[\ ]*(=[\ ]*[\'"])http[s]?://([a-z0-9]{16})\.onion([\'"/])', re.I),
     'set-cookie_t2w': re.compile(r'domain=(\.*)([a-z0-9]{16})\.onion(\b)?', re.I)
 }
