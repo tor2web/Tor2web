@@ -31,6 +31,8 @@
 
 # -*- coding: utf-8 -*-
 
+import os
+import re
 import sys
 import mimetypes
 import random
@@ -44,8 +46,6 @@ from functools import partial
 from urlparse import urlparse
 from cgi import parse_header
 
-import os
-import re
 from zope.interface import implements
 from twisted.spread import pb
 from twisted.internet import reactor, protocol, defer
@@ -615,7 +615,7 @@ class T2WRequest(http.Request):
         self.setHeader(b'cache-control', b'no-cache')
         
         if config.blockcrawl:
-            self.setHeader(b'X-Robots-Tag', b'noindex')
+            self.setHeader(b'x-robots-tag', b'noindex')
 
         if self.isSecure():
             self.setHeader(b'strict-transport-security', b'max-age=31536000')
@@ -725,7 +725,8 @@ class T2WRequest(http.Request):
                             isIPAddress(request.host) or \
                             isIPv6Address(request.host) or \
                             (config.overriderobotstxt and request.uri == '/robots.txt') or \
-                            request.uri.startswith('/antanistaticmap/')
+                            request.uri.startswith('/antanistaticmap/') \
+                            request.uri.startswith('/checktor')
 
         if content_length is not None:
             self.bodyProducer.length = int(content_length)
@@ -745,11 +746,20 @@ class T2WRequest(http.Request):
             elif len(config.mirror) == 1:
                 self.var['mirror'] = config.mirror[0]
 
-        # we serve contents only over https
+        # we serve contents only over HTTPS
         if not self.isSecure() and (config.transport != 'HTTP'):
             self.redirect("https://" + request.host + request.uri)
             self.finish()
             defer.returnValue(None)
+
+        # check if the user is using Tor
+        client_ip = self.getClientIP()
+        if self.getClientIP() in tor_exits_list:
+            client_uses_tor = True
+            self.setHeader(b'x-check-tor', b'true')
+        else:
+            client_uses_tor = False
+            self.setHeader(b'x-check-tor', b'false')
 
         # 0: Request admission control stage
         # we try to deny some ua/crawlers regardless the request is (valid or not) / (local or not)
@@ -772,7 +782,19 @@ class T2WRequest(http.Request):
         if resource_is_local:
             # the requested resource is local, we deliver it directly
             try:
-                if staticpath == "dev/null":
+                if staticpath == 'checktor':
+                    self.setHeader(b'access-control-allow-origin', b'*')
+                    self.setHeader(b'access-control-expose-headers', b'x-check-tor')
+
+                    # response answer compliant to https://check.torproject.org/api/ip
+                    if client_uses_tor:
+                        content = "{\"IsTor\": true,\"IP\":\"" + client_ip + "\"}"
+                    else:
+                        content = "{\"IsTor\": false,\"IP\":\"" + client_ip + "\"}"
+
+                    defer.returnValue(self.contentFinish(content))
+
+                elif staticpath == "dev/null":
                     content = "A" * random.randint(20, 1024)
                     self.setHeader(b'content-type', 'text/plain')
                     defer.returnValue(self.contentFinish(content))
@@ -871,17 +893,12 @@ class T2WRequest(http.Request):
                 self.sendError(406, 'error_invalid_hostname.tpl')
                 defer.returnValue(NOT_DONE_YET)
 
-            # we need to verify if the user is using tor;
-            # on this condition it's better to redirect on the .onion
-            if self.getClientIP() in tor_exits_list:
-                self.setHeader(b'X-Check-Tor', b'true')
+            # if the user is using tor redirect directly to the hidden service
+            if client_uses_tor:
                 if not config.disable_tor_redirection:
                     self.redirect("http://" + self.obj.onion + request.uri)
                     self.finish()
                     defer.returnValue(None)
-            else:
-                self.setHeader(b'X-Check-Tor', b'false')
-
 
             # Avoid image hotlinking
             if config.blockhotlinking and request.uri.lower().endswith(tuple(config.blockhotlinking_exts)):
