@@ -57,6 +57,9 @@
 # Disable the automagical redirect of Tor user on Tor HSs
 # disable_tor_redirection = False
 
+# Disable the GetTor functionality
+# disable_gettor = False
+
 # If set to True will disable the tor2web disclaimer
 # disable_disclaimer = False
 

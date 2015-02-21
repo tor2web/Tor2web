@@ -106,6 +106,7 @@ class Config(Storage):
         self.__dict__['disable_disclaimer'] = False
         self.__dict__['disable_banner'] = False
         self.__dict__['disable_tor_redirection'] = False
+        self.__dict__['disable_gettor'] = False
         self.__dict__['smtp_user'] = ''
         self.__dict__['smtp_pass'] = ''
         self.__dict__['smtp_mail'] = ''
@@ -172,9 +173,9 @@ class Config(Storage):
         self.verify_values('blockcrawl', [True, False])
         self.verify_values('overriderobotstxt', [True, False])
         self.verify_values('blockhotlinking', [True, False])
-        self.verify_values('disable_tor_redirection', [True, False])
         self.verify_values('disable_banner', [True, False])
-        self.verify_values('rewrite_links_serverside', [True, False])
+        self.verify_values('disable_gettor', [True, False])
+        self.verify_values('disable_tor_redirection', [True, False])
 
         # TODO: Add a bunch more here to ensure sane config file
 
