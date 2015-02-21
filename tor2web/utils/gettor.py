@@ -99,6 +99,45 @@ def sendFile(request, filename, tb_path, ctype):
     d.addErrback(err).addCallback(cbFinished)
 
 
+def getBestLangMatch(accept_language, supported_lcs):
+    """Return the best match between accept_language and supported_languages
+    :param: accept_language (string) the accept language header
+    :param: supported_lcs (array) the available TBB languages
+
+    return: the best match with the languages supported by an user client
+    """
+    def parse_accept_language(accept_language):
+        return [l.split(';')[0] for l in accept_language.replace(" ", "").split(',')]
+
+    def language_only(lc):
+        if '-' in lc:
+            lc = lc.split('-')[0]
+
+        return lc
+
+    for lc in parse_accept_language(accept_language):
+        # returns es-PT if es-PT is available (perfect match)
+        for l in supported_lcs:
+            if lc.lower() == l.lower():
+                return l
+
+        lc = language_only(lc)
+
+        # returns es if asking for es-PT with
+        # es-PT not available but es available
+        for l in supported_lcs:
+            if lc.lower() == l.lower():
+                return l
+
+        # returns es-ES if asking for es-PT with
+        # es-PT and es not available but  es-ES available
+        for l in supported_lcs:
+            if lc.lower() == language_only(l).lower():
+                return l
+
+    return 'en-US' # last resort
+
+
 def getOSandLC(headers, t2w_lists_path):
     """Get OS and LC of user.
 
@@ -113,7 +152,8 @@ def getOSandLC(headers, t2w_lists_path):
 
     # list of supported locales for Tor Browser
     locales = List('%s/gettor_locales.txt' % t2w_lists_path)
-    client, lang = None, 'en-US'
+
+    client = None
 
     if re.search('Windows', agent):
         client = 'windows'
@@ -127,12 +167,7 @@ def getOSandLC(headers, t2w_lists_path):
     elif re.search('Android', agent):
         client = 'android'
 
-    # find out if the user language is supported by Tor Browser
-    # if not, we use English by default
-    for lc in locales:
-        if re.match("^\['%s[,;].*" % lc, alang):
-            lang = lc
-            break
+    lang = getBestLangMatch(alang, locales)
 
     return client, lang
 
