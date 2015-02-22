@@ -1,0 +1,677 @@
+tor2web (3.1.39) wheezy; urgency=medium
+
+  * New upstream release
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sun, 22 Feb 2015 21:00:23 +0100
+
+tor2web (3.1.35-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.35 (fixed url mangling regexp)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 8 Dec 2014 23:03:42 +0002
+
+tor2web (3.1.34-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.34 (fixed regression related to automatic following of redirects)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 8 Dec 2014 22:12:42 +0002
+
+tor2web (3.1.33-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.33 (fixed regression related to automatic following of redirects)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 8 Dec 2014 21:27:42 +0002
+
+tor2web (3.1.32-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.32 (fixed bug related to wrong header fix)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 24 Nov 2014 00:40:42 +0002
+
+tor2web (3.1.31-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.31 (more explicit/safe handling of dummyproxy urls with support for https)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 17 Nov 2014 21:48:42 +0002
+
+tor2web (3.1.30-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.30 (added support for TLS hidden services)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 17 Nov 2014 21:48:42 +0002
+
+tor2web (3.1.29-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.29 (Corrected regexp for translation mode)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Thu, 13 Nov 2014 15:05:42 +0002
+
+tor2web (3.1.28-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.28 (Fixed header injection twice bug)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Thu, 13 Nov 2014 13:22:42 +0002
+
+tor2web (3.1.27-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.27 (Fixed race condition bug)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Thu, 13 Nov 2014 12:11:42 +0002
+
+tor2web (3.1.26-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.26 (Fixed Apparmor script)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Wed, 12 Nov 2014 18:29:42 +0002
+
+tor2web (3.1.25-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.25 (Reverted changes related to new packaging)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 27 Oct 2014 19:49:42 +0002
+
+tor2web (3.1.24-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.24 (Fixed onionoo list fetching after SSLv3 has been disabled)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 27 Oct 2014 18:30:42 +0002
+
+tor2web (3.1.23-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.23 (Packaging fixes)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Tue, 21 Oct 2014 10:13:42 +0002
+
+tor2web (3.1.22-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.22 (Packaging fixes)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Tue, 21 Oct 2014 09:20:42 +0002
+
+tor2web (3.1.21-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.21 (Disabled SSLv3 due to PoodleBleed Bug)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Tue, 21 Oct 2014 00:40:42 +0002
+
+tor2web (3.1.20-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.20 (Packaging fixes)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sun, 19 Oct 2014 15:10:42 +0002
+
+tor2web (3.1.19-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.19 (Optimization fixes)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sun, 19 Oct 2014 14:41:42 +0002
+
+tor2web (3.1.18-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.18 (Packaging fixes)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sun, 19 Oct 2014 03:32:42 +0002
+
+tor2web (3.1.17-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.17 (Added HostsMap feature)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sun, 19 Oct 2014 03:18:42 +0002
+
+tor2web (3.1.16-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.16 (Regression Fix)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sat, 11 Oct 2014 01:10:42 +0002
+
+tor2web (3.1.15-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.15 (Packaging fixes)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sat, 11 Oct 2014 00:46:42 +0002
+
+tor2web (3.1.14-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.14 (Minor additions)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sat, 11 Oct 2014 00:15:42 +0002
+
+tor2web (3.1.13-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.13 (Packaging fixes)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sat, 9 Aug 2014 18:08:42 +0002
+
+tor2web (3.1.12-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.12 (Packaging fixes)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sat, 9 Aug 2014 17:57:42 +0002
+
+tor2web (3.1.11-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.11 (initial implementation of access disclaimer)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sat, 9 Aug 2014 17:43:42 +0002
+
+tor2web (3.1.10-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.10 (added support for Ubuntu 14.04)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Tue, 29 Jul 2014 00:35:42 +0002
+
+tor2web (3.1.9-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.9 (Packaging fix: added configuration example for publish_lists)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sat, 14 Jun 2014 11:30:42 +0002
+
+tor2web (3.1.8-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.8 (Added blacklist/whitelist expose capability in order to support Ahmia.fi)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sat, 14 Jun 2014 11:01:42 +0002
+
+tor2web (3.1.7-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.7
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 24 Feb 2014 02:08:42 +0002
+
+tor2web (3.1.6-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.6
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 24 Feb 2014 01:35:42 +0002
+
+tor2web (3.1.5-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.5 Added support for TLSv1.1 and TLSv1.2 thanks to pyOpenSSL 0.14
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 24 Feb 2014 01:01:42 +0002
+
+tor2web (3.1.4-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.4 Minor fixes.
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sat, 22 Feb 2014 16:10:42 +0002
+
+tor2web (3.1.3-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.3 Minor fixes.
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Thu, 04 Feb 2014 09:48:42 +0002
+
+tor2web (3.1.2-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.2 Minor fixes.
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Thu, 30 Jan 2014 18:06:42 +0002
+
+tor2web (3.1.1-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.1 Banner updated
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Tue, 17 Jan 2014 15:22:42 +0002
+
+tor2web (3.1.0-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.1.0 Stable Release
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Tue, 17 Jan 2014 15:00:42 +0002
+
+tor2web (3.0.77-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.77 Minor fixes.
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Tue, 14 Jan 2013 18:26:42 +0002
+
+tor2web (3.0.76-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.76 decoy widget bugfixing.
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 02 Dec 2013 16:03:42 +0002
+
+tor2web (3.0.75-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.75 upgraded to Twisted 13.2.0; prctl dependency removed.
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Thu, 28 Nov 2013 10:16:42 +0002
+
+tor2web (3.0.74-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.74 Minor fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sun, 27 Oct 2013 11:00:42 +0002
+
+tor2web (3.0.73-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.73 Minor fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sat, 14 Sep 2013 23:41:42 +0002
+
+tor2web (3.0.72-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.72 Minor fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Fri, 13 Sep 2013 01:41:42 +0002
+
+tor2web (3.0.71-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.71 Minor fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Fri, 13 Sep 2013 01:32:42 +0002
+
+tor2web (3.0.70-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.70 Minor fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Fri, 13 Sep 2013 01:26:42 +0002
+
+tor2web (3.0.69-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.69 Minor fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Fri, 13 Sep 2013 01:18:42 +0002
+
+tor2web (3.0.68-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.68 Minor fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Fri, 13 Sep 2013 01:08:42 +0002
+
+tor2web (3.0.67-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.67 Packaging fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Fri, 13 Sep 2013 00:55:42 +0002
+
+tor2web (3.0.66-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.66 Massive fixs thanks to python pycharm code debugging
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Thu, 12 Sep 2013 23:40:42 +0002
+
+tor2web (3.0.65-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.65 Fixed debian packaging (Apparmor related)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Thu, 12 Sep 2013 18:11:42 +0002
+
+tor2web (3.0.64-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.64 AppArmor sandboxing profile added
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Thu, 12 Sep 2013 17:53:42 +0002
+
+tor2web (3.0.63-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.63 Fix against TLS CRIME Attack
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Tue, 10 Sep 2013 11:34:42 +0002
+
+tor2web (3.0.63-0) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.63 Fix against TLS CRIME Attack
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Tue, 10 Sep 2013 11:34:42 +0002
+
+tor2web (3.0.62-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.62
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Tue, 10 Sep 2013 00:30:42 +0002
+
+tor2web (3.0.61-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.61 Security enforcement of filesystem permissions
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 9 Sep 2013 16:52:42 +0002
+
+tor2web (3.0.60-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.60 Security enforcement of filesystem permissions
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 9 Sep 2013 16:35:42 +0002
+
+tor2web (3.0.59-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.59 Security enforcement of default SSL ciphers
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 9 Sep 2013 11:56:42 +0002
+
+tor2web (3.0.58-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.58 Added dummyproxy capability
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sat, 7 Sep 2013 10:11:42 +0002
+
+tor2web (3.0.57-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.57 Stevy Legacy fix
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Fri, 6 Sep 2013 17:32:42 +0002
+
+tor2web (3.0.56-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.56 Enabled PFS
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Fri, 6 Sep 2013 15:49:42 +0002
+
+tor2web (3.0.55-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.55 Compatibility fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Wed, 5 Sep 2013 12:04:42 +0002
+
+tor2web (3.0.54-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.54 Compatibility fixes (mainly with IE and Safari)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Wed, 5 Sep 2013 11:07:42 +0002
+
+tor2web (3.0.53-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.53 Packaging Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Wed, 4 Sep 2013 22:40:42 +0002
+
+tor2web (3.0.52-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.52 Packaging Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Wed, 4 Sep 2013 22:23:42 +0002
+
+tor2web (3.0.51-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.51 Packaging Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Wed, 4 Sep 2013 21:52:42 +0002
+
+tor2web (3.0.50-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.50 Minor Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Wed, 4 Sep 2013 21:49:42 +0002
+
+tor2web (3.0.49-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.49 Minor Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sun, 1 Sep 2013 19:12:42 +0002
+
+tor2web (3.0.48-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.48 Minor Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sun, 1 Sep 2013 19:06:42 +0002
+
+tor2web (3.0.47-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.47 Minor Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sun, 1 Sep 2013 15:44:42 +0002
+
+tor2web (3.0.46-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.46 Minor Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sun, 1 Sep 2013 15:40:42 +0002
+
+tor2web (3.0.45-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.45 Minor Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sun, 1 Sep 2013 15:33:42 +0002
+
+tor2web (3.0.44-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.44 Minor Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Thu, 29 Aug 2013 13:46:42 +0002
+
+tor2web (3.0.43-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.43 Minor Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Thu, 29 Aug 2013 10:19:42 +0002
+
+tor2web (3.0.42-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.42 Minor Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Thu, 29 Aug 2013 00:28:42 +0002
+
+tor2web (3.0.41-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.41 Minor Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Wed, 28 Aug 2013 22:48:42 +0002
+
+tor2web (3.0.40-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.40 Minor Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Tue, 27 Aug 2013 20:47:42 +0002
+
+tor2web (3.0.39-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.39 Minor Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Tue, 27 Aug 2013 20:23:42 +0002
+
+tor2web (3.0.38-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.38 Minor Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Tue, 27 Aug 2013 10:23:42 +0002
+
+tor2web (3.0.37-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.37 Minor Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 26 Aug 2013 23:15:42 +0002
+
+tor2web (3.0.36-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.36 Minor Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 26 Aug 2013 20:37:42 +0002
+
+tor2web (3.0.35-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.35 Minor Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 26 Aug 2013 15:22:42 +0002
+
+tor2web (3.0.34-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.34 Minor Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 26 Aug 2013 12:22:42 +0002
+
+tor2web (3.0.33-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.33 Minor Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sat, 24 Aug 2013 02:39:42 +0002
+
+tor2web (3.0.32-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.32 Minor Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Fri, 23 Aug 2013 22:18:42 +0002
+
+tor2web (3.0.31-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.31 Minor Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Fri, 23 Aug 2013 18:08:42 +0002
+
+tor2web (3.0.30-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.30 Minor Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Fri, 23 Aug 2013 17:44:42 +0002
+
+tor2web (3.0.29-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.29 Minor Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Fri, 23 Aug 2013 17:37:42 +0002
+
+tor2web (3.0.28-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.28 Minor Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Fri, 23 Aug 2013 17:09:42 +0002
+
+tor2web (3.0.27-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.27 Packaging Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Fri, 23 Aug 2013 16:31:42 +0002
+
+tor2web (3.0.26-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.26 Multiprocess server implemented
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Fri, 23 Aug 2013 16:21:42 +0002
+
+tor2web (3.0.25-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.25 Minor Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Wed, 21 Aug 2013 10:39:42 +0002
+
+tor2web (3.0.24-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.24 Minor Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 19 Aug 2013 12:37:42 +0002
+
+tor2web (3.0.23-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.23 Added Remote Blacklist fetching
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 19 Aug 2013 02:41:42 +0002
+
+tor2web (3.0.22-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.22 Addeed Remote Blacklist fetching
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 19 Aug 2013 02:27:42 +0002
+
+tor2web (3.0.20-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.20 Minor Additions
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Wed, 16 Aug 2013 02:38:42 +0002
+
+tor2web (3.0.19-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.19 Fixed Packaging issues
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Wed, 14 Aug 2013 23:30:42 +0002
+
+tor2web (3.0.16-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.16 Simple Stats API added
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Wed, 14 Aug 2013 22:30:42 +0002
+
+tor2web (3.0.15-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.15 Added possibility to enable HTTP/HTTPS/BOTH (Schiphol Airport Edition)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Tue, 13 Aug 2013 12:40:42 +0002
+
+tor2web (3.0.14-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.14 Added Decoy Traffic API (ringobongo security edition)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Tue, 13 Aug 2013 01:07:42 +0002
+
+tor2web (3.0.13-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.13 Packaging fixed (but we like to continue calling it nukraxe edition)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Tue, 13 Aug 2013 00:17:42 +0002
+
+tor2web (3.0.12-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.12 Fixed Twisted Leak (nukraxe edition)
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Mon, 12 Aug 2013 11:45:42 +0002
+
+tor2web (3.0.11-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.11 Added possibility to disable banner
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Sat, 10 Aug 2013 20:36:42 +0002
+
+tor2web (3.0.10-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.10 Packaging Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Fri, 9 Aug 2013 16:16:42 +0002
+
+tor2web (3.0.9-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.9 Minor Fixes
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Fri, 9 Aug 2013 12:54:42 +0002
+
+tor2web (3.0.8-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.8 Globaleaks Signed Release
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Fri, 9 Aug 2013 12:31:42 +0002
+
+tor2web (3.0.7-2) unstable; urgency=low
+
+  * Tor2web 3.0 - 3.0.7 Globaleaks Signed Release
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Fri, 9 Aug 2013 11:31:42 +0002
+
+tor2web (3.0.6-2) unstable; urgency=low
+
+  * Tor2web 3.0 - Init Script updated / Cron Mem Check Script added
+
+ -- Tor2web software signing key <info@globaleaks.org>  Thu, 6 Aug 2013 15:01:02 +0002
+
+tor2web (3.0.5-2) unstable; urgency=low
+
+  * Tor2web 3.0 - Minor fixes
+
+ -- Tor2web software signing key <info@globaleaks.org>  Thu, 1 Aug 2013 11:02:02 +0002
+
+tor2web (3.0.4-2) unstable; urgency=low
+
+  * Tor2web 3.0 - Minor fixes
+
+ -- Tor2web software signing key <info@globaleaks.org>  Fri, 25 Jul 2013 20:16:02 +0002
+
+tor2web (3.0.3-2) unstable; urgency=low
+
+  * Tor2web 3.0 - Minor fixes
+
+ -- Tor2web software signing key <info@globaleaks.org>  Sun, 21 Jul 2013 00:28:02 +0002
+
+tor2web (3.0.2-2) unstable; urgency=low
+
+  * Tor2web 3.0 - Minor fixes
+
+ -- Tor2web software signing key <info@globaleaks.org>  Wed, 17 Jul 2013 15:11:02 +0002
+
+tor2web (3.0.1-2) unstable; urgency=high
+
+  * Tor2web 3.0 - Minor fixes
+
+ -- Tor2web software signing key <info@globaleaks.org>  Mon, 15 Jul 2013 14:54:03 +0002
+
+tor2web (3.0.0-2) unstable; urgency=high
+
+  * Tor2web 3.0 - First Deb Release
+
+ -- Tor2web software signing key <info@globaleaks.org>  Sat, 29 Jun 2013 18:54:05 +0002
