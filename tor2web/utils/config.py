@@ -166,7 +166,6 @@ class Config(Storage):
     def verify_config_is_sane(self):
         '''Checks that the specified config values are allowed.'''
         self.verify_values('transport', ['HTTP', 'HTTPS', 'BOTH'])
-        self.verify_values('disable_banner', [True, False])
         self.verify_values('logreqs', [True, False])
         self.verify_values('debugmode', [True, False])
         self.verify_values('debugtostdout', [True, False])
