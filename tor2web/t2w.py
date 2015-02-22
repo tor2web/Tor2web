@@ -727,12 +727,8 @@ class T2WRequest(http.Request):
                             isIPAddress(request.host) or \
                             isIPv6Address(request.host) or \
                             (config.overriderobotstxt and request.uri == '/robots.txt') or \
-<<<<<<< HEAD
                             request.uri.startswith('/antanistaticmap/') or \
                             request.uri.startswith('/gettor') or \
-=======
-                            request.uri.startswith('/antanistaticmap/') \
->>>>>>> fca3ec2... Implement CheckTor API (#221)
                             request.uri.startswith('/checktor')
 
         if content_length is not None:
