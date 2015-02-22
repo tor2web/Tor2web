@@ -1,4 +1,10 @@
 Changes in version 3.1.38 - 2015-02-10
+    o Added CheckTor feature
+    o Added GetTor feature
+    o Minor corrections
+
+
+Changes in version 3.1.38 - 2015-02-10
     o Added missing support for cookies mangling
     o Added support for disabling automagic onion redirect
     o Added support for X-Forwarded-For handling
