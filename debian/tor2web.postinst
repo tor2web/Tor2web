@@ -6,13 +6,13 @@ if ! id -u tor2web >/dev/null 2>&1; then
   useradd tor2web -b /home/tor2web -s /bin/false
 fi
 
-if [ ! -d /home/tor2web ]; then
-  mkdir -p /home/tor2web
-  mkdir -p /home/tor2web/certs
-  mkdir -p /home/tor2web/lists
-  mkdir -p /home/tor2web/logs
-  chown tor2web:tor2web /home/tor2web/ -R
-fi
+mkdir -p /home/tor2web
+mkdir -p /home/tor2web/certs
+mkdir -p /home/tor2web/lists
+mkdir -p /home/tor2web/logs
+mkdir -p /home/tor2web/torbrowser
+
+chown tor2web:tor2web /home/tor2web/ -R
 
 # XXX. Hardcore installation of tor2web dependencies using pip.
 # This is needed until tor2web will be packaged removing the need

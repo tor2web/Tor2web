@@ -871,7 +871,7 @@ class T2WRequest(http.Request):
 
                     clientOS, clientLang = getOSandLC(
                         self.requestHeaders,
-                        config.t2w_file_path('lists')
+                        List(config.t2w_file_path('lists/gettor_locales.txt'))
                     )
 
                     if clientOS == 'iphone' or \
@@ -1539,6 +1539,10 @@ if 'T2W_FDS_HTTPS' not in os.environ and 'T2W_FDS_HTTP' not in os.environ:
         reactor.listenTCPonExistingFD = listenTCPonExistingFD
 
         reactor.listenUNIX(os.path.join(config.rundir, 'rpc.socket'), factory=pb.PBServerFactory(self.rpc_server))
+
+        if not config.disable_gettor:
+            gtt = LoopingCall(getTorTask, config)
+            gtt.start(3600)
 
         for i in range(config.processes):
             subprocess = spawnT2W(self, self.childFDs, self.fds_https, self.fds_http)

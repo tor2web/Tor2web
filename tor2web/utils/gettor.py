@@ -138,7 +138,7 @@ def getBestLangMatch(accept_language, supported_lcs):
     return 'en-US' # last resort
 
 
-def getOSandLC(headers, t2w_lists_path):
+def getOSandLC(headers, locales):
     """Get OS and LC of user.
 
     The user-agent and accept-language headers of the client's browser
@@ -149,9 +149,6 @@ def getOSandLC(headers, t2w_lists_path):
     """
     agent = str(headers.getRawHeaders(b'user-agent'))
     alang = str(headers.getRawHeaders(b'accept-language'))
-
-    # list of supported locales for Tor Browser
-    locales = List('%s/gettor_locales.txt' % t2w_lists_path)
 
     client = None
 
@@ -298,7 +295,7 @@ def getTorTask(config):
             filenames_regexp = ''
 
             i = 0
-            for lang in List('%s/lists/gettor_locales.txt' % config.datadir):
+            for lang in List(config.t2w_file_path('lists/gettor_locales.txt')):
                 if i:
                     filenames_regexp += '|'
 
