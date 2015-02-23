@@ -1240,10 +1240,6 @@ def start_worker():
     ult = LoopingCall(updateListsTask)
     ult.start(600)
 
-    if not config.disable_gettor:
-        gtt = LoopingCall(getTorTask, config)
-        gtt.start(3600)
-
     # ##############################################################################
     # Static Data loading
     # Here we make a file caching to not handle I/O

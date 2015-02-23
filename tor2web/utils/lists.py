@@ -210,10 +210,13 @@ class List(set):
         """
         self.clear()
 
-        #simple touch to create non existent files
+        # simple touch to create non existent files
         try:
             open(self.filename, 'a').close()
+        except:
+            pass
 
+        try:
             with open(self.filename, 'r') as fh:
                 for l in fh.readlines():
                     self.add(re.split("#", l)[0].rstrip("[ , \n,\t]"))
