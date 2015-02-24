@@ -937,13 +937,19 @@ class T2WRequest(http.Request):
             defer.returnValue(NOT_DONE_YET)
 
         else:  # the requested resource is remote, we act as proxy
-
             self.obj.uri = request.uri
 
             if config.mode == 'TRANSLATION' and request.host in hosts_map:
                 self.obj.onion = hosts_map[request.host]
             else:
-                self.obj.onion = request.host.split(".")[0] + ".onion"
+                # remove the basehost from the request.host
+                self.obj.onion = request.host[:-len(config.basehost) - 1 ] + '.onion'
+                self.var['oniondomain'] = self.obj.onion 
+                self.var['onionurl'] = (self.obj.onion + self.obj.uri).rstrip(' /')
+
+                # harmless header that helps tor2web operators and onionsite publishers debug
+                self.setHeader(b'X-Onion-Url', b'%s' % self.var['onionurl'] )
+
 
             if not request.host or not verify_onion(self.obj.onion):
                 self.sendError(406, 'error_invalid_hostname.tpl')
@@ -998,6 +1004,12 @@ class T2WRequest(http.Request):
                     if hashlib.md5(self.obj.onion).hexdigest() in black_list:
                         self.sendError(403, 'error_hs_completely_blocked.tpl')
                         defer.returnValue(NOT_DONE_YET)
+
+                    # for blocking specific URLs
+                    if hashlib.md5(self.var['onionurl']).hexdigest() in black_list:
+                        self.sendError(451, 'error_hs_specific_page_blocked.tpl')
+                        defer.returnValue(NOT_DONE_YET)
+
 
             agent = Agent(reactor, sockhost=config.sockshost, sockport=config.socksport, pool=self.pool)
             ragent = RedirectAgent(agent, 1)
