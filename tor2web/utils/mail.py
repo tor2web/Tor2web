@@ -56,7 +56,11 @@ def sendmail(authenticationUsername, authenticationSecret, fromAddress, toAddres
     @param smtpPort: the smtp port
     """
     contextFactory = ClientContextFactory()
-    contextFactory.method = SSL.SSLv3_METHOD
+
+    # evilaliv3:
+    #   in order to understand and before change this settings please
+    #   read the comment inside tor2web.utils.ssl
+    contextFactory.method = SSL.SSLv23_METHOD
 
     resultDeferred = defer.Deferred()
 

@@ -126,7 +126,6 @@ class T2WSSLContextFactory(ssl.ContextFactory):
         # This trick make openssl consider valid all TLS methods.
         self.sslmethod = SSL.SSLv23_METHOD
 
-
         self.dhFileName = dhFileName
         self.cipherList = cipherList
 
