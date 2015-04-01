@@ -17,7 +17,7 @@ function redirectIfOnTor(url, test_url) {
 
       xmlhttp.onreadystatechange=function() {
         if (xmlhttp.readyState==4 && xmlhttp.status==200) {
-          if (xmlhttp.getResponseHeader("x-check-tor")) {
+	  if (xmlhttp.getResponseHeader("x-check-tor") === "true") {
             window.location.href = url;
           }
         }
