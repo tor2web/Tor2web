@@ -751,7 +751,11 @@ class T2WRequest(http.Request):
 
         # we serve contents only over HTTPS
         if not self.isSecure() and (config.transport != 'HTTP'):
-            self.redirect("https://" + request.host + request.uri)
+            if config.listen_port_https == 443:
+                self.redirect("https://" + request.host + request.uri)
+            else:
+                self.redirect("https://" + request.host + ":" + str(config.listen_port_https) + request.uri)
+
             self.finish()
             defer.returnValue(None)
 
