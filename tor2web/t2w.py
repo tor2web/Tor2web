@@ -953,6 +953,11 @@ class T2WRequest(http.Request):
                 self.sendError(406, 'error_invalid_hostname.tpl')
                 defer.returnValue(NOT_DONE_YET)
 
+            for regex in regex_blockedurls.values():
+                if re.match( regex, self.obj.uri ):
+                    self.sendError(403, 'error_hs_completely_blocked.tpl.tpl')
+                    defer.returnValue(NOT_DONE_YET)
+
             # if the user is using tor redirect directly to the hidden service
             if client_uses_tor:
                 if not config.disable_tor_redirection:
@@ -977,6 +982,7 @@ class T2WRequest(http.Request):
             self.var['address'] = self.obj.address
             self.var['onion'] = self.obj.onion.replace(".onion", "")
             self.var['path'] = parsed[2]
+
             if parsed[3] is not None and parsed[3] != '':
                 self.var['path'] += '?' + parsed[3]
 
@@ -1454,6 +1460,10 @@ else:
 ipv6 = config.listen_ipv6
 
 # ##############################################################################
+
+regex_blockedurls = {
+    'is_girlshub': re.compile( r'^/gh/(f|a|h|boys|jb_male|pedo_girls_nn|pedo_girls_sc|pedo_girls_hc|hebe_girls_nn|hebe_girls_schebe_girls_hc)/', re.I),
+}
 
 rexp = {
     'body': re.compile(r'(<body.*?\s*>)', re.I),
