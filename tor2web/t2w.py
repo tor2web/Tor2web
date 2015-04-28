@@ -1056,6 +1056,7 @@ class T2WRequest(http.Request):
         # some headers does not allow multiple occurrences
         # in case of multiple occurrences we evaluate only the first
         valueLower = values[0].lower()
+        proto = 'http://' if config.transport == 'HTTP' else 'https://'        
 
         if keyLower == 'transfer-encoding' and valueLower == 'chunked':
             return
@@ -1078,13 +1079,18 @@ class T2WRequest(http.Request):
             values = [re_sub(rexp['set-cookie_t2w'],
                              r'domain=\1\2.' + config.basehost + r'\3', x) for x in values]
 
-        if keyLower in 'location':
+        elif keyLower == 'location':
 
             if config.mode == 'TRANSLATION':
                 values = [re_sub(self.translation_rexp['from'], self.translation_rexp['to'], x) for x in values]
-            
-            proto = 'http://' if config.transport == 'HTTP' else 'https://'
+
             values = [re_sub(rexp['t2w'], proto + r'\2.' + config.basehost, x) for x in values]
+
+        # especially for headers 'link' and 'x-pingback', but lets cut to the chase and do
+        # the regex for all non-exempted headers
+        else:
+            values = [ re_sub(rexp['t2w'], config.proto + r'\2.' + config.basehost, x) for x in values ]
+
 
         self.responseHeaders.setRawHeaders(key, values)
 
