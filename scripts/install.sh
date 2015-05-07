@@ -7,9 +7,6 @@ if [ ! $(id -u) = 0 ]; then
 fi
 
 INSTALL_LOG="./install.log"
-DISTRO='unknown'
-DISTRO_VERSION='unknown'
-SUPPORTED_PLATFORM=0
 
 PGP_KEY="
 -----BEGIN PGP PUBLIC KEY BLOCK-----
@@ -77,43 +74,48 @@ EYnJ858kK0cjt3aj11AcJnq81u//+5jl4FJOy/3lZ+VB
 =J7+v
 -----END PGP PUBLIC KEY BLOCK-----"
 
-
-if [ -r /lib/lsb/init-functions ]; then
-  if [ "$( lsb_release -is )" = "Debian" ]; then
-    DISTRO="debian"
-    DISTRO_VERSION="$( lsb_release -cs )"
-  else
-    DISTRO="ubuntu"
-    DISTRO_VERSION="$( lsb_release -cs )"
-  fi
+DISTRO="unknown"
+DISTRO_CODENAME="unknown"
+if which lsb_release >/dev/null; then
+  DISTRO="$( lsb_release -is )"
+  DISTRO_CODENAME="$( lsb_release -cs )"
 fi
 
-if [ "$DISTRO" = "debian" ]; then
-  if [ "$DISTRO_VERSION" = "wheezy" ] || [ "$DISTRO_VERSION" = "jessie" ]; then
-    SUPPORTED_PLATFORM=1
-  fi
-elif [ "$DISTRO" = "ubuntu" ]; then
-  if [ "$DISTRO_VERSION" = "precise" ] || [ "$DISTRO_VERSION" = "trusty" ]; then
-    SUPPORTED_PLATFORM=1
-  fi
+SUPPORTED_PLATFORM=0
+if [ "$DISTRO_CODENAME" = "precise" ] ||
+   [ "$DISTRO_CODENAME" = "trusty" ] ||
+   [ "$DISTRO_CODENAME" = "wheezy" ] ||
+   [ "$DISTRO_CODENAME" = "jessie" ]; then
+  SUPPORTED_PLATFORM=1
 fi
 
 if [ $SUPPORTED_PLATFORM -eq 0 ]; then
   echo "!!!!!!!!!!!! WARNING !!!!!!!!!!!!"
-  echo "You are attempting to install Tor2web on an unsupported platform."
-  echo "Supported platform are Debian (wheezy, jessie) and Ubuntu (precise, trusty)\n"
-  echo "Do you wish to continue at your own risk [Y|N]? "
-  read ans
-  if [ $ans = y -o $ans = Y -o $ans = yes -o $ans = Yes -o $ans = YES ]
-  then
-    echo "Ok, you wanted it!\n"
-  else
-    echo "Installation aborted. Still friends, right?"
-    exit
-  fi
+  echo "You are attempting to install GlobaLeaks on an unsupported platform."
+  echo "Supported platform are Ubuntu (precise, trusty) and Debian (wheezy, jessie)"
+
+  while true; do
+    read -p "Do you wish to continue anyhow? [y|n]?" yn
+    case $yn in
+      [Yy]*) break;;
+      [Nn]*) echo "Installation aborted."; exit;;
+      *) echo $yn; echo "Please answer y/n."; continue;;
+    esac
+  done
 fi
 
-echo "Performing Tor2web installation on $DISTRO - $DISTRO_VERSION"
+echo "Performing Tor2web installation on $DISTRO - $DISTRO_CODENAME"
+
+if [ $SUPPORTED_PLATFORM -eq 0 ]; then
+  # In case of unsupported platforms we fallback on trusty
+  echo "Given that the platform is not supported the install script will use trusty repository."
+  echo "In case of failure refer to the wiki for manual setup possibilities."
+  echo "Tor2web Wiki Address: https://github.com/globaleaks/Tor2web/wiki"
+
+  # Given the fact that the platform is not supported be try as it is an Ubuntu 14.04
+  DISTRO="Ubuntu"
+  DISTRO_CODENAME="trusty"
+fi
 
 DO () {
   if [ -z "$2" ]; then
@@ -162,9 +164,29 @@ echo "$PGP_KEY" > $TMPFILE
 DO "apt-key add $TMPFILE" "0"
 DO "rm -f $TMPFILE" "0"
 
-if [ ! -f /etc/apt/sources.list.d/globaleaks ]; then
-  echo "deb http://deb.globaleaks.org $DISTRO_VERSION/" > /etc/apt/sources.list.d/globaleaks.list
+DO "apt-get update -y" "0"
+
+# on Ubuntu python-pip requires universe repository
+if [ $DISTRO == 'Ubuntu' ];then
+  if [ "$DISTRO_CODENAME" = "precise" ]; then
+    echo "Installing python-software-properties"
+    DO "apt-get install python-software-properties -y" "0"
+  fi
+
+  if [ "$DISTRO_CODENAME" = "trusty" ]; then
+    echo "Installing software-properties-common"
+    DO "apt-get install software-properties-common -y" "0"
+  fi
+
+  echo "Adding Ubuntu Universe repository"
+  DO "apt-add-repository universe" "0"
+fi
+
+if [ ! -f /etc/apt/sources.list.d/globaleaks.list ]; then
+  # we avoid using apt-add-repository as we prefer using /etc/apt/sources.list.d/globaleaks.list
+  echo "deb http://deb.globaleaks.org $DISTRO_CODENAME/" > /etc/apt/sources.list.d/globaleaks.list
 fi
 
 DO "apt-get update -y" "0"
+
 DO "apt-get install tor2web -y" "0"
