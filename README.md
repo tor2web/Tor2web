@@ -1,7 +1,8 @@
 # Tor2web
+[![Build Status](https://travis-ci.org/globaleaks/Tor2web.svg?branch=master)](https://travis-ci.org/globaleaks/Tor2web)
+[![Code Health](https://landscape.io/github/globaleaks/Tor2web/master/landscape.svg)](https://landscape.io/github/globaleaks/Tor2web/master)
 
 ## Introduction
-
 Tor2web is a web proxy software that let you access Tor Hidden Services from
 the Internet under the domain *.tor2web.org (or other you make configure)
 rather than by using .onion, reachable only from within Tor Darknet.
@@ -19,7 +20,7 @@ even if they have not installed Tor.
 * [Github Documentation Wiki](https://github.com/globaleaks/Tor2Web-3.0/wiki/Home)
 
 ## License
-Copyright (C) 2011-2014 Hermes No Profit Association - GlobaLeaks Project
+Copyright (C) 2011-2015 Hermes No Profit Association - GlobaLeaks Project
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU Affero General Public License as published by the Free
