@@ -1,22 +1,4 @@
 """
-    Tor2web
-    Copyright (C) 2012 Hermes No Profit Association - GlobaLeaks Project
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
-
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-"""
-
-"""
 
 :mod:`Tor2Web`
 =====================================================
@@ -48,22 +30,22 @@ from cgi import parse_header
 
 from zope.interface import implements
 from twisted.spread import pb
-from twisted.internet import reactor, protocol, defer
+from twisted.internet import reactor, protocol, defer, address
 from twisted.internet.abstract import isIPAddress, isIPv6Address
 from twisted.internet.endpoints import TCP4ClientEndpoint, SSL4ClientEndpoint
 from twisted.protocols.policies import WrappingFactory
 from twisted.web import http, client, _newclient
 from twisted.web.error import SchemeNotSupported
-from twisted.web.http import datetimeToString, StringTransport, _IdentityTransferDecoder, _ChunkedTransferDecoder, \
-    parse_qs
+from twisted.web.http import datetimeToString, StringTransport, \
+    _IdentityTransferDecoder, _ChunkedTransferDecoder, parse_qs
 from twisted.web.http_headers import Headers
 from twisted.web.server import NOT_DONE_YET
 from twisted.web.template import flattenString, XMLString
 from twisted.web.iweb import IBodyProducer
 from twisted.python import log, logfile
 from twisted.python.compat import networkString, intToBytes
+from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
-from twisted.python.log import err
 from twisted.internet.task import LoopingCall
 from tor2web import __version__
 from tor2web.utils.config import Config
@@ -230,7 +212,7 @@ def spawnT2W(father, childFDs, fds_https, fds_http):
                                 childFDs=childFDs)
 
 
-class Tor2webObj():
+class Tor2webObj(object):
     def __init__(self):
         # The destination hidden service identifier
         self.onion = None
@@ -379,14 +361,13 @@ class RedirectAgent(client.RedirectAgent):
     """
     Overridden client.RedirectAgent version where we evaluate and handle automatically only HTTPS redirects
     """
-
     def _handleResponse(self, response, method, uri, headers, redirectCount):
         locationHeaders = response.headers.getRawHeaders('location', [])
         if locationHeaders:
             location = self._resolveLocation(uri, locationHeaders[0])
             parsed = client._URI.fromBytes(location)
             if parsed.scheme == 'https':
-                return client.RedirectAgent._handleResponse(self, response, method, uri, header, redirectCount)
+                return client.RedirectAgent._handleResponse(self, response, method, uri, headers, redirectCount)
 
         return response
 
@@ -439,12 +420,6 @@ class T2WRequest(http.Request):
 
         self.translation_rexp = {}
 
-    def finish(self):
-        try:
-            http.Request.finish()
-        except Exception:
-            pass
-
     def getRequestHostname(self):
         """
             Function overload to fix ipv6 bug:
@@ -496,7 +471,7 @@ class T2WRequest(http.Request):
                                                               port))
                     else:
                         raise Exception
-        except:
+        except Exception:
             return []
 
         return forwarders
@@ -841,7 +816,7 @@ class T2WRequest(http.Request):
                         ctype = ctype[0]
 
                     if self.method == b"POST" and ctype:
-                        key, pdict = parse_header(ctype)
+                        key, _ = parse_header(ctype)
                         if key == b'application/x-www-form-urlencoded':
                             args.update(parse_qs(content, 1))
                     # ################################################################
@@ -923,7 +898,7 @@ class T2WRequest(http.Request):
 
                 else:
                     if type(antanistaticmap[staticpath]) == str:
-                        filename, ext = os.path.splitext(staticpath)
+                        _, ext = os.path.splitext(staticpath)
                         self.setHeader(b'content-type', mimetypes.types_map[ext])
                         content = antanistaticmap[staticpath]
                         defer.returnValue(self.contentFinish(content))
@@ -1236,71 +1211,6 @@ class T2WLimitedRequestsFactory(WrappingFactory):
 
 
 def start_worker():
-    global antanistaticmap
-    global templates
-    global pool
-    global ports
-
-    ult = LoopingCall(updateListsTask)
-    ult.start(600)
-
-    # ##############################################################################
-    # Static Data loading
-    # Here we make a file caching to not handle I/O
-    # at run-time and achieve better performance
-    # ##############################################################################
-    antanistaticmap = {}
-
-    # system default static files
-    sys_static_dir = os.path.join(config.sysdatadir, "static/")
-    if os.path.exists(sys_static_dir):
-        for root, dirs, files in os.walk(os.path.join(sys_static_dir)):
-            for basename in files:
-                filename = os.path.join(root, basename)
-                f = FilePath(filename)
-                antanistaticmap[filename.replace(sys_static_dir, "")] = f.getContent()
-
-    # user defined static files
-    usr_static_dir = os.path.join(config.datadir, "static/")
-    if usr_static_dir != sys_static_dir and os.path.exists(usr_static_dir):
-        for root, dirs, files in os.walk(os.path.join(usr_static_dir)):
-            for basename in files:
-                filename = os.path.join(root, basename)
-                f = FilePath(filename)
-                antanistaticmap[filename.replace(usr_static_dir, "")] = f.getContent()
-    # ##############################################################################
-
-    # ##############################################################################
-    # Templates loading
-    # Here we make a templates cache in order to not handle I/O
-    # at run-time and achieve better performance
-    # ##############################################################################
-    templates = {}
-
-    # system default templates
-    sys_tpl_dir = os.path.join(config.sysdatadir, "templates/")
-    if os.path.exists(sys_tpl_dir):
-        files = FilePath(sys_tpl_dir).globChildren("*.tpl")
-        for f in files:
-            f = FilePath(config.t2w_file_path(os.path.join('templates', f.basename())))
-            templates[f.basename()] = PageTemplate(XMLString(f.getContent()))
-
-    # user defined templates
-    usr_tpl_dir = os.path.join(config.datadir, "templates/")
-    if usr_tpl_dir != sys_tpl_dir and os.path.exists(usr_tpl_dir):
-        files = FilePath(usr_tpl_dir).globChildren("*.tpl")
-        for f in files:
-            f = FilePath(config.t2w_file_path(os.path.join('templates', f.basename())))
-            templates[f.basename()] = PageTemplate(XMLString(f.getContent()))
-    # ##############################################################################
-
-    pool = client.HTTPConnectionPool(reactor, True)
-    pool.maxPersistentPerHost = config.sockmaxpersistentperhost
-    pool.cachedConnectionTimeout = config.sockcachedconnectiontimeout
-    pool.retryAutomatically = config.sockretryautomatically
-    def nullStartedConnecting(self, connector): pass
-    pool._factory.startedConnecting = nullStartedConnecting
-
     factory = T2WProxyFactory()
 
     # we do not want all workers to die in the same moment
@@ -1312,7 +1222,6 @@ def start_worker():
                                            config.ssl_cert,
                                            config.ssl_dh,
                                            config.cipher_list)
-
 
     fds_https, fds_http = [], []
     if 'T2W_FDS_HTTPS' in os.environ:
@@ -1363,8 +1272,6 @@ def updateListsTask():
     def set_hosts_map(d):
         global hosts_map
         hosts_map = d
-
-    global config
 
     rpc("get_white_list").addCallback(set_white_list)
     rpc("get_black_list").addCallback(set_black_list)
@@ -1463,8 +1370,61 @@ rexp = {
     'html_t2w': re.compile( r'(href|src|url|action)([\ ]*=[\ ]*[\'\"]?)(?:http:|https:)?//([a-z0-9]{16})\.onion([\ \'\"/])', re.I)
 }
 
-if 'T2W_FDS_HTTPS' not in os.environ and 'T2W_FDS_HTTP' not in os.environ:
+# ##############################################################################
+# Static Data loading
+# Here we make a file caching to not handle I/O
+# at run-time and achieve better performance
+# ##############################################################################
+antanistaticmap = {}
 
+# system default static files
+sys_static_dir = os.path.join(config.sysdatadir, "static/")
+if os.path.exists(sys_static_dir):
+    for root, dirs, files in os.walk(os.path.join(sys_static_dir)):
+        for basename in files:
+            filename = os.path.join(root, basename)
+            f = FilePath(filename)
+            antanistaticmap[filename.replace(sys_static_dir, "")] = f.getContent()
+
+# user defined static files
+usr_static_dir = os.path.join(config.datadir, "static/")
+if usr_static_dir != sys_static_dir and os.path.exists(usr_static_dir):
+    for root, dirs, files in os.walk(os.path.join(usr_static_dir)):
+        for basename in files:
+            filename = os.path.join(root, basename)
+            f = FilePath(filename)
+            antanistaticmap[filename.replace(usr_static_dir, "")] = f.getContent()
+# ##############################################################################
+
+templates = {}
+
+# system default templates
+sys_tpl_dir = os.path.join(config.sysdatadir, "templates/")
+if os.path.exists(sys_tpl_dir):
+    files = FilePath(sys_tpl_dir).globChildren("*.tpl")
+    for f in files:
+        f = FilePath(config.t2w_file_path(os.path.join('templates', f.basename())))
+        templates[f.basename()] = PageTemplate(XMLString(f.getContent()))
+
+# user defined templates
+usr_tpl_dir = os.path.join(config.datadir, "templates/")
+if usr_tpl_dir != sys_tpl_dir and os.path.exists(usr_tpl_dir):
+    files = FilePath(usr_tpl_dir).globChildren("*.tpl")
+    for f in files:
+        f = FilePath(config.t2w_file_path(os.path.join('templates', f.basename())))
+        templates[f.basename()] = PageTemplate(XMLString(f.getContent()))
+# ##############################################################################
+
+ports = []
+
+pool = client.HTTPConnectionPool(reactor, True)
+pool.maxPersistentPerHost = config.sockmaxpersistentperhost
+pool.cachedConnectionTimeout = config.sockcachedconnectiontimeout
+pool.retryAutomatically = config.sockretryautomatically
+def nullStartedConnecting(self, connector): pass
+pool._factory.startedConnecting = nullStartedConnecting
+
+if 'T2W_FDS_HTTPS' not in os.environ and 'T2W_FDS_HTTP' not in os.environ:
     set_proctitle("tor2web")
 
     def open_listenin_socket(ip, port):
@@ -1575,10 +1535,9 @@ if 'T2W_FDS_HTTPS' not in os.environ and 'T2W_FDS_HTTP' not in os.environ:
     t2w_daemon.daemon_shutdown = daemon_shutdown
     t2w_daemon.rpc_server = T2WRPCServer(config)
 
-    t2w_daemon.run(config)
+    t2w_daemon.run()
 
 else:
-
     set_proctitle("tor2web-worker")
 
     white_list = []

@@ -1,22 +1,4 @@
 """
-    Tor2web
-    Copyright (C) 2012 Hermes No Profit Association - GlobaLeaks Project
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
-
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-"""
-
-"""
 
 :mod:`Tor2Web`
 =====================================================
@@ -34,7 +16,8 @@ import glob
 
 import os
 from OpenSSL import SSL
-from OpenSSL.crypto import load_certificate, dump_certificate, FILETYPE_PEM
+from OpenSSL.crypto import load_certificate, dump_certificate, FILETYPE_PEM, \
+ _raise_current_error
 from pyasn1.type import univ, constraint, char, namedtype, tag
 from pyasn1.codec.der.decoder import decode
 from twisted.internet import ssl

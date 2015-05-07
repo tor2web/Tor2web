@@ -1,22 +1,4 @@
 """
-    Tor2web
-    Copyright (C) 2012 Hermes No Profit Association - GlobaLeaks Project
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
-
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-"""
-
-"""
 
 :mod:`Tor2Web`
 =====================================================
@@ -37,7 +19,6 @@ import json
 from collections import OrderedDict
 from StringIO import StringIO
 
-from OpenSSL import SSL
 from twisted.internet import reactor, ssl
 from twisted.internet.task import LoopingCall
 from twisted.internet.defer import Deferred
@@ -213,14 +194,14 @@ class List(set):
         # simple touch to create non existent files
         try:
             open(self.filename, 'a').close()
-        except:
+        except Exception:
             pass
 
         try:
             with open(self.filename, 'r') as fh:
                 for l in fh.readlines():
                     self.add(re.split("#", l)[0].rstrip("[ , \n,\t]"))
-        except:
+        except Exception:
             pass
 
     def dump(self):
@@ -231,7 +212,7 @@ class List(set):
             with open(self.filename, 'w') as fh:
                 for l in self:
                     fh.write(l + "\n")
-        except:
+        except Exception:
             pass
 
     def handleData(self, data):
