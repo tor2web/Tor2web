@@ -1,22 +1,4 @@
 """
-    Tor2web
-    Copyright (C) 2015 Hermes No Profit Association - GlobaLeaks Project
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
-
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-"""
-
-"""
 
 :mod:`Tor2Web`
 =====================================================
@@ -43,9 +25,7 @@ from twisted.internet import defer
 from twisted.protocols.basic import FileSender
 from twisted.python.filepath import FilePath
 from twisted.python.log import err
-from twisted.internet import defer
 from twisted.web.client import getPage, downloadPage
-
 from twisted.web.server import NOT_DONE_YET
 
 from tor2web.utils.lists import List
@@ -284,7 +264,7 @@ def getTorTask(config):
     try:
         with open (latest_tb_file, 'r') as version_file:
             current_version = version_file.read().replace('\n', '')
-    except:
+    except Exception:
         pass
 
     if current_version != latest_version:
@@ -326,5 +306,5 @@ def getTorTask(config):
             with open(latest_tb_file, 'w') as version_file:
                 version_file.write(latest_version)
 
-        except:
+        except Exception:
             pass
