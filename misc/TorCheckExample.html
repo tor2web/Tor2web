@@ -1,0 +1,78 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type" />
+<title>Test</title>
+
+<script type="text/javascript">
+
+function ShowIfOnTor(test_url) {
+/*
+  Copyright 2015 - Hermes Center - GlobaLeaks project
+  Author <giovanni.pellerano@evilaliv3.org>
+  MOD By Rafael Duval for Cubanet.org
+
+  Javascript CheckTor library
+
+  Tests if the user is using Tor
+  Shows/Hides DIVs if Tor is present/absent
+*/
+
+  try {
+    if (typeof(test_url) === 'undefined') {
+      var test_url = 'https://antani.tor2web.org/checktor';
+    }
+    if (window.XMLHttpRequest) {
+      var xmlhttp = new XMLHttpRequest();
+
+      xmlhttp.onreadystatechange=function() {
+        if (xmlhttp.readyState==4 && xmlhttp.status==200) {
+	  if (xmlhttp.getResponseHeader("x-check-tor") === "true") {
+	  
+	  //Tor detected, Show button
+	  document.getElementById('TorPresent').style.display = 'block';
+	  document.getElementById('NoTor').style.display = 'none';
+          }
+		  
+		else {
+		  //Tor not detected, hide button
+		  document.getElementById('TorPresent').style.display = 'none';
+		  document.getElementById('NoTor').style.display = 'block';
+		}		  
+		  
+        }
+
+		else {
+		  //Tor not detected, hide button (Firefox browser needs this)
+		  document.getElementById('TorPresent').style.display = 'none';
+		  document.getElementById('NoTor').style.display = 'block';
+		}
+		
+      }
+      xmlhttp.open("GET", test_url, true);
+      xmlhttp.send(); 
+    }
+  } catch(err) {
+	//Show error message and redirect to homepage
+	alert("There was an error, redirecting back");
+	window.location.href = 'http://www.mysite.com/'; 
+  } 
+}
+</script>
+
+</head>
+
+<body onload="ShowIfOnTor('https://antani.tor2web.org/checktor');">
+
+<div id="TorPresent">
+I'm with Tor
+</div>
+
+<div id="NoTor">
+I'm not with Tor
+</div>
+
+</body>
+
+</html>
