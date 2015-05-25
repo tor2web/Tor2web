@@ -91,7 +91,7 @@ fi
 
 if [ $SUPPORTED_PLATFORM -eq 0 ]; then
   echo "!!!!!!!!!!!! WARNING !!!!!!!!!!!!"
-  echo "You are attempting to install GlobaLeaks on an unsupported platform."
+  echo "You are attempting to install Tor2web on an unsupported platform."
   echo "Supported platform are Ubuntu (precise, trusty) and Debian (wheezy, jessie)"
 
   while true; do
@@ -158,7 +158,7 @@ if [ $ERR -ne 0 ]; then
   exit 1
 fi
 
-echo "Adding GlobaLeaks PGP key to trusted APT keys"
+echo "Adding Tor2web PGP key to trusted APT keys"
 TMPFILE=/tmp/globaleaks_key.$RANDOM
 echo "$PGP_KEY" > $TMPFILE
 DO "apt-key add $TMPFILE" "0"
