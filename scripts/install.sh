@@ -158,7 +158,7 @@ if [ $ERR -ne 0 ]; then
   exit 1
 fi
 
-echo "Adding Tor2web PGP key to trusted APT keys"
+echo "Adding GlobaLeaks PGP key to trusted APT keys"
 TMPFILE=/tmp/globaleaks_key.$RANDOM
 echo "$PGP_KEY" > $TMPFILE
 DO "apt-key add $TMPFILE" "0"
