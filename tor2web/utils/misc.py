@@ -57,9 +57,22 @@ def verify_onion(address):
     returns the onion address as a string if True else returns False
     """
     try:
-        onion, tld = address.split(".")
-        if tld == 'onion' and len(onion) == 16 and onion.isalnum():
+        pieces = address.split(".")
+
+        # all pieces must exist and be alnums
+        for piece in pieces:
+           if piece == '':
+              return False
+
+            if not piece.isalnum():
+               return False
+
+         # get the final two pieces
+         onion, tld = pieces[-2:]
+
+         if len(onion) == 16 and tld.lower() == 'onion':
             return True
+
     except Exception:
         pass
 
