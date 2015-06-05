@@ -28,11 +28,12 @@ certificateAuthorityMap = {}
 for certFileName in glob.glob("/etc/ssl/certs/*.pem"):
     # There might be some dead symlinks in there, so let's make sure it's real.
     if os.path.exists(certFileName):
-        data = open(certFileName).read()
-        x509 = load_certificate(FILETYPE_PEM, data)
-        digest = x509.digest('sha1')
-        # Now, de-duplicate in case the same cert has multiple names.
-        certificateAuthorityMap[digest] = x509
+        with open(certFileName) as f:
+            data = f.read()
+            x509 = load_certificate(FILETYPE_PEM, data)
+            digest = x509.digest('sha1')
+            # Now, de-duplicate in case the same cert has multiple names.
+            certificateAuthorityMap[digest] = x509
 
 class GeneralName(univ.Choice):
     # We are only interested in dNSNames. We use a default handler to ignore
@@ -88,15 +89,16 @@ class T2WSSLContext(SSL.Context):
 class T2WSSLContextFactory(ssl.ContextFactory):
     _context = None
 
-    def __init__(self, privateKeyFileName, certificateChainFileName, dhFileName, cipherList):
+    def __init__(self, privateKeyFilePath, certificateFilePath, intermediateFilePath, dhFilePath, cipherList):
         """
         @param privateKeyFileName: Name of a file containing a private key
         @param certificateChainFileName: Name of a file containing a certificate chain
         @param dhFileName: Name of a file containing diffie hellman parameters
         @param cipherList: The SSL cipher list selection to use
         """
-        self.privateKeyFileName = privateKeyFileName
-        self.certificateChainFileName = certificateChainFileName
+        self.privateKeyFilePath = privateKeyFilePath
+        self.certificateFilePath = certificateFilePath
+        self.intermediateFilePath = intermediateFilePath
 
         # as discussed on https://trac.torproject.org/projects/tor/ticket/11598
         # there is no way of enabling all TLS methods excluding SSL.
@@ -109,7 +111,7 @@ class T2WSSLContextFactory(ssl.ContextFactory):
         # This trick make openssl consider valid all TLS methods.
         self.sslmethod = SSL.SSLv23_METHOD
 
-        self.dhFileName = dhFileName
+        self.dhFilePath = dhFilePath
         self.cipherList = cipherList
 
         # Create a context object right now.  This is to force validation of
@@ -130,10 +132,21 @@ class T2WSSLContextFactory(ssl.ContextFactory):
 
             ctx.set_mode(SSL.MODE_RELEASE_BUFFERS)
 
-            ctx.use_certificate_chain_file(self.certificateChainFileName)
-            ctx.use_privatekey_file(self.privateKeyFileName)
+            first = True
+            for certf in [self.certificateFilePath, self.intermediateFilePath]:
+                if os.path.isfile(certf):
+                    with open(certf, 'r') as f:
+                        x509 = load_certificate(FILETYPE_PEM, f.read())
+                        if first:
+                            first = False
+                            ctx.use_certificate(x509)
+                        else:
+                            ctx.add_extra_chain_cert(x509)
+
+            ctx.use_privatekey_file(self.privateKeyFilePath)
+
             ctx.set_cipher_list(self.cipherList)
-            ctx.load_tmp_dh(self.dhFileName)
+            ctx.load_tmp_dh(self.dhFilePath)
             self._context = ctx
 
     def getContext(self):

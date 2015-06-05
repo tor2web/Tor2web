@@ -51,9 +51,10 @@ class Config(Storage):
         self.__dict__['command'] = options.command
         self.__dict__['nodename'] = 'tor2web'
         self.__dict__['datadir'] = '/home/tor2web'
-        self.__dict__['ssl_key'] = os.path.join(self.__dict__['datadir'], "certs/tor2web-key.pem")
-        self.__dict__['ssl_cert'] = os.path.join(self.__dict__['datadir'], "certs/tor2web-intermediate.pem")
-        self.__dict__['ssl_dh'] = os.path.join(self.__dict__['datadir'], "certs/tor2web-dh.pem")
+        self.__dict__['ssl_key'] = None
+        self.__dict__['ssl_cert'] = None
+        self.__dict__['ssl_intermediate'] = None
+        self.__dict__['ssl_dh'] = None
         self.__dict__['rundir'] = options.rundir
         self.__dict__['logreqs'] = False
         self.__dict__['debugmode'] = False
@@ -112,6 +113,18 @@ class Config(Storage):
             self.__dict__['sysdatadir'] = '/usr/share/tor2web'
 
         self.load()
+
+        if self.__dict__['ssl_key'] is None:
+            self.__dict__['ssl_key'] = os.path.join(self.__dict__['datadir'], "certs/tor2web-key.pem")
+
+        if self.__dict__['ssl_cert'] is None:
+            self.__dict__['ssl_cert'] = os.path.join(self.__dict__['datadir'], "certs/tor2web-cert.pem")
+
+        if self.__dict__['ssl_intermediate'] is None:
+            self.__dict__['ssl_intermediate'] = os.path.join(self.__dict__['datadir'], "certs/tor2web-intermediate.pem")
+
+        if self.__dict__['ssl_dh'] is None:
+            self.__dict__['ssl_dh'] = os.path.join(self.__dict__['datadir'], "certs/tor2web-dh.pem")
 
     def load(self):
         try:

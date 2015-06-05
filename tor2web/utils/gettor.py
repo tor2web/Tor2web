@@ -243,33 +243,30 @@ def getTorTask(config):
 
     :param: config (object) The tor2web configuration
     """
-    sslContextFactory1 = HTTPSVerifyingContextFactory('www.torproject.org')
-    sslContextFactory2 = HTTPSVerifyingContextFactory('dist.torproject.org')
-
-    # path to latest version of Tor Browser and Tor Browser files
-    latest_tb_file = os.path.join(config.datadir, 'lists/latest_torbrowser.txt')
-    save_path = os.path.join(config.datadir, 'torbrowser/')
-
-    # server from which to download Tor Browser
-    dist_tpo = 'https://dist.torproject.org/torbrowser/'
-
-    # find out the latest version
-    response = yield getTBBVersions("https://www.torproject.org/projects/torbrowser/RecommendedTBBVersions",
-                                    sslContextFactory1)
-
-    latest_version = getLatestTBBVersion(json.loads(response))
-
-    # find out the current version delivered by GetTor static URL
-    current_version = ""
     try:
+        sslContextFactory1 = HTTPSVerifyingContextFactory('www.torproject.org')
+        sslContextFactory2 = HTTPSVerifyingContextFactory('dist.torproject.org')
+
+        # path to latest version of Tor Browser and Tor Browser files
+        latest_tb_file = os.path.join(config.datadir, 'lists/latest_torbrowser.txt')
+        save_path = os.path.join(config.datadir, 'torbrowser/')
+
+        # server from which to download Tor Browser
+        dist_tpo = 'https://dist.torproject.org/torbrowser/'
+
+        # find out the latest version
+        response = yield getTBBVersions("https://www.torproject.org/projects/torbrowser/RecommendedTBBVersions",
+                                        sslContextFactory1)
+
+        latest_version = getLatestTBBVersion(json.loads(response))
+
+        # find out the current version delivered by GetTor static URL
+        current_version = ""
         with open (latest_tb_file, 'r') as version_file:
             current_version = version_file.read().replace('\n', '')
-    except Exception:
-        pass
 
-    if current_version != latest_version:
+        if current_version != latest_version:
 
-        try:
             mirror = str('%s%s/' % (dist_tpo, latest_version))
 
             filenames_regexp = ''
@@ -306,5 +303,5 @@ def getTorTask(config):
             with open(latest_tb_file, 'w') as version_file:
                 version_file.write(latest_version)
 
-        except Exception:
-            pass
+    except Exception:
+        pass

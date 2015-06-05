@@ -160,6 +160,9 @@ class T2WRPCServer(pb.Root):
         date = datetimeToString()
         t2w_daemon.logfile_debug.write(date + " " + str(line) + "\n")
 
+    def remote_shutdown(self):
+        reactor.stop()
+
 
 @defer.inlineCallbacks
 def rpc(f, *args, **kwargs):
@@ -168,9 +171,11 @@ def rpc(f, *args, **kwargs):
     ret = yield d
     defer.returnValue(ret)
 
-
 def rpc_log(msg):
     rpc("log_debug", str(msg))
+
+def rpc_shutdown():
+    rpc("shutdown")
 
 
 class T2WPP(protocol.ProcessProtocol):
@@ -1225,10 +1230,17 @@ def start_worker():
 
     factory = T2WLimitedRequestsFactory(factory, requests_countdown)
 
-    context_factory = T2WSSLContextFactory(config.ssl_key,
-                                           config.ssl_cert,
-                                           config.ssl_dh,
-                                           config.cipher_list)
+
+    try:
+        context_factory = T2WSSLContextFactory(config.ssl_key,
+                                               config.ssl_cert,
+                                               config.ssl_intermediate,
+                                               config.ssl_dh,
+                                               config.cipher_list)
+    except:
+        rpc_log("Unable to load SSL certificate; check certificate configuration.")
+        rpc_shutdown()
+        return
 
     fds_https, fds_http = [], []
     if 'T2W_FDS_HTTPS' in os.environ:
@@ -1346,17 +1358,21 @@ for d in ['certs', 'logs']:
         print "Tor2web Startup Failure: unexistent directory (%s)" % path
         exit(1)
 
-files = [config.ssl_key, config.ssl_cert, config.ssl_dh]
-for f in files:
-    try:
-        if (not os.path.exists(f) or
-                not os.path.isfile(f) or
-                not os.access(f, os.R_OK)):
-            print "Tor2web Startup Failure: unexistent file (%s)" % f
-            exit(1)
-    except Exception:
-        print "Tor2web Startup Failure: error while accessing file (%s)" % f
-        exit(1)
+def test_file_access(f):
+  return os.path.exists(f) and os.path.isfile(f) and os.access(f, os.R_OK)
+
+if config.transport in ('HTTPS', 'BOTH'):
+  if not test_file_access(config.ssl_key):
+    print "Tor2web Startup Failure: unexistent file (%s)" % config.ssl_key
+    exit(1)
+
+  if not test_file_access(config.ssl_cert) and not test_file_access(config.ssl_intermediate):
+    print "Tor2web Startup Failure: unexistent file (%s)" % config.ssl_cert
+    exit(1)
+
+  if not test_file_access(config.ssl_dh):
+    print "Tor2web Startup Failure: unexistent file (%s)" % config.ssl_dh
+    exit(1)
 
 if config.listen_ipv6 == "::" or config.listen_ipv4 == config.listen_ipv6:
     # fix for incorrect configurations
