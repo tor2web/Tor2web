@@ -494,6 +494,14 @@ class T2WRequest(http.Request):
 
         self.host = self.channel.transport.getHost()
 
+        self.proto = 'http://' if config.transport == 'HTTP' else 'https://'
+
+        port = self.channel.transport.getHost().port
+        if port != 80 and port != 443:
+          self.port = ':' + str(port)
+        else:
+          self.port = ''
+
         self.process()
 
     def add_banner(self, banner, data):
@@ -513,8 +521,7 @@ class T2WRequest(http.Request):
             if config.mode == 'TRANSLATION':
                 data = re_sub(self.translation_rexp['from'], self.translation_rexp['to'], data)
 
-            proto = 'http://' if config.transport == 'HTTP' else 'https://'
-            data = re_sub(rexp['html_t2w'], r'\1\2' + proto + r'\3.' + config.basehost + r'\4', data)
+            data = re_sub(rexp['html_t2w'], r'\1\2' + self.proto + r'\3.' + config.basehost + self.port + r'\4', data)
 
             forward = data[:-500]
             if not self.header_injected and forward.find("<body") != -1:
@@ -539,8 +546,7 @@ class T2WRequest(http.Request):
         if config.mode == 'TRANSLATION':
             data = re_sub(self.translation_rexp['from'], self.translation_rexp['to'], data)
 
-        proto = 'http://' if config.transport == 'HTTP' else 'https://'
-        data = re_sub(rexp['html_t2w'], r'\1\2' + proto + r'\3.' + config.basehost + r'\4', data)
+        data = re_sub(rexp['html_t2w'], r'\1\2' + self.proto + r'\3.' + config.basehost + self.port + r'\4', data)
 
         if not self.header_injected and data.find("<body") != -1:
             banner = yield flattenString(self, templates['banner.tpl'])
@@ -666,7 +672,7 @@ class T2WRequest(http.Request):
         rpc_log(req)
 
         self.obj.host_tor = "http://" + self.obj.onion
-        self.obj.host_tor2web = "https://" + self.obj.onion.replace(".onion", "") + "." + config.basehost
+        self.obj.host_tor2web = "https://" + self.obj.onion.replace(".onion", "") + "." + config.basehost + self.port
         self.obj.address = "http://" + self.obj.onion + self.obj.uri
 
         self.obj.headers = req.headers
@@ -1033,6 +1039,7 @@ class T2WRequest(http.Request):
         valueLower = values[0].lower()
 
         if keyLower == 'transfer-encoding' and valueLower == 'chunked':
+            # this header need to be stripped
             return
 
         elif keyLower == 'content-encoding' and valueLower == 'gzip':
@@ -1041,6 +1048,7 @@ class T2WRequest(http.Request):
 
         elif keyLower == 'content-type' and re.search('text/html', valueLower):
             self.obj.html = True
+            return
 
         elif keyLower == 'content-length':
             self.receivedContentLen = valueLower
@@ -1049,17 +1057,14 @@ class T2WRequest(http.Request):
         elif keyLower == 'cache-control':
             return
 
-        if keyLower == 'set-cookie':
-            values = [re_sub(rexp['set-cookie_t2w'],
-                             r'domain=\1\2.' + config.basehost + r'\3', x) for x in values]
+        elif keyLower == 'set-cookie':
+            values = [re_sub(rexp['set-cookie_t2w'], r'domain=\1\2.' + config.basehost + self.port + r'\3', x) for x in values]
+            return
 
-        if keyLower in 'location':
-
-            if config.mode == 'TRANSLATION':
-                values = [re_sub(self.translation_rexp['from'], self.translation_rexp['to'], x) for x in values]
-            
-            proto = 'http://' if config.transport == 'HTTP' else 'https://'
-            values = [re_sub(rexp['t2w'], proto + r'\2.' + config.basehost, x) for x in values]
+        if config.mode == 'TRANSLATION':
+            values = [re_sub(self.translation_rexp['from'], self.translation_rexp['to'], x) for x in values]
+        else:
+            values = [re_sub(rexp['t2w'], self.proto + r'\2.' + config.basehost + self.port, x) for x in values]
 
         self.responseHeaders.setRawHeaders(key, values)
 
@@ -1298,10 +1303,8 @@ os.umask(077)
 
 orig_umask = os.umask
 
-
 def umask(mask):
     return orig_umask(077)
-
 
 os.umask = umask
 # #########################
@@ -1442,7 +1445,6 @@ if 'T2W_FDS_HTTPS' not in os.environ and 'T2W_FDS_HTTP' not in os.environ:
             exit(1)
 
     def daemon_init(self):
-
         self.quitting = False
         self.subprocesses = []
 

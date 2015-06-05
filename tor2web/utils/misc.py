@@ -64,14 +64,14 @@ def verify_onion(address):
            if piece == '':
               return False
 
-            if not piece.isalnum():
-               return False
+           if not piece.isalnum():
+              return False
 
-         # get the final two pieces
-         onion, tld = pieces[-2:]
+        # get the final two pieces
+        onion, tld = pieces[-2:]
 
-         if len(onion) == 16 and tld.lower() == 'onion':
-            return True
+        if len(onion) == 16 and tld.lower() == 'onion':
+           return True
 
     except Exception:
         pass
