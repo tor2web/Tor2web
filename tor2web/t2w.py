@@ -1364,14 +1364,12 @@ ipv6 = config.listen_ipv6
 
 # ##############################################################################
 
-# the html_t2w regex comes from: https://stackoverflow.com/questions/2725156/complete-list-of-html-tag-attributes-which-have-a-url-value
-
 rexp = {
     'body': re.compile(r'(<body.*?\s*>)', re.I),
     'w2t': re.compile(r'(http:|https:)?//([a-z0-9]{16})\.' + config.basehost, re.I),
     't2w': re.compile(r'(http:|https:)?//([a-z0-9]{16})\.onion', re.I),
     'set-cookie_t2w': re.compile(r'domain=(\.*)([a-z0-9]{16})\.onion(\b)?', re.I),
-    'html_t2w': re.compile( r'(formaction|icon|manifest|archive|cite|background|longdesc|profile|usemap|classid|codebase|href|src|url|action|poster|data)([\s]*=[\s]*[\'\"]?)(?:http:|https:)?//([a-z0-9\.]*[a-z0-9]{16})\.onion([\ \'\"/])', re.I),
+    'html_t2w': re.compile( r'(archive|background|cite|classid|codebase|data|formaction|href|icon|longdesc|manifest|poster|profile|src|url|usemap|)([\s]*=[\s]*[\'\"]?)(?:http:|https:)?//([a-z0-9\.]*[a-z0-9]{16})\.onion([\ \'\"/])', re.I),
 }
 
 # ##############################################################################
