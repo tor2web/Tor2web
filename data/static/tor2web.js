@@ -71,7 +71,10 @@ var http = getHTTPObject();
 window.onload = function() {
   if(document.getElementById('tor2web') != null) {
 
-    document.getElementById('url').value = document.location;
+    var url = document.getElementById('url');
+    if (url) {
+      url.value = document.location;
+    }
 
   } else {
 
