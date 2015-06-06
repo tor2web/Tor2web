@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta content="text/html; charset=utf-8" http-equiv="Content-Type" />
+    <title>Example of usage of CheckTor.js</title>
+
+    <script type="text/javascript" src="checktor.js"></script>
+
+    <script type="text/javascript">
+      function ShowIfOnTor() {
+        /*
+          Copyright 2015 - Hermes Center - GlobaLeaks project
+          Author: Rafael Duval for Cubanet.org
+
+          Shows/Hides a widget based on user access from Tor
+        */
+
+        var yes_cb = function() {
+          // Tor detected, Show the widget.
+          document.getElementById('Tor').style.display = 'block';
+          document.getElementById('NoTor').style.display = 'none';
+        }
+
+        var no_cb = function() {
+          //Tor not detected, hide the widget
+          document.getElementById('Tor').style.display = 'none';
+          document.getElementById('NoTor').style.display = 'block';
+        }
+
+        checkTor(yes_cb, no_cb);
+
+      }
+    </script>
+
+  </head>
+
+  <body onload="ShowIfOnTor()">
+    <div id="Tor" style="display: none">You are using Tor!</div>
+    <div id="NoTor" style="display: none">You are not using Tor</div>
+  </body>
+
+</html>

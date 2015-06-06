@@ -5,7 +5,7 @@
   Javascript CheckTor library
 */
 
-function redirectIfOnTor(url, test_url) {
+function checkTor(yes_cb, no_cb, test_url) {
   // Test if the user is using Tor and in that case
   // redirects the user to provided url
   try {
@@ -17,8 +17,10 @@ function redirectIfOnTor(url, test_url) {
 
       xmlhttp.onreadystatechange=function() {
         if (xmlhttp.readyState==4 && xmlhttp.status==200) {
-	  if (xmlhttp.getResponseHeader("x-check-tor") === "true") {
-            window.location.href = url;
+          if (xmlhttp.getResponseHeader("x-check-tor") === "true") {
+            if (yes_cb) yes_cb();
+          } else {
+            if (no_cb) no_cb();
           }
         }
       }
@@ -27,7 +29,13 @@ function redirectIfOnTor(url, test_url) {
       xmlhttp.send();
 
     }
-  } catch(err) {
+  } catch(err) {}
+}
 
+function redirectIfOnTor(url, test_url) {
+  var yes_cb = function () {
+    window.location.href = url;
   }
+
+  checkTor(yes_cb, undefined, test_url);
 }
