@@ -423,8 +423,6 @@ class T2WRequest(http.Request):
 
         self.pool = pool
 
-        self.translation_rexp = {}
-
     def getRequestHostname(self):
         """
             Function overload to fix ipv6 bug:
@@ -523,15 +521,16 @@ class T2WRequest(http.Request):
         data = self.stream + data
 
         if len(data) >= 1000:
-            data = re_sub(self.translation_rexp['from'], self.translation_rexp['to'], data)
+            if self.obj.special_content == 'HTML':
+                if not self.header_injected and data.find("<body") != -1:
+                    banner = yield flattenString(self, templates['banner.tpl'])
+                    data = re.sub(rexp['body'], partial(self.add_banner, banner), data)
+                    self.header_injected = True
+                data = re_sub(rexp['html_t2w'], r'\1\2' + self.proto + r'\3.' + config.basehost + self.port + r'\4', data)
+            else:
+                data = re_sub(rexp['t2w'], self.proto + r'\2.' + config.basehost + self.port, data)
 
             forward = data[:-500]
-
-            if self.obj.special_content == 'HTML':
-                if not self.header_injected and forward.find("<body") != -1:
-                    banner = yield flattenString(self, templates['banner.tpl'])
-                    forward = re.sub(rexp['body'], partial(self.add_banner, banner), forward)
-                    self.header_injected = True
 
             self.forwardData(self.handleCleartextForwardPart(forward))
 
@@ -547,13 +546,14 @@ class T2WRequest(http.Request):
 
         data = self.stream + data
 
-        data = re_sub(self.translation_rexp['from'], self.translation_rexp['to'], data)
-
         if self.obj.special_content == 'HTML':
             if not self.header_injected and data.find("<body") != -1:
                 banner = yield flattenString(self, templates['banner.tpl'])
                 data = re.sub(rexp['body'], partial(self.add_banner, banner), data)
                 self.header_injected = True
+            data = re_sub(rexp['html_t2w'], r'\1\2' + self.proto + r'\3.' + config.basehost + self.port + r'\4', data)
+        else:
+            data = re_sub(rexp['t2w'], self.proto + r'\2.' + config.basehost + self.port, data)
 
         data = self.handleCleartextForwardPart(data, True)
         self.forwardData(data, True)
@@ -950,13 +950,6 @@ class T2WRequest(http.Request):
                     self.sendError(403)
                     defer.returnValue(NOT_DONE_YET)
 
-            if config.mode == 'TRANSLATION':
-                self.translation_rexp['from'] = re.compile(r'(http.?:)?//' + self.obj.onion + '(?!:\d+)', re.I)
-                self.translation_rexp['to'] = r'https://' + request.host + self.port
-            else:
-                self.translation_rexp['from'] = rexp['t2w']
-                self.translation_rexp['to'] = self.proto + r'\2.' + config.basehost + self.port
-
             self.process_request(request)
 
             parsed = urlparse(self.obj.address)
@@ -1045,11 +1038,12 @@ class T2WRequest(http.Request):
         valueLower = values[0].lower()
 
         if keyLower == 'transfer-encoding' and valueLower == 'chunked':
-            # this header need to be stripped
+            # this header needs to be stripped
             return
 
         elif keyLower == 'content-encoding' and valueLower == 'gzip':
             self.obj.server_response_is_gzip = True
+            # this header needs to be stripped
             return
 
         elif keyLower == 'content-type':
@@ -1057,20 +1051,21 @@ class T2WRequest(http.Request):
                 self.obj.special_content = 'HTML'
             elif re.search('application/javascript', valueLower):
                 self.obj.special_content = 'JS'
-            return
 
         elif keyLower == 'content-length':
             self.receivedContentLen = valueLower
+            # this header needs to be stripped
             return
 
         elif keyLower == 'cache-control':
+            # this header needs to be stripped
             return
 
         elif keyLower == 'set-cookie':
-            values = [re_sub(rexp['set-cookie_t2w'], r'domain=\1\2.' + config.basehost + self.port + r'\3', x) for x in values]
-            return
+            values = [re_sub(rexp['set_cookie_t2w'], r'domain=\1.' + config.basehost + r'\2', x) for x in values]
 
-        values = [re_sub(self.translation_rexp['from'], self.translation_rexp['to'], x) for x in values]
+        else:
+            values = [re_sub(rexp['t2w'], self.proto + r'\2.' + config.basehost + self.port, x) for x in values]
 
         self.responseHeaders.setRawHeaders(key, values)
 
@@ -1386,9 +1381,10 @@ ipv6 = config.listen_ipv6
 
 rexp = {
     'body': re.compile(r'(<body.*?\s*>)', re.I),
-    'w2t': re.compile(r'(http:|https:)?//([a-z0-9]{16})\.' + config.basehost, re.I),
-    't2w': re.compile(r'(http:|https:)?//([a-z0-9]{16})\.onion', re.I),
-    'set-cookie_t2w': re.compile(r'domain=(\.*)([a-z0-9]{16})\.onion(\b)?', re.I)
+    'w2t': re.compile(r'(http:|https:)?//([a-z0-9\.]*[a-z0-9]{16})\.' + config.basehost, re.I),
+    't2w': re.compile(r'(http:|https:)?//([a-z0-9\.]*[a-z0-9]{16})\.onion', re.I),
+    'set_cookie_t2w': re.compile(r'domain=([a-z0-9\.]*[a-z0-9]{16})\.onion(\b)?', re.I),
+    'html_t2w': re.compile( r'(archive|background|cite|classid|codebase|data|formaction|href|icon|longdesc|manifest|poster|profile|src|url|usemap|)([\s]*=[\s]*[\'\"]?)(?:http:|https:)?//([a-z0-9\.]*[a-z0-9]{16})\.onion([\ \'\"/])', re.I)
 }
 
 # ##############################################################################
