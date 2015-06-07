@@ -13,7 +13,7 @@
         <div><b>tor2web.org does not host this content</b>; we are simply a conduit connecting Internet users to content hosted inside <a href="https://www.torproject.org/docs/hidden-services.html.en">the Tor network.</a></div>
         <div>To obtain anonymity, you are strongly advised to <a href="https://www.torproject.org/download/">download the Tor Browser Bundle</a> and access this content over Tor.</div>
         <div>Please send us your <a href="javascript:show_hide_notification_form()">feedback</a> and if you have concerns with this content, send us an <a href="javascript:show_hide_notification_form()">abuse notice</a>.</div>
-        <div>For more informations please refer to <a href="/antanistaticmap/tos.html">Tor2Web Terms of Services.</a></div>
+        <div>For more informations please refer to <a href="/antanistaticmap/tos.html">Tor2web Terms of Services.</a></div>
         <div><t:transparent t:render="mirror" /></div>
       </div>
       <div id="tor2web_notification_form">

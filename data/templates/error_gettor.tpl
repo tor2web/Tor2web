@@ -30,7 +30,7 @@
           <br /><br />
       </div>
       <div id="tor2web_footer">
-        Tor2Web has been originally developed by <a href="http://en.wikipedia.org/wiki/Aaron_Swartz">Aaron Swartz</a> and <a href="http://en.wikipedia.org/wiki/Virgil_Griffith">Virgil Griffith</a>.<br />
+        Torweb has been originally developed by <a href="http://en.wikipedia.org/wiki/Aaron_Swartz">Aaron Swartz</a> and <a href="http://en.wikipedia.org/wiki/Virgil_Griffith">Virgil Griffith</a>.<br />
         It is currently being actively developed and maintained by the<br />
         <a href="http://logioshermes.org/">HERMES Center for Transparency and Digital Human Rights</a>
       </div>

@@ -1,5 +1,4 @@
 #tor2web, #tor2web-banner {
-  margin: 0 auto;
   padding: 20px;
   border: 0;
   border: 1px solid #000;
@@ -12,23 +11,35 @@
 }
 
 #tor2web {
-  width: 800px;
+  width: 90%;
   margin: 100px auto;
-  text-align: justify;
 }
 
-#tor2web input,  #tor2web-header input { width: 100%; }
-#tor2web a:link, #tor2web-header a:link { color: blue; }
-#tor2web a:visited, #tor2web-header a:visited { color:red; }
+#tor2web-banner {
+ margin: 0 auto;
+}
+
+#tor2web a, #tor2web-banner: a {
+  font-weight:bold;
+  color:#0000FF;
+}
+
+#tor2web a:hover, #tor2web-banner a:hover {
+  color:#0000FF;
+  background-color: transparent;
+}
+
+#tor2web a:link, #tor2web-banner a:link { color: blue; }
+#tor2web a:visited, #tor2web-banner a:visited { color:red; }
+#tor2web input,  #tor2web-banner input { width: 100%; }
+
 #tor2web-visible { display: block; padding: 0 30px; }
 #tor2web-hidden { display: none; }
-#tor2web_logo { float: left; margin: 0 0 10px 10px; }
+#tor2web_logo { float: left; margin-right: 30px; }
 #tor2web_disclaimer { float: left; }
 #tor2web_disclaimer_acceptance, #tor2web_terms, #tor2web_footer { margin-top: 30px; }
 #tor2web_notification_form { clear: both; display: none; clear: both; width: 600px; margin:0 auto; margin-bottom: 10px; }
 #tor2web_footer { text-align: center }
-
-.tor2web_showhide { clear: both; text-align: center; }
 
 #tor2web-title {
   font-style: bold;
@@ -42,3 +53,5 @@
   background: #fff;
   padding: 20px;
 }
+
+.tor2web_showhide { clear: both; text-align: center; }
