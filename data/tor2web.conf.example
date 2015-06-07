@@ -67,6 +67,10 @@
 # If set to True will disable the tor2web banner
 # disable_banner = False
 
+# If set to True will avoid rewriting visible data (experimental; will result in less functional proxy)
+# Could be useful in relation to DMCA
+# avoid_rewriting_visible_content
+
 # Mail configuration for automatic exceptions notification and user abuse notice
 # smtpuser = [USERNAME]
 # smtppass = [PASSWORD]

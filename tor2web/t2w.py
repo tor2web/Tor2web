@@ -526,6 +526,8 @@ class T2WRequest(http.Request):
                     banner = yield flattenString(self, templates['banner.tpl'])
                     data = re.sub(rexp['body'], partial(self.add_banner, banner), data)
                     self.header_injected = True
+
+            if config.avoid_rewriting_visible_content and self.obj.special_content == 'HTML':
                 data = re_sub(rexp['html_t2w'], r'\1\2' + self.proto + r'\3.' + config.basehost + self.port + r'\4', data)
             else:
                 data = re_sub(rexp['t2w'], self.proto + r'\2.' + config.basehost + self.port, data)
@@ -551,6 +553,8 @@ class T2WRequest(http.Request):
                 banner = yield flattenString(self, templates['banner.tpl'])
                 data = re.sub(rexp['body'], partial(self.add_banner, banner), data)
                 self.header_injected = True
+
+        if config.avoid_rewriting_visible_content and self.obj.special_content == 'HTML':
             data = re_sub(rexp['html_t2w'], r'\1\2' + self.proto + r'\3.' + config.basehost + self.port + r'\4', data)
         else:
             data = re_sub(rexp['t2w'], self.proto + r'\2.' + config.basehost + self.port, data)

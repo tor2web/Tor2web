@@ -90,6 +90,7 @@ class Config(Storage):
         self.__dict__['disable_banner'] = False
         self.__dict__['disable_tor_redirection'] = False
         self.__dict__['disable_gettor'] = False
+        self.__dict__['avoid_rewriting_visible_data'] = False
         self.__dict__['smtp_user'] = ''
         self.__dict__['smtp_pass'] = ''
         self.__dict__['smtp_mail'] = ''
