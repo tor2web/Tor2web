@@ -673,6 +673,7 @@ class T2WRequest(http.Request):
         """
         rpc_log(req)
 
+        self.obj.uri = req.uri
         self.obj.host_tor = "http://" + self.obj.onion
         self.obj.host_tor2web = "https://" + self.obj.onion.replace(".onion", "") + "." + config.basehost + self.port
         self.obj.address = "http://" + self.obj.onion + self.obj.uri
@@ -685,7 +686,9 @@ class T2WRequest(http.Request):
         self.obj.headers.setRawHeaders(b'host', [self.obj.onion])
         self.obj.headers.setRawHeaders(b'connection', [b'keep-alive'])
         self.obj.headers.setRawHeaders(b'accept-encoding', [b'gzip, chunked'])
-        self.obj.headers.setRawHeaders(b'x-tor2web', [b'encrypted'])
+        self.obj.headers.setRawHeaders(b'x-tor2web', [b'1'])
+        self.obj.headers.setRawHeaders(b'x-forwarded-host', [req.host])
+        self.obj.headers.setRawHeaders(b'x-forwarded-proto', [b'http' if config.transport == 'HTTP' else b'https'])
 
         return True
 
@@ -923,10 +926,8 @@ class T2WRequest(http.Request):
             self.sendError(404)
             defer.returnValue(NOT_DONE_YET)
 
-        else:  # the requested resource is remote, we act as proxy
-
-            self.obj.uri = request.uri
-
+        else:
+            # the requested resource is remote, we act as proxy
             if config.mode == 'TRANSLATION' and request.host in hosts_map:
                 self.obj.onion = hosts_map[request.host]
             else:
