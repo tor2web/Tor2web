@@ -674,7 +674,7 @@ class T2WRequest(http.Request):
         rpc_log(req)
 
         self.obj.host_tor = "http://" + self.obj.onion
-        self.obj.host_tor2web = "https://" + self.obj.onion.replace(".onion", "") + "." + config.basehost + self.port
+        self.obj.host_tor2web = "https://" + self.obj.onion[:-len('.onion')] + "." + config.basehost + self.port
         self.obj.address = "http://" + self.obj.onion + self.obj.uri
 
         self.obj.headers = req.headers
@@ -955,7 +955,7 @@ class T2WRequest(http.Request):
             parsed = urlparse(self.obj.address)
 
             self.var['address'] = self.obj.address
-            self.var['onion'] = self.obj.onion.replace(".onion", "")
+            self.var['onion'] = self.obj.onion[:-len('.onion')]
             self.var['path'] = parsed[2]
             if parsed[3] is not None and parsed[3] != '':
                 self.var['path'] += '?' + parsed[3]
@@ -1072,7 +1072,7 @@ class T2WRequest(http.Request):
     def processResponseHeaders(self, headers):
         # currently we track only responding hidden services
         # we don't need to block on the rpc now so no yield is needed
-        rpc("update_stats", str(self.obj.onion.replace(".onion", "")))
+        rpc("update_stats", str(self.obj.onion[:-len('.onion')]))
 
         for key, values in headers.getAllRawHeaders():
             self.handleHeader(key, values)
