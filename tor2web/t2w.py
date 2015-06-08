@@ -1052,10 +1052,14 @@ class T2WRequest(http.Request):
             return
 
         elif keyLower == 'content-type':
-            if re.search('text/html', valueLower):
+            if valueLower.startswith('text/html'):
                 self.obj.special_content = 'HTML'
-            elif re.search('application/javascript', valueLower):
+            elif valueLower.startswith('application/javascript'):
                 self.obj.special_content = 'JS'
+            elif valueLower.startswith('text/css'):
+                self.obj.special_content = 'CSS'
+            elif valueLower.startswith('text/xml'):
+                self.obj.special_content = 'XML'
 
         elif keyLower == 'content-length':
             self.receivedContentLen = valueLower
