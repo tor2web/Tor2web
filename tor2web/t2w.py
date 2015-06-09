@@ -758,14 +758,19 @@ class T2WRequest(http.Request):
             client_uses_tor = False
             self.setHeader(b'x-check-tor', b'false')
 
+        crawler = False
+        if request.headers.getRawHeaders(b'user-agent') is not None:
+            for ua in blocked_ua_list:
+                if re.match(ua, request.headers.getRawHeaders(b'user-agent')[0].lower()):
+                    crawler = True
+                    continue
+
         # 0: Request admission control stage
         # we try to deny some ua/crawlers regardless the request is (valid or not) / (local or not)
         # we deny EVERY request to known user agents reconized with pattern matching
-        if config.blockcrawl and request.headers.getRawHeaders(b'user-agent') is not None:
-            for ua in blocked_ua_list:
-                if re.match(ua, request.headers.getRawHeaders(b'user-agent')[0].lower()):
-                    self.sendError(403, "error_blocked_ua.tpl")
-                    defer.returnValue(NOT_DONE_YET)
+        if crawler and config.blockcrawl:
+          self.sendError(403, "error_blocked_ua.tpl")
+          defer.returnValue(NOT_DONE_YET)
 
         # 1: Client capability assessment stage
         if request.headers.getRawHeaders(b'accept-encoding') is not None:
@@ -965,12 +970,13 @@ class T2WRequest(http.Request):
             if parsed[3] is not None and parsed[3] != '':
                 self.var['path'] += '?' + parsed[3]
 
-            if not config.disable_disclaimer and not self.getCookie("disclaimer_accepted"):
-                self.setResponseCode(401)
-                self.setHeader(b'content-type', 'text/html')
-                self.var['url'] = self.obj.uri
-                flattenString(self, templates['disclaimer.tpl']).addCallback(self.contentFinish)
-                defer.returnValue(NOT_DONE_YET)
+            if not crawler:
+                if not config.disable_disclaimer and not self.getCookie("disclaimer_accepted"):
+                    self.setResponseCode(401)
+                    self.setHeader(b'content-type', 'text/html')
+                    self.var['url'] = self.obj.uri
+                    flattenString(self, templates['disclaimer.tpl']).addCallback(self.contentFinish)
+                    defer.returnValue(NOT_DONE_YET)
 
             if config.mode != "TRANSLATION":
                 rpc_log("detected <onion_url>.tor2web Hostname: %s" % self.obj.onion)
