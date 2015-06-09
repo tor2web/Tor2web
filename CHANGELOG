@@ -1,3 +1,7 @@
+Changes in version 3.1.40 - 2015-06-08
+    o Implement rewriting of css and xml files
+    o Allow crawlers to bypass the disclaimer
+
 Changes in version 3.1.40 - 2015-06-07
     o Improve packaging
     o Implement rewriting of javascript files
