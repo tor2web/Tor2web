@@ -9,7 +9,7 @@ Tor2web is now part of a larger project ([GlobaLeaks](https://github.com/globale
 
 ## Documentation
 * Official website: [www.tor2web.org](http://tor2web.org/)
-* Documentation on Wiki: [wiki.tor2web.org](https://github.com/globaleaks/tor2web/wiki)
+* Documentation on Wiki: [Github Wiki](https://github.com/globaleaks/tor2web/wiki)
 
 ## Donate
 To support Tor2web Project you can help us with donations that will goes entirely for the software development! 
