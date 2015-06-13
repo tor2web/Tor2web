@@ -119,7 +119,7 @@ class T2WRPCServer(pb.Root):
             self.hosts_map[config.basehost] = config.onion
 
     def redirect_to_frontpage(self):
-       '''redirect user to the frontpage of config.basehost.  The www. here is necessary for CDNs.'''
+        '''redirect user to the frontpage of config.basehost.  The www. here is necessary for CDNs.'''
         self.proto = 'http://' if config.transport == 'HTTP' else 'https://'
         self.redirect(self.proto + 'www.' + config.basehost)
         try:
