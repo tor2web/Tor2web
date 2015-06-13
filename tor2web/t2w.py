@@ -118,6 +118,15 @@ class T2WRPCServer(pb.Root):
         if config.mode == "TRANSLATION":
             self.hosts_map[config.basehost] = config.onion
 
+    def redirect_to_frontpage(self):
+       '''redirect user to the frontpage of config.basehost.  The www. here is necessary for CDNs.'''
+        self.proto = 'http://' if config.transport == 'HTTP' else 'https://'
+        self.redirect(self.proto + 'www.' + config.basehost)
+        try:
+            self.finish()
+        finally:
+            defer.returnValue(None)
+
     def remote_get_config(self):
         return self.config.__dict__
 
@@ -943,8 +952,7 @@ class T2WRequest(http.Request):
                 self.obj.onion = request.host.split("." + config.basehost)[0].split(".")[-1] + ".onion"
 
             if not request.host or not verify_onion(self.obj.onion):
-                self.sendError(406, 'error_invalid_hostname.tpl')
-                defer.returnValue(NOT_DONE_YET)
+                self.redirect_to_frontpage()
 
             # if the user is using tor redirect directly to the hidden service
             if client_uses_tor:
@@ -981,8 +989,7 @@ class T2WRequest(http.Request):
             if config.mode != "TRANSLATION":
                 rpc_log("detected <onion_url>.tor2web Hostname: %s" % self.obj.onion)
                 if not verify_onion(self.obj.onion):
-                    self.sendError(406, 'error_invalid_hostname.tpl')
-                    defer.returnValue(NOT_DONE_YET)
+                    self.redirect_to_frontpage()
 
                 if config.mode == "WHITELIST":
                     if not self.obj.onion in white_list:
