@@ -39,7 +39,7 @@ mkdir T2WRelease
 cd T2WRelease
 git clone git@github.com:globaleaks/Tor2web.git
 cd Tor2web
-sed -i "s/UNRELEASED/$DISTRIBUTION/g" debian/changelog
+sed -i "s/stable; urgency=/$DISTRIBUTION; urgency=/g" debian/changelog
 
 if [ $NOSIGN -eq 1 ]; then
   debuild -i -us -uc -b
