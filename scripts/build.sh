@@ -9,7 +9,6 @@ usage() {
   echo -e " -t tagname (build specific release/branch)"
   echo -e " -d distribution (available: precise, trusty, wheezy, jessie)"
   echo -e " -n (do not sign)"
-  
 }
 
 DISTRIBUTION="precise"
