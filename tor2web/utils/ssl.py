@@ -133,15 +133,19 @@ class T2WSSLContextFactory(ssl.ContextFactory):
             ctx.set_mode(SSL.MODE_RELEASE_BUFFERS)
 
             first = True
-            for certf in [self.certificateFilePath, self.intermediateFilePath]:
-                if os.path.isfile(certf):
-                    with open(certf, 'r') as f:
+            if os.path.isfile(self.certificateFilePath):
+                with open(self.certificateFilePath, 'r') as f:
+                    first = False
+                    x509 = load_certificate(FILETYPE_PEM, f.read())
+                    ctx.use_certificate(x509)
+
+            if os.path.isfile(self.intermediateFilePath):
+                if first:
+                    ctx.use_certificate_chain_file(self.intermediateFilePath)
+                else:
+                    with open(self.intermediateFilePath, 'r') as f:
                         x509 = load_certificate(FILETYPE_PEM, f.read())
-                        if first:
-                            first = False
-                            ctx.use_certificate(x509)
-                        else:
-                            ctx.add_extra_chain_cert(x509)
+                        ctx.add_extra_chain_cert(x509)
 
             ctx.use_privatekey_file(self.privateKeyFilePath)
 
