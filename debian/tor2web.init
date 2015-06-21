@@ -99,12 +99,14 @@ fi
 
 if [ "${APPARMOR_SANDBOXING}" -eq "1" ]; then
     APPARMOR_STARTED=0
+
+    log_action_begin_msg "Enabling Tor2web Apparmor Sandboxing"
+
     test -x /usr/sbin/aa-status \
         && test -x /usr/sbin/aa-exec \
         && test -e /etc/apparmor.d/usr.bin.tor2web \
         && /usr/sbin/aa-status --enabled \
         && DAEMON_CMD="/usr/sbin/aa-exec --profile=usr.bin.tor2web -- ${DAEMON_CMD}" \
-        && echo "Enabling Tor2web Apparmor Sandboxing" \
         && APPARMOR_STARTED=1
 
         if [ "${APPARMOR_STARTED}" -eq "0" ]; then
