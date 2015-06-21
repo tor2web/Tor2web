@@ -108,7 +108,8 @@ if [ "${APPARMOR_SANDBOXING}" -eq "1" ]; then
         && APPARMOR_STARTED=1
 
         if [ "${APPARMOR_STARTED}" -eq "0" ]; then
-          log_action_end_msg 1 "Unable to initialized AppArmor! AppArmor is probably disabled, please enable it by following instructions at https://wiki.debian.org/AppArmor/HowToUse"
+          echo "Unable to initialized AppArmor!"
+          echo "AppArmor is probably disabled, please enable it by following instructions at https://wiki.debian.org/AppArmor/HowToUse"
           exit 1
         fi
 fi
