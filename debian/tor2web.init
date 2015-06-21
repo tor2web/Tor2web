@@ -108,9 +108,11 @@ if [ "${APPARMOR_SANDBOXING}" -eq "1" ]; then
         && APPARMOR_STARTED=1
 
         if [ "${APPARMOR_STARTED}" -eq "0" ]; then
-          echo "Unable to initialized AppArmor!"
-          echo "AppArmor is probably disabled, please enable it by following instructions at https://wiki.debian.org/AppArmor/HowToUse"
-          exit 1
+            log_action_end_msg 1 "Unable to initialize AppArmor!"
+            echo "Unable to initialize AppArmor!"
+            echo "AppArmor is probably disabled; please enable it by following instructions at https://wiki.debian.org/AppArmor/HowToUse"
+            echo "If you understand the risks involved and you know what you are doing, you can disable Tor2web's Apparmor support by editing /etc/default/tor2web and configuring APPARMOR_SANDBOXING=0"
+            exit 1
         fi
 fi
 
