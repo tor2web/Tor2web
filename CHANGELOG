@@ -1,4 +1,8 @@
-Changes in version 3.1.40 - 2015-06-08
+Changes in version 3.1.42 - 2015-06-22
+    o Improve init script error outputs
+    o Fix bug in intermediate certificates loading
+
+Changes in version 3.1.41 - 2015-06-08
     o Implement rewriting of css and xml files
     o Allow crawlers to bypass the disclaimer
 
