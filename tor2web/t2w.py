@@ -991,8 +991,8 @@ class T2WRequest(http.Request):
 
                 elif config.mode == "BLACKLIST":
                    # the self.obj.onion[-22:] is to block subdomains as well.
-                    if hashlib.md5(self.obj.onion).hexdigest() in black_list or 
-                       hashlib.md5(self.obj.onion[-22:]).hexdigest() in black_list:
+                    if( hashlib.md5(self.obj.onion).hexdigest() in black_list or 
+                        hashlib.md5(self.obj.onion[-22:]).hexdigest() in black_list ):
 
                         self.sendError(403, 'error_hs_completely_blocked.tpl')
                         defer.returnValue(NOT_DONE_YET)
