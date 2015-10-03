@@ -105,6 +105,7 @@ class Config(Storage):
         self.__dict__['publish_lists'] = False
         self.__dict__['mirror'] = []
         self.__dict__['dummyproxy'] = None
+        self.__dict__['proto'] = 'http://' if self.__dict__['transport'] == 'HTTP' else 'https://'
 
         # Development VS. Production
         localpath = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), "..", "data"))
@@ -171,6 +172,7 @@ class Config(Storage):
         self.verify_values('disable_banner', [True, False])
         self.verify_values('disable_gettor', [True, False])
         self.verify_values('disable_tor_redirection', [True, False])
+        self.verify_values('proto', ['http://', 'https://'])
 
         # TODO: Add a bunch more here to ensure sane config file
 
@@ -196,6 +198,9 @@ class Config(Storage):
         try:
 
             value = self._parser.get(self._section, name)
+            
+            # strip any boundry whitespace just in case
+            value = value.strip()
 
             if value.isdigit():
                 return int(value)
