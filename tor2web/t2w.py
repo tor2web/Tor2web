@@ -407,10 +407,8 @@ class T2WRequest(http.Request):
         if config.disable_banner:
             self.header_injected = True
 
-        if queued:
-            self.transport = StringTransport()
-        else:
-            self.transport = self.channel.transport
+
+        self.transport = StringTransport() if queued else self.channel.transport
 
         self.obj = Tor2webObj()
         self.var = Storage()
@@ -500,10 +498,7 @@ class T2WRequest(http.Request):
         self.proto = 'http://' if config.transport == 'HTTP' else 'https://'
 
         port = self.channel.transport.getHost().port
-        if port != 80 and port != 443:
-          self.port = ':' + str(port)
-        else:
-          self.port = ''
+        self.port = '' if port in [80,443] else ':%d' % port
 
         self.process()
 
@@ -624,7 +619,7 @@ class T2WRequest(http.Request):
 
     def handleError(self, failure):
         if type(failure.value) is SOCKSError:
-            self.setResponseCode(404)
+            self.setResponseCode(502)       # it's possible this should be a 504.  But definitely not 404.
             self.var['errorcode'] = failure.value.code
             if failure.value.code in SOCKS_errors:
                 return flattenString(self, templates[SOCKS_errors[failure.value.code]]).addCallback(self.contentFinish)
@@ -679,8 +674,9 @@ class T2WRequest(http.Request):
 
         self.obj.uri = req.uri
         self.obj.host_tor = "http://" + self.obj.onion
-        self.obj.host_tor2web = "https://" + self.obj.onion.replace(".onion", "") + "." + config.basehost + self.port
-        self.obj.address = "http://" + self.obj.onion + self.obj.uri
+        self.obj.address = self.obj.host_tor + self.obj.uri
+        self.obj.client_proto = 'http://' if config.transport == 'HTTP' else 'https://'
+        self.obj.host_tor2web = self.obj.client_proto + self.obj.onion[:-len("onion")] + config.basehost + self.port
 
         self.obj.headers = req.headers
 
