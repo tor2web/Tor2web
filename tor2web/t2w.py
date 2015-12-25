@@ -72,7 +72,6 @@ class T2WRPCServer(pb.Root):
     def __init__(self, config):
         self.config = config
         self.stats = T2WStats()
-        self.white_list = []
         self.block_list = []
         self.TorExitNodes = []
         self.blocked_ua = []
@@ -82,10 +81,7 @@ class T2WRPCServer(pb.Root):
         self.load_lists()
 
     def load_lists(self):
-        if config.mode == "WHITELIST":
-            self.white_list = List(config.t2w_file_path('lists/whitelist.txt'))
-
-        elif config.mode == "BLOCKLIST":
+        if config.mode == "BLOCKLIST":
             self.block_list = List(config.t2w_file_path('lists/blocklist_hashed.txt'),
                                    config.automatic_blocklist_updates_source,
                                    config.automatic_blocklist_updates_mode,
@@ -123,9 +119,6 @@ class T2WRPCServer(pb.Root):
 
     def remote_get_blocked_ua_list(self):
         return list(self.blocked_ua)
-
-    def remote_get_white_list(self):
-        return list(self.white_list)
 
     def remote_get_block_list(self):
         return list(self.block_list)
@@ -806,12 +799,6 @@ class T2WRequest(http.Request):
                     content = yield rpc("get_yesterday_stats")
                     defer.returnValue(self.contentFinish(content))
 
-                elif config.publish_lists and staticpath == "lists/whitelist":
-                    self.setHeader(b'content-type', 'text/plain')
-                    content = yield rpc("get_white_list")
-                    content = "\n".join(item for item in content)
-                    defer.returnValue(self.contentFinish(content))
-
                 # allow either black or block list for backwards compatibility
                 elif config.publish_lists and (staticpath == "lists/blacklist" or staticpath == "lists/blocklist"):
                     self.setHeader(b'content-type', 'text/plain')
@@ -985,12 +972,7 @@ class T2WRequest(http.Request):
                     self.sendError(406, 'error_invalid_hostname.tpl')
                     defer.returnValue(NOT_DONE_YET)
 
-                if config.mode == "WHITELIST":
-                    if not self.obj.onion in white_list:
-                        self.sendError(403, 'error_hs_completely_blocked.tpl')
-                        defer.returnValue(NOT_DONE_YET)
-
-                elif config.mode == "BLACKLIST" or config.mode == "BLOCKLIST":
+                elif config.mode == "BLOCKLIST":
                     if hashlib.md5(self.obj.onion).hexdigest() in block_list:
                         self.sendError(403, 'error_hs_completely_blocked.tpl')
                         defer.returnValue(NOT_DONE_YET)
@@ -1284,10 +1266,6 @@ def start_worker():
 
 
 def updateListsTask():
-    def set_white_list(l):
-        global white_list
-        white_list = l
-
     def set_block_list(l):
         global block_list
         block_list = l
@@ -1304,8 +1282,7 @@ def updateListsTask():
         global hosts_map
         hosts_map = d
 
-    rpc("get_white_list").addCallback(set_white_list)
-    rpc("get_block_list").addCallback(set_black_list)
+    rpc("get_block_list").addCallback(set_block_list)
     rpc("get_blocked_ua_list").addCallback(set_blocked_ua_list)
     rpc("get_tor_exits_list").addCallback(set_tor_exits_list)
     rpc("get_hosts_map").addCallback(set_hosts_map)
@@ -1355,8 +1332,8 @@ if not os.path.exists(config.datadir):
     print "Tor2web Startup Failure: unexistent directory (%s)" % config.datadir
     exit(1)
 
-if config.mode not in ['TRANSLATION', 'WHITELIST', 'BLACKLIST']:
-    print "Tor2web Startup Failure: config.mode must be one of: TRANSLATION / WHITELIST / BLACKLIST"
+if config.mode not in ['TRANSLATION', 'BLOCKLIST']:
+    print "Tor2web Startup Failure: config.mode must be one of: TRANSLATION / BLOCKLIST"
     exit(1)
 
 if config.mode == "TRANSLATION":
@@ -1572,7 +1549,6 @@ if 'T2W_FDS_HTTPS' not in os.environ and 'T2W_FDS_HTTP' not in os.environ:
 else:
     set_proctitle("tor2web-worker")
 
-    white_list = []
     block_list = []
     blocked_ua_list = []
     tor_exits_list = []

@@ -47,7 +47,7 @@
 # ssl_tofu_cache_size = 100
 
 # Access Blocking
-# mode = BLACKLIST
+# mode = BLOCKLIST
 # onion = None
 # blockcrawl = True
 # overriderobotstxt = True
@@ -87,15 +87,14 @@
 # Exit nodes list refresh period (in seconds)
 # exit_node_list_refresh = 600
 
-# The following configuration parameters permits to enable automatic fetching of the hashed blacklist
+# The following configuration parameters permits to enable automatic fetching of the hashed blocklist
 # automatic_blocklist_updates_source = https://ahmia.fi/bannedMD5.txt
 # automatic_blocklist_updates_refresh = 600
 # automatic_blocklist_updates_mode = MERGE
 
-# The following configuration parameter permit to publish whitelist/blacklist
-# lists will be available at /antanistaticmap/lists/whitelist 
-#                            /antanistaticmap/lists/blacklist
-# publish_lists = False
+# The following configuration parameter permit to publish blocklist
+# lists will be available at /antanistaticmap/lists/blocklist
+# publish_blocklist = False
 
 # List of mirrors shown in Tor2web disclaimer and banner
 # An updated list of know mirrors can be found at: https://github.com/globaleaks/tor2web/wiki

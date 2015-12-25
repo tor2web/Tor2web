@@ -79,7 +79,7 @@ class Config(Storage):
                                        'DES-CBC3-SHA'  # this last one (not FS) is kept only for
                                                        # compatibility reasons :/
         self.__dict__['ssl_tofu_cache_size'] = 100
-        self.__dict__['mode'] = 'BLACKLIST'
+        self.__dict__['mode'] = 'BLOCKLIST'
         self.__dict__['onion'] = None
         self.__dict__['blockcrawl'] = True
         self.__dict__['overriderobotstxt'] = True
@@ -126,6 +126,9 @@ class Config(Storage):
 
         if self.__dict__['ssl_dh'] is None:
             self.__dict__['ssl_dh'] = os.path.join(self.__dict__['datadir'], "certs/tor2web-dh.pem")
+
+        if self.__dict__['mode'] is 'BLACKLIST':
+            self.__dict__['mode'] = 'BLOCKLIST'
 
     def load(self):
         try:
