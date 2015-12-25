@@ -969,7 +969,9 @@ class T2WRequest(http.Request):
                     defer.returnValue(NOT_DONE_YET)
 
                 elif config.mode == "BLOCKLIST":
-                    if hashlib.md5(self.obj.onion).hexdigest() in block_list:
+                    if (hashlib.md5(self.obj.onion).hexdigest() in block_list or
+                        hashlib.md5(self.obj.onion[-22:]).hexdigest() in black_list or
+                        hashlib.md5(self.var['path']).hexdigest() in black_list:
                         self.sendError(403, 'error_hs_completely_blocked.tpl')
                         defer.returnValue(NOT_DONE_YET)
 
