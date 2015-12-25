@@ -73,7 +73,7 @@ class T2WRPCServer(pb.Root):
         self.config = config
         self.stats = T2WStats()
         self.white_list = []
-        self.black_list = []
+        self.block_list = []
         self.TorExitNodes = []
         self.blocked_ua = []
         self.hosts_map = {}
@@ -85,8 +85,8 @@ class T2WRPCServer(pb.Root):
         if config.mode == "WHITELIST":
             self.white_list = List(config.t2w_file_path('lists/whitelist.txt'))
 
-        elif config.mode == "BLACKLIST":
-            self.black_list = List(config.t2w_file_path('lists/blocklist_hashed.txt'),
+        elif config.mode == "BLOCKLIST":
+            self.block_list = List(config.t2w_file_path('lists/blocklist_hashed.txt'),
                                    config.automatic_blocklist_updates_source,
                                    config.automatic_blocklist_updates_mode,
                                    config.automatic_blocklist_updates_refresh)
@@ -95,9 +95,9 @@ class T2WRPCServer(pb.Root):
             # (load -> hash -> clear feature; for security reasons)
             self.blocklist_cleartext = List(config.t2w_file_path('lists/blocklist_cleartext.txt'))
             for i in self.blocklist_cleartext:
-                self.black_list.add(hashlib.md5(i).hexdigest())
+                self.block_list.add(hashlib.md5(i).hexdigest())
 
-            self.black_list.dump()
+            self.block_list.dump()
 
             self.blocklist_cleartext.clear()
             self.blocklist_cleartext.dump()
@@ -127,8 +127,8 @@ class T2WRPCServer(pb.Root):
     def remote_get_white_list(self):
         return list(self.white_list)
 
-    def remote_get_black_list(self):
-        return list(self.black_list)
+    def remote_get_block_list(self):
+        return list(self.block_list)
 
     def remote_get_tor_exits_list(self):
         return list(self.TorExitNodes)
@@ -812,9 +812,10 @@ class T2WRequest(http.Request):
                     content = "\n".join(item for item in content)
                     defer.returnValue(self.contentFinish(content))
 
-                elif config.publish_lists and staticpath == "lists/blacklist":
+                # allow either black or block list for backwards compatibility
+                elif config.publish_lists and (staticpath == "lists/blacklist" or staticpath == "lists/blocklist"):
                     self.setHeader(b'content-type', 'text/plain')
-                    content = yield rpc("get_black_list")
+                    content = yield rpc("get_block_list")
                     content = "\n".join(item for item in content)
                     defer.returnValue(self.contentFinish(content))
 
@@ -989,8 +990,8 @@ class T2WRequest(http.Request):
                         self.sendError(403, 'error_hs_completely_blocked.tpl')
                         defer.returnValue(NOT_DONE_YET)
 
-                elif config.mode == "BLACKLIST":
-                    if hashlib.md5(self.obj.onion).hexdigest() in black_list:
+                elif config.mode == "BLACKLIST" or config.mode == "BLOCKLIST":
+                    if hashlib.md5(self.obj.onion).hexdigest() in block_list:
                         self.sendError(403, 'error_hs_completely_blocked.tpl')
                         defer.returnValue(NOT_DONE_YET)
 
@@ -1287,9 +1288,9 @@ def updateListsTask():
         global white_list
         white_list = l
 
-    def set_black_list(l):
-        global black_list
-        black_list = l
+    def set_block_list(l):
+        global block_list
+        block_list = l
 
     def set_blocked_ua_list(l):
         global blocked_ua_list
@@ -1304,7 +1305,7 @@ def updateListsTask():
         hosts_map = d
 
     rpc("get_white_list").addCallback(set_white_list)
-    rpc("get_black_list").addCallback(set_black_list)
+    rpc("get_block_list").addCallback(set_black_list)
     rpc("get_blocked_ua_list").addCallback(set_blocked_ua_list)
     rpc("get_tor_exits_list").addCallback(set_tor_exits_list)
     rpc("get_hosts_map").addCallback(set_hosts_map)
@@ -1572,7 +1573,7 @@ else:
     set_proctitle("tor2web-worker")
 
     white_list = []
-    black_list = []
+    block_list = []
     blocked_ua_list = []
     tor_exits_list = []
     hosts_map = {}
