@@ -24,7 +24,7 @@ import platform
 
 import ctypes
 
-class _NullDevice:
+class _NullDevice(object):
     """A substitute for stdout/stderr that writes to nowhere."""
 
     def isatty(self, *a, **kw):
@@ -37,7 +37,7 @@ class _NullDevice:
         pass
 
 
-class T2WDaemon:
+class T2WDaemon(object):
     def __init__(self, config):
         self.config = config
 
@@ -63,8 +63,7 @@ class T2WDaemon:
         sys.stderr = sys.__stderr__ = _NullDevice()
 
     def daemon_start(self):
-        self.daemon_init(self) # self must be explicit passed
-                               # as the function is user defined
+        self.daemon_init()
 
         if not os.path.exists(self.config.rundir):
             os.mkdir(self.config.rundir)
@@ -90,19 +89,16 @@ class T2WDaemon:
             self.change_uid()
 
         def _daemon_reload(SIG, FRM):
-            self.daemon_reload() # self must be explicit passed
-                                 # as the function is user defined
+            self.daemon_reload()
 
         def _daemon_shutdown(SIG, FRM):
-            self.daemon_shutdown(self) # self must be explicit passed
-                                       # as the function is user defined
+            self.daemon_shutdown()
 
         signal.signal(signal.SIGHUP, _daemon_reload)
         signal.signal(signal.SIGTERM, _daemon_shutdown)
         signal.signal(signal.SIGINT, _daemon_shutdown)
 
-        self.daemon_main(self) # self must be explicit passed
-                               # as the function is user defined
+        self.daemon_main()
 
     def daemon_stop(self):
         pid = self.get_pid()
@@ -162,11 +158,11 @@ class T2WDaemon:
             os.chown(self.config.rundir, c_uid, c_gid)
             os.chown(self.config.pidfile, c_uid, c_gid)
 
-            for root, dirnames, filenames in os.walk(self.config.datadir):
+            for root, _, filenames in os.walk(self.config.datadir):
                 for filename in filenames:
                     os.chown(os.path.join(root, filename), c_uid, c_gid)
 
-            for root, dirnames, filenames in os.walk(self.config.rundir):
+            for root, _, filenames in os.walk(self.config.rundir):
                 for filename in filenames:
                     os.chown(os.path.join(root, filename), c_uid, c_gid)
 

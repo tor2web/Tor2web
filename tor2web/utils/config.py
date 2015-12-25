@@ -128,7 +128,7 @@ class Config(Storage):
         if self.__dict__['ssl_dh'] is None:
             self.__dict__['ssl_dh'] = os.path.join(self.__dict__['datadir'], "certs/tor2web-dh.pem")
 
-        if self.__dict__['mode'] is 'BLACKLIST':
+        if self.__dict__['mode'] == 'BLACKLIST':
             self.__dict__['mode'] = 'BLOCKLIST'
 
     def load(self):

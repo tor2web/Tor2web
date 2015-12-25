@@ -153,23 +153,16 @@ class HTTPClientCacheFactory(HTTPClientFactory):
     protocol = HTTPCacheDownloader
     cache = {}
 
-    def __init__(self, url, method='GET', postdata=None, headers={},
-                 agent="Tor2Web (https://github.com/globaleaks/tor2web-3.0)",
-                 timeout=0, cookies=None,
-                 followRedirect=1):
+    def __init__(self, *args, **kwds):
+        HTTPClientFactory.__init__(self, *args, **kwds)
 
-        if url in self.cache:
-            if 'etag' in self.cache[url]:
-                headers['etag'] = self.cache[url]['etag']
-            elif 'last-modified' in self.cache[url]:
-                headers['if-modified-since'] = self.cache[url]['last-modified']
-            elif 'date' in self.cache[url]:
-                headers['if-modified-since'] = self.cache[url]['date']
-
-        HTTPClientFactory.__init__(self, url=url, method=method,
-                postdata=postdata, headers=headers, agent=agent,
-                timeout=timeout, cookies=cookies, followRedirect=followRedirect)
-        self.deferred = Deferred()
+        if self.url in self.cache:
+            if 'etag' in self.cache[self.url]:
+                self.headers['etag'] = self.cache[self.url]['etag']
+            elif 'last-modified' in self.cache[self.url]:
+                self.headers['if-modified-since'] = self.cache[self.url]['last-modified']
+            elif 'date' in self.cache[self.url]:
+                self.headers['if-modified-since'] = self.cache[self.url]['date']
 
 
 class List(set):

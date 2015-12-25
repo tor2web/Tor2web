@@ -291,9 +291,14 @@ class BodyProducer(object):
     def allDataReceived(self):
         self.finished.callback(None)
 
-    def resumeProducing(self): pass
-    def pauseProducing(self): pass
-    def stopProducing(self): pass
+    def resumeProducing(self):
+        pass
+
+    def pauseProducing(self):
+        pass
+
+    def stopProducing(self):
+        pass
 
 class Agent(client.Agent):
     def __init__(self, reactor,
@@ -940,7 +945,7 @@ class T2WRequest(http.Request):
             # Avoid image hotlinking
             if config.blockhotlinking and request.uri.lower().endswith(tuple(config.blockhotlinking_exts)):
                 if request.headers.getRawHeaders(b'referer') is not None and \
-                        not request.host in request.headers.getRawHeaders(b'referer')[0].lower():
+                        request.host not in request.headers.getRawHeaders(b'referer')[0].lower():
                     self.sendError(403)
                     defer.returnValue(NOT_DONE_YET)
 
@@ -970,8 +975,8 @@ class T2WRequest(http.Request):
 
                 elif config.mode == "BLOCKLIST":
                     if (hashlib.md5(self.obj.onion).hexdigest() in block_list or
-                        hashlib.md5(self.obj.onion[-22:]).hexdigest() in black_list or
-                        hashlib.md5(self.var['path']).hexdigest() in black_list:
+                        hashlib.md5(self.obj.onion[-22:]).hexdigest() in block_list or
+                        hashlib.md5(self.var['path']).hexdigest() in block_list):
                         self.sendError(403, 'error_hs_completely_blocked.tpl')
                         defer.returnValue(NOT_DONE_YET)
 
