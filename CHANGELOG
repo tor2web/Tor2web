@@ -1,3 +1,7 @@
+Changes in version 3.1.43 - 2015-12-26
+    o Update and stabilize dependencies based on packaged debian versions
+    o Implement path blocklists and subdomain blocklist
+
 Changes in version 3.1.42 - 2015-06-22
     o Improve init script error outputs
     o Fix bug in intermediate certificates loading
