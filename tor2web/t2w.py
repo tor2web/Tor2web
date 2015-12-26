@@ -49,7 +49,7 @@ from twisted.python.filepath import FilePath
 from twisted.internet.task import LoopingCall
 from tor2web import __version__
 from tor2web.utils.config import Config
-from tor2web.utils.daemon import T2WDaemon, set_pdeathsig, set_proctitle
+from tor2web.utils.daemon import Daemon, set_pdeathsig, set_proctitle
 from tor2web.utils.hostsmap import HostsMap
 from tor2web.utils.lists import LimitedSizeDict, List, TorExitNodeList
 from tor2web.utils.mail import sendmail, sendexceptionmail
@@ -1216,6 +1216,108 @@ class T2WLimitedRequestsFactory(WrappingFactory):
             except Exception:
                 pass
 
+def open_listenin_socket(ip, port):
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.setblocking(False)
+        s.bind((ip, port))
+        s.listen(1024)
+        return s
+    except Exception as e:
+        print "Tor2web Startup Failure: error while binding on %s %s (%s)" % (ip, port, e)
+        exit(1)
+
+
+class T2WDaemon(Daemon):
+    def daemon_init(self):
+        self.quitting = False
+        self.subprocesses = []
+
+        self.rpc_server = T2WRPCServer(self.config)
+
+        self.socket_rpc = open_listenin_socket('127.0.0.1', 8789)
+
+        self.childFDs = {0: 0, 1: 1, 2: 2}
+
+        self.fds = []
+
+        self.fds_https = self.fds_http = ''
+
+        i_https = i_http = 0
+
+        for ip in [ipv4, ipv6]:
+            if ip is None:
+                continue
+
+            if self.config.transport in ('HTTPS', 'BOTH'):
+                if i_https:
+                    self.fds_https += ','
+
+                s = open_listenin_socket(ip, self.config.listen_port_https)
+                self.fds.append(s)
+                self.childFDs[s.fileno()] = s.fileno()
+                self.fds_https += str(s.fileno())
+                i_https += 1
+
+            if self.config.transport in ('HTTP', 'BOTH'):
+                if i_http:
+                    self.fds_http += ','
+
+                s = open_listenin_socket(ip, self.config.listen_port_http)
+                self.fds.append(s)
+                self.childFDs[s.fileno()] = s.fileno()
+                self.fds_http += str(s.fileno())
+                i_http += 1
+
+    def daemon_main(self):
+        if self.config.logreqs:
+            self.logfile_access = logfile.DailyLogFile.fromFullPath(os.path.join(self.config.datadir, 'logs', 'access.log'))
+        else:
+            self.logfile_access = log.NullFile()
+
+        if self.config.debugmode:
+            if self.config.debugtostdout and self.config.nodaemon:
+                self.logfile_debug = sys.stdout
+            else:
+                self.logfile_debug = logfile.DailyLogFile.fromFullPath(
+                    os.path.join(self.config.datadir, 'logs', 'debug.log'))
+        else:
+            self.logfile_debug = log.NullFile()
+
+        log.startLogging(self.logfile_debug)
+
+        reactor.listenTCPonExistingFD = listenTCPonExistingFD
+
+        reactor.listenUNIX(os.path.join(self.config.rundir, 'rpc.socket'), factory=pb.PBServerFactory(self.rpc_server))
+
+        if not self.config.disable_gettor:
+            LoopingCall(getTorTask, self.config).start(3600)
+
+        for i in range(self.config.processes):
+            subprocess = spawnT2W(self, self.childFDs, self.fds_https, self.fds_http)
+            self.subprocesses.append(subprocess.pid)
+
+        def MailException(etype, value, tb):
+            sendexceptionmail(self.config, etype, value, tb)
+
+        if self.config.smtpmailto_exceptions:
+            # if self.config.smtp_mail is configured we change the excepthook
+            sys.excepthook = MailException
+
+        reactor.run()
+
+    def daemon_reload(self):
+        self.rpc_server.load_lists()
+
+    def daemon_shutdown(self):
+        self.quitting = True
+
+        for pid in self.subprocesses:
+            os.kill(pid, signal.SIGINT)
+
+        self.subprocesses = []
+
 
 def start_worker():
     LoopingCall(updateListsTask).start(600)
@@ -1430,122 +1532,20 @@ if usr_tpl_dir != sys_tpl_dir and os.path.exists(usr_tpl_dir):
 
 ports = []
 
+def nullStartedConnecting(self, connector):
+    pass
+
 pool = client.HTTPConnectionPool(reactor, True)
 pool.maxPersistentPerHost = config.sockmaxpersistentperhost
 pool.cachedConnectionTimeout = config.sockcachedconnectiontimeout
 pool.retryAutomatically = config.sockretryautomatically
-def nullStartedConnecting(self, connector): pass
 pool._factory.startedConnecting = nullStartedConnecting
+
 
 if 'T2W_FDS_HTTPS' not in os.environ and 'T2W_FDS_HTTP' not in os.environ:
     set_proctitle("tor2web")
 
-    def open_listenin_socket(ip, port):
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            s.setblocking(False)
-            s.bind((ip, port))
-            s.listen(1024)
-            return s
-        except Exception as e:
-            print "Tor2web Startup Failure: error while binding on %s %s (%s)" % (ip, port, e)
-            exit(1)
-
-    def daemon_init(self):
-        self.quitting = False
-        self.subprocesses = []
-
-        self.socket_rpc = open_listenin_socket('127.0.0.1', 8789)
-
-        self.childFDs = {0: 0, 1: 1, 2: 2}
-
-        self.fds = []
-
-        self.fds_https = self.fds_http = ''
-
-        i_https = i_http = 0
-
-        for ip in [ipv4, ipv6]:
-            if ip is None:
-                continue
-
-            if config.transport in ('HTTPS', 'BOTH'):
-                if i_https:
-                    self.fds_https += ','
-
-                s = open_listenin_socket(ip, config.listen_port_https)
-                self.fds.append(s)
-                self.childFDs[s.fileno()] = s.fileno()
-                self.fds_https += str(s.fileno())
-                i_https += 1
-
-            if config.transport in ('HTTP', 'BOTH'):
-                if i_http:
-                    self.fds_http += ','
-
-                s = open_listenin_socket(ip, config.listen_port_http)
-                self.fds.append(s)
-                self.childFDs[s.fileno()] = s.fileno()
-                self.fds_http += str(s.fileno())
-                i_http += 1
-
-
-    def daemon_main(self):
-        if config.logreqs:
-            self.logfile_access = logfile.DailyLogFile.fromFullPath(os.path.join(config.datadir, 'logs', 'access.log'))
-        else:
-            self.logfile_access = log.NullFile()
-
-        if config.debugmode:
-            if config.debugtostdout and config.nodaemon:
-                self.logfile_debug = sys.stdout
-            else:
-                self.logfile_debug = logfile.DailyLogFile.fromFullPath(
-                    os.path.join(config.datadir, 'logs', 'debug.log'))
-        else:
-            self.logfile_debug = log.NullFile()
-
-        log.startLogging(self.logfile_debug)
-
-        reactor.listenTCPonExistingFD = listenTCPonExistingFD
-
-        reactor.listenUNIX(os.path.join(config.rundir, 'rpc.socket'), factory=pb.PBServerFactory(self.rpc_server))
-
-        if not config.disable_gettor:
-            gtt = LoopingCall(getTorTask, config)
-            gtt.start(3600)
-
-        for i in range(config.processes):
-            subprocess = spawnT2W(self, self.childFDs, self.fds_https, self.fds_http)
-            self.subprocesses.append(subprocess.pid)
-
-        def MailException(etype, value, tb):
-            sendexceptionmail(config, etype, value, tb)
-
-        if config.smtpmailto_exceptions:
-            # if config.smtp_mail is configured we change the excepthook
-            sys.excepthook = MailException
-
-        reactor.run()
-
-    def daemon_reload(self):
-        self.rpc_server.load_lists()
-
-    def daemon_shutdown(self):
-        self.quitting = True
-
-        for pid in self.subprocesses:
-            os.kill(pid, signal.SIGINT)
-
-        self.subprocesses = []
-
     t2w_daemon = T2WDaemon(config)
-    t2w_daemon.daemon_init = daemon_init
-    t2w_daemon.daemon_main = daemon_main
-    t2w_daemon.daemon_reload = daemon_reload
-    t2w_daemon.daemon_shutdown = daemon_shutdown
-    t2w_daemon.rpc_server = T2WRPCServer(config)
 
     t2w_daemon.run()
 

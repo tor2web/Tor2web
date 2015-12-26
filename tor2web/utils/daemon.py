@@ -37,14 +37,13 @@ class _NullDevice(object):
         pass
 
 
-class T2WDaemon(object):
+class Daemon(object):
     def __init__(self, config):
         self.config = config
 
     def become_daemon(self):
-
-        if os.fork() != 0:  # launch child and ...
-            os._exit(0)     # kill off parent
+        if os.fork() != 0:  # launch child and kill the parent
+            os._exit(0)
 
         os.setsid()
         os.chdir(self.config.rundir)
