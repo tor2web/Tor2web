@@ -33,27 +33,64 @@ while getopts "d:n:th" opt; do
   esac
 done
 
-if [ "$DISTRIBUTION" != "precise" ] &&
+if [ "$DISTRIBUTION" != "all" ] &&
+   [ "$DISTRIBUTION" != "precise" ] &&
    [ "$DISTRIBUTION" != "trusty" ] &&
    [ "$DISTRIBUTION" != "wheezy" ] &&
    [ "$DISTRIBUTION" != "jessie" ]; then
-  usage
-  exit 1 
+ usage
+ exit 1
 fi
 
-echo "Packaging Tor2web for:" $DISTRIBUTION
+if [ "$DISTRIBUTION" == "all" ]; then
+  TARGETS="precise trusty wheezy jessie"
+else
+  TARGETS=$DISTRIBUTION
+fi
 
-[ -d T2WRelease ] && rm -rf T2WRelease
+# Preliminary Requirements Check
+ERR=0
+echo "Checking preliminary Tor2web Build requirements"
+for REQ in git debuild
+do
+  if which $REQ >/dev/null; then
+    echo " + $REQ requirement meet"
+  else
+    ERR=$(($ERR+1))
+    echo " - $REQ requirement not meet"
+  fi
+done
 
-mkdir T2WRelease
-cd T2WRelease
-git clone git@github.com:globaleaks/Tor2web.git
+if [ $ERR -ne 0 ]; then
+  echo "Error: Found ${ERR} unmet requirements"
+  echo "Information on how to setup tor2web development environment at: https://github.com/globaleaks/Tor2web/wiki/setting-up-globaleaks-development-environment"
+  exit 1
+fi
+
+BUILDSRC="T2WRelease"
+[ -d $BUILDSRC ] && rm -rf $BUILDSRC
+mkdir $BUILDSRC && cd $BUILDSRC
+git clone https://github.com/globaleaks/Tor2web.git
 cd Tor2web
 git checkout $TAG
-sed -i "s/stable; urgency=/$DISTRIBUTION; urgency=/g" debian/changelog
+cd ../../
 
-if [ $NOSIGN -eq 1 ]; then
-  debuild -i -us -uc -b
-else
-  debuild
-fi
+for TARGET in $TARGETS; do
+  echo "Packaging Tor2web for:" $TARGET
+
+  BUILDDIR="T2WRelease-$TARGET"
+
+  [ -d $BUILDDIR ] && rm -rf $BUILDDIR
+
+  cp -r $BUILDSRC $BUILDDIR
+  cd $BUILDDIR/Tor2web
+  sed -i "s/stable; urgency=/$TARGET; urgency=/g" debian/changelog
+
+  if [ $NOSIGN -eq 1 ]; then
+    debuild -i -us -uc -b
+  else
+    debuild
+  fi
+
+  cd ../../
+done
