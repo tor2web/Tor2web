@@ -1,4 +1,12 @@
+Parsley==1.2
 Twisted==13.2.0
-zope.interface==4.0.5
-pyopenssl==0.14
+cffi==0.8.2
+cryptography==0.8.2
+cyclone==1.1
+enum34==0.9.23
+pyOpenSSL==0.14
 pyasn1==0.1.7
+pycparser==2.10
+six==1.5.2
+transaction==1.1.1
+zope.interface==4.0.5
