@@ -1,5 +1,5 @@
 /*
-  Copyright 2015 - Hermes Center - GlobaLeaks project
+  Copyright 2011-2016 - Hermes Center - GlobaLeaks project
   Author <giovanni.pellerano@evilaliv3.org>
 
   Javascript CheckTor library

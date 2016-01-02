@@ -32,7 +32,7 @@ Follow us on [Twitter](https://twitter.com/tor2web) [![Twitter](http://i.imgur.c
 
 
 ## License
-Copyright (C) 2011-2015 Hermes No Profit Association - GlobaLeaks Project
+Copyright (C) 2011-2016 Hermes No Profit Association - GlobaLeaks Project
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU Affero General Public License as published by the Free
