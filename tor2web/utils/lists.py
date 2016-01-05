@@ -26,6 +26,7 @@ from twisted.web.client import HTTPPageGetter, HTTPClientFactory, _URI
 
 from tor2web.utils.ssl import HTTPSVerifyingContextFactory
 
+
 class LimitedSizeDict(OrderedDict):
     def __init__(self, *args, **kwds):
         self.size_limit = kwds.pop("size_limit", None)
@@ -42,6 +43,7 @@ class LimitedSizeDict(OrderedDict):
         if self.size_limit is not None:
             while len(self) > self.size_limit:
                 self.popitem(last=False)
+
 
 def getPageCached(url, contextFactory=None, *args, **kwargs):
     """download a web page as a string, keep a cache of already downloaded pages
@@ -66,6 +68,7 @@ def getPageCached(url, contextFactory=None, *args, **kwargs):
         reactor.connectTCP(host, port, factory)
 
     return factory.deferred
+
 
 class HTTPCacheDownloader(HTTPPageGetter):
     def connectionMade(self, isCached=False):
@@ -149,6 +152,7 @@ class HTTPCacheDownloader(HTTPPageGetter):
         # content not modified
         pass
 
+
 class HTTPClientCacheFactory(HTTPClientFactory):
     protocol = HTTPCacheDownloader
     cache = {}
@@ -229,13 +233,10 @@ class List(set):
         pageFetchedDeferred.addCallback(self.processData)
         return pageFetchedDeferred
 
+
 class TorExitNodeList(List):
     def handleData(self, data):
         if self.mode == 'REPLACE':
             self.clear()
 
-        data = json.loads(data)
-        for relay in data['relays']:
-            for ip in relay['a']:
-                if ip != '':
-                    self.add(ip)
+        self.update(re.findall( r'ExitAddress ([^ ]*) ', data))
