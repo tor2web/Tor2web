@@ -1,3 +1,7 @@
+Changes in version 3.1.44 - 2016-01-06
+    o Automate generation of DH parameters (#260)
+    o Replace onionoo with check.torproject.org/exit-addresses #125
+
 Changes in version 3.1.43 - 2015-12-26
     o Update and stabilize dependencies based on packaged debian versions
     o Implement path blocklists and subdomain blocklist
