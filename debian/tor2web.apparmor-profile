@@ -40,6 +40,8 @@ profile usr.bin.tor2web {
     /run/tor2web/ rw,
     /run/tor2web/** lrw,
 
+    /etc/letsencrypt/** mrwlk,
+
     owner /tmp/** rwkl,
     owner /var/tmp/** rwkl,
 }
