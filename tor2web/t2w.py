@@ -28,6 +28,8 @@ from functools import partial
 from urlparse import urlparse
 from cgi import parse_header
 
+from OpenSSL._util import ffi as _ffi, lib as _lib
+
 from zope.interface import implements
 from twisted.spread import pb
 from twisted.internet import reactor, protocol, defer, address
@@ -1452,21 +1454,27 @@ for d in ['certs', 'logs']:
         print "Tor2web Startup Failure: unexistent directory (%s)" % path
         exit(1)
 
+
 def test_file_access(f):
   return os.path.exists(f) and os.path.isfile(f) and os.access(f, os.R_OK)
 
+
 if config.transport in ('HTTPS', 'BOTH'):
-  if not test_file_access(config.ssl_key):
-    print "Tor2web Startup Failure: unexistent file (%s)" % config.ssl_key
-    exit(1)
+    if not test_file_access(config.ssl_key):
+        print "Tor2web Startup Failure: unexistent file (%s)" % config.ssl_key
+        exit(1)
 
-  if not test_file_access(config.ssl_cert) and not test_file_access(config.ssl_intermediate):
-    print "Tor2web Startup Failure: unexistent file (%s)" % config.ssl_cert
-    exit(1)
+    if not test_file_access(config.ssl_cert) and not test_file_access(config.ssl_intermediate):
+        print "Tor2web Startup Failure: unexistent file (%s)" % config.ssl_cert
+        exit(1)
 
-  if not test_file_access(config.ssl_dh):
-    print "Tor2web Startup Failure: unexistent file (%s)" % config.ssl_dh
-    exit(1)
+    if not test_file_access(config.ssl_dh):
+        print "Generating HTTPS DH parameters (hold on, this may take a while!)"
+        dh = _lib.DH_new()
+        _lib.DH_generate_parameters_ex(dh, 2048, 2L, _ffi.NULL)
+        with open(config.ssl_dh, 'w') as dhfile:
+          _lib.DHparams_print_fp(dhfile, dh)
+
 
 if config.listen_ipv6 == "::" or config.listen_ipv4 == config.listen_ipv6:
     # fix for incorrect configurations
