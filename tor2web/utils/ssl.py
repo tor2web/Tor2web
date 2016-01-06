@@ -18,6 +18,7 @@ import os
 from OpenSSL import SSL
 from OpenSSL.crypto import load_certificate, dump_certificate, FILETYPE_PEM, \
  _raise_current_error
+from OpenSSL._util import lib as _lib, ffi as _ffi
 from pyasn1.type import univ, constraint, char, namedtype, tag
 from pyasn1.codec.der.decoder import decode
 from twisted.internet import ssl
@@ -58,32 +59,6 @@ def altnames(cert):
             for j in dec[0]:
                 altnames.append(j[0].asOctets())
     return altnames
-
-class T2WSSLContext(SSL.Context):
-
-    def load_tmp_dh(self, dhfile):
-        """
-        Function overridden in order to enforce ECDH/PFS
-        """
-
-        from OpenSSL._util import (ffi as _ffi,
-                                   lib as _lib)
-
-        if not isinstance(dhfile, bytes):
-            raise TypeError("dhfile must be a byte string")
-
-        bio = _lib.BIO_new_file(dhfile, b"r")
-        if bio == _ffi.NULL:
-            _raise_current_error()
-        bio = _ffi.gc(bio, _lib.BIO_free)
-
-        dh = _lib.PEM_read_bio_DHparams(bio, _ffi.NULL, _ffi.NULL, _ffi.NULL)
-        dh = _ffi.gc(dh, _lib.DH_free)
-        _lib.SSL_CTX_set_tmp_dh(self._context, dh)
-
-        ecdh = _lib.EC_KEY_new_by_curve_name(_lib.NID_X9_62_prime256v1)
-        ecdh = _ffi.gc(ecdh, _lib.EC_KEY_free)
-        _lib.SSL_CTX_set_tmp_ecdh(self._context, ecdh)
 
 
 class T2WSSLContextFactory(ssl.ContextFactory):
@@ -150,7 +125,13 @@ class T2WSSLContextFactory(ssl.ContextFactory):
             ctx.use_privatekey_file(self.privateKeyFilePath)
 
             ctx.set_cipher_list(self.cipherList)
+
             ctx.load_tmp_dh(self.dhFilePath)
+
+            ecdh = _lib.EC_KEY_new_by_curve_name(_lib.NID_X9_62_prime256v1)
+            ecdh = _ffi.gc(ecdh, _lib.EC_KEY_free)
+            _lib.SSL_CTX_set_tmp_ecdh(ctx.context, ecdh)
+
             self._context = ctx
 
     def getContext(self):
