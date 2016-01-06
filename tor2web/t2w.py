@@ -1473,7 +1473,7 @@ if config.transport in ('HTTPS', 'BOTH'):
         dh = _lib.DH_new()
         _lib.DH_generate_parameters_ex(dh, 2048, 2L, _ffi.NULL)
         with open(config.ssl_dh, 'w') as dhfile:
-          _lib.DHparams_print_fp(dhfile, dh)
+            _lib.DHparams_print_fp(dhfile, dh)
 
 
 if config.listen_ipv6 == "::" or config.listen_ipv4 == config.listen_ipv6:
