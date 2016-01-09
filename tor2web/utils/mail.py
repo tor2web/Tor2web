@@ -25,7 +25,7 @@ from twisted.internet.ssl import ClientContextFactory
 from tor2web import __version__
 
 
-def sendmail(authenticationUsername, authenticationSecret, fromAddress, toAddress, messageFile, smtpHost, smtpPort=25):
+def sendmail(config, messageFile):
     """
     Sends an email using SSLv3 over SMTP
 
@@ -47,17 +47,25 @@ def sendmail(authenticationUsername, authenticationSecret, fromAddress, toAddres
     resultDeferred = defer.Deferred()
 
     senderFactory = ESMTPSenderFactory(
-        authenticationUsername,
-        authenticationSecret,
-        fromAddress,
-        toAddress,
+        config.smtpuser.encode('utf-8'),
+        config.smtppass.encode('utf-8'),
+        config.smtpmail,
+        config.smtpmailto_exceptions,
         messageFile,
         resultDeferred,
-        contextFactory=contextFactory)
+        contextFactory=contextFactory,
+        requireAuthentication=True,
+        requireTransportSecurity=(config.smtpsecurity != 'SSL'),
+        retries=0,
+        timeout=15)
 
-    reactor.connectTCP(smtpHost, smtpPort, senderFactory)
+    if config.security == "SSL":
+        senderFactory = tls.TLSMemoryBIOFactory(contextFactory, True, senderFactory)
+
+    reactor.connectTCP(config.smtpdomain, config.smtpport, senderFactory)
 
     return resultDeferred
+
 
 def sendexceptionmail(config, etype, value, tb):
     """
@@ -67,7 +75,6 @@ def sendexceptionmail(config, etype, value, tb):
     @param value: Exception string value
     @param tb: Traceback string data
     """
-
     exc_type = re.sub("(<(type|class ')|'exceptions.|'>|__main__.)", "", str(etype))
 
     tmp = ["From: Tor2web Node %s.%s <%s>\n" % (config.nodename, config.basehost, config.smtpmail),
@@ -86,4 +93,8 @@ def sendexceptionmail(config, etype, value, tb):
     info_string = ''.join(tmp)
     message = StringIO(info_string)
 
-    sendmail(config.smtpuser, config.smtppass, config.smtpmail, config.smtpmailto_exceptions, message, config.smtpdomain, config.smtpport)
+    sendmail(config, message)
+
+
+def MailException(etype, value, tb):
+    sendexceptionmail(config, etype, value, tb)

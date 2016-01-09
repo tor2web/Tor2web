@@ -54,7 +54,7 @@ from tor2web.utils.config import Config
 from tor2web.utils.daemon import Daemon, set_pdeathsig, set_proctitle
 from tor2web.utils.hostsmap import HostsMap
 from tor2web.utils.lists import LimitedSizeDict, List, TorExitNodeList
-from tor2web.utils.mail import sendmail, sendexceptionmail
+from tor2web.utils.mail import sendmail, MailException
 from tor2web.utils.misc import listenTCPonExistingFD, listenSSLonExistingFD, re_sub, verify_onion
 from tor2web.utils.socks import SOCKSError, SOCKS5ClientEndpoint, TLSWrapClientEndpoint
 from tor2web.utils.ssl import T2WSSLContextFactory, HTTPSVerifyingContextFactory
@@ -810,8 +810,6 @@ class T2WRequest(http.Request):
                     defer.returnValue(self.contentFinish(content))
 
                 elif staticpath == "notification" and config.smtpmailto_notifications != '':
-                    # if config.smtp_mail is configured we accept notifications
-
                     # ################################################################
                     # Here we need to parse POST data in x-www-form-urlencoded format
                     # ################################################################
@@ -843,13 +841,7 @@ class T2WRequest(http.Request):
                         message = StringIO(''.join(tmp))
 
                         try:
-                            sendmail(config.smtpuser,
-                                     config.smtppass,
-                                     config.smtpmail,
-                                     config.smtpmailto_notifications,
-                                     message,
-                                     config.smtpdomain,
-                                     config.smtpport)
+                            sendmail(config, message)
                         except Exception:
                             pass
 
@@ -1300,9 +1292,6 @@ class T2WDaemon(Daemon):
             subprocess = spawnT2W(self, self.childFDs, self.fds_https, self.fds_http)
             self.subprocesses.append(subprocess.pid)
 
-        def MailException(etype, value, tb):
-            sendexceptionmail(self.config, etype, value, tb)
-
         if self.config.smtpmailto_exceptions:
             # if self.config.smtp_mail is configured we change the excepthook
             sys.excepthook = MailException
@@ -1363,9 +1352,6 @@ def start_worker():
         ports.append(reactor.listenTCPonExistingFD(reactor,
                                                    fd=fd,
                                                    factory=factory))
-
-    def MailException(etype, value, tb):
-        sendexceptionmail(config, etype, value, tb)
 
     if config.smtpmailto_exceptions:
         # if config.smtp_mail is configured we change the excepthook

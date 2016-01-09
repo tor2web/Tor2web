@@ -22,6 +22,7 @@ from OpenSSL._util import lib as _lib, ffi as _ffi
 from pyasn1.type import univ, constraint, char, namedtype, tag
 from pyasn1.codec.der.decoder import decode
 from twisted.internet import ssl
+from twisted.protocols import tls
 
 
 certificateAuthorityMap = {}

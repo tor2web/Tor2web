@@ -91,13 +91,14 @@ class Config(Storage):
         self.__dict__['disable_tor_redirection'] = False
         self.__dict__['disable_gettor'] = False
         self.__dict__['avoid_rewriting_visible_data'] = False
-        self.__dict__['smtp_user'] = ''
-        self.__dict__['smtp_pass'] = ''
-        self.__dict__['smtp_mail'] = ''
+        self.__dict__['smtpuser'] = 'hey_you_should_change_me'
+        self.__dict__['smtppass'] = 'yes_you_really_should_change_me'
+        self.__dict__['smtpmail'] = 'notification@demo.globaleaks.org'
         self.__dict__['smtpmailto_exceptions'] = 'stackexception@lists.tor2web.org'
         self.__dict__['smtpmailto_notifications'] = 'tor2web-abuse@lists.tor2web.org'
-        self.__dict__['smtpdomain'] = ''
-        self.__dict__['smtpport'] = 587
+        self.__dict__['smtpdomain'] = 'demo.globaleaks.org'
+        self.__dict__['smtpport'] = 9267
+        self.__dict__['smtpsecurity'] = 'TLS'
         self.__dict__['exit_node_list_refresh'] = 600
         self.__dict__['automatic_blocklist_updates_source'] = ''
         self.__dict__['automatic_blocklist_updates_refresh'] = 600
@@ -143,7 +144,6 @@ class Config(Storage):
             exit(1)
 
         try:
-
             self._parser.read([self._file])
 
             for name in self._parser.options(self._section):
@@ -199,7 +199,6 @@ class Config(Storage):
 
     def parse(self, name):
         try:
-
             value = self._parser.get(self._section, name)
             
             # strip any boundry whitespace just in case
@@ -231,7 +230,6 @@ class Config(Storage):
             return
 
         try:
-
             # XXX: Automagically discover variable type
             self._parser.set(self._section, name, value)
 
