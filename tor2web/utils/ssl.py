@@ -130,7 +130,7 @@ class T2WSSLContextFactory(ssl.ContextFactory):
 
             ecdh = _lib.EC_KEY_new_by_curve_name(_lib.NID_X9_62_prime256v1)
             ecdh = _ffi.gc(ecdh, _lib.EC_KEY_free)
-            _lib.SSL_CTX_set_tmp_ecdh(ctx.context, ecdh)
+            _lib.SSL_CTX_set_tmp_ecdh(ctx._context, ecdh)
 
             self._context = ctx
 
