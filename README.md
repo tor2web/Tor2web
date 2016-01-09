@@ -1,4 +1,5 @@
-# Tor2web
+Tor2web [![Build Status](https://travis-ci.org/globaleaks/Tor2web.svg?branch=master)](https://travis-ci.org/globaleaks/Tor2web) [![Code Health](https://landscape.io/github/globaleaks/Tor2web/master/landscape.svg)](https://landscape.io/github/globaleaks/Tor2web/master)
+==========
 
 ## Introduction
 Tor2web is a web proxy software that let you access Tor Hidden Services from
@@ -17,11 +18,6 @@ To support Tor2web Project you can help us with donations that will goes entirel
 [![Bitcoin](https://bitpay.com/img/donate-button-sm.png)](https://tor2web.org/bitcoin.html) [![PayPal](https://www.paypalobjects.com/en_US/i/btn/x-click-butcc-donate.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id= 22CAHH6GRRCTC) [![Subscription](https://www.paypalobjects.com/en_US/i/btn/btn_subscribeCC_LG.gif)](https://tor2web.org/paypal.html) [![Flattr](http://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/submit/auto?user_id=GlobaLeaks&url=https://github.com/globaleaks/tor2web&title=Tor2web&language=en&tags=github&category=software)
 
 [Help us](http://logioshermes.org/home/about-mission/support-us/) by sending us a small donation!
-
-## Build Status
-[![Build Status](https://travis-ci.org/globaleaks/Tor2web.svg?branch=master)](https://travis-ci.org/globaleaks/Tor2web)
-[![Code Health](https://landscape.io/github/globaleaks/Tor2web/master/landscape.svg)](https://landscape.io/github/globaleaks/Tor2web/master)
-
 
 ## Contacts
 To discuss with developers and tor2web operators join the [Tor2web-Talk@lists.tor2web.org](https://lists.ghserv.net/mailman/listinfo/tor2web-talk) mailing list (Thanks [GreenHost](http://www.greenhost.nl) for hosting it) or join IRC chat on [irc.oftc.net channel #tor2web](https://irc.lc/OFTC/tor2web/T2W_github_user) .
