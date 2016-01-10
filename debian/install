@@ -1,0 +1,5 @@
+requirements.txt usr/share/tor2web
+data/tor2web.conf.example etc/
+data/lists usr/share/tor2web/
+data/static usr/share/tor2web/
+data/templates usr/share/tor2web/
