@@ -97,6 +97,14 @@ else
         MAX_FILEDESCRIPTORS=8192
 fi
 
+if [ -d "/etc/letsencrypt/live" ] && [ -d "/etc/letsencrypt/archive" ]; then
+	echo "Letsencrypt detected, fixing permission for /etc/letsencrypt/{live,archive} for $DAEMON_USER user"
+	chgrp $DAEMON_USER /etc/letsencrypt/live/ 
+	chgrp $DAEMON_USER /etc/letsencrypt/archive
+	chmod g+rx /etc/letsencrypt/archive
+	chmod g+rx /etc/letsencrypt/live
+fi
+
 if [ "${APPARMOR_SANDBOXING}" -eq "1" ]; then
     APPARMOR_STARTED=0
 
