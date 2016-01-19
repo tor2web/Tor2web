@@ -950,8 +950,10 @@ class T2WRequest(http.Request):
             self.var['address'] = self.obj.address
             self.var['onion'] = self.obj.onion.replace(".onion", "")
             self.var['path'] = parsed[2]
-            if parsed[3] is not None and parsed[3] != '':
-                self.var['path'] += '?' + parsed[3]
+            self.var['full_path'] = self.obj.onion + self.var['path']
+            self.var['full_url'] = self.var['full_path']
+            if parsed[4] is not None and parsed[4] != '':
+                self.var['full_url'] += '?' + parsed[4]
 
             if not crawler:
                 if not config.disable_disclaimer and not self.getCookie("disclaimer_accepted"):
@@ -970,6 +972,8 @@ class T2WRequest(http.Request):
                 elif config.mode == "BLOCKLIST":
                     if (hashlib.md5(self.obj.onion).hexdigest() in block_list or
                         hashlib.md5(self.obj.onion[-22:]).hexdigest() in block_list or
+                        hashlib.md5(self.var['full_url']).hexdigest() in block_list or
+                        hashlib.md5(self.var['full_path']).hexdigest() in block_list or
                         hashlib.md5(self.var['path']).hexdigest() in block_list):
                         self.sendError(403, 'error_hs_completely_blocked.tpl')
                         defer.returnValue(NOT_DONE_YET)
