@@ -25,7 +25,7 @@ import hashlib
 from StringIO import StringIO
 from random import choice
 from functools import partial
-from urlparse import urlparse
+from urlparse import urlsplit
 from cgi import parse_header
 
 from OpenSSL._util import ffi as _ffi, lib as _lib
@@ -62,6 +62,7 @@ from tor2web.utils.stats import T2WStats
 from tor2web.utils.storage import Storage
 from tor2web.utils.templating import PageTemplate
 from tor2web.utils.gettor import getRedirectURL, getOSandLC, processGetTorRequest, getTorTask
+from tor2web.utils.urls import normalize_url
 
 SOCKS_errors = {
     0x00: "error_sock_generic.tpl",
@@ -93,7 +94,9 @@ class T2WRPCServer(pb.Root):
             # (load -> hash -> clear feature; for security reasons)
             self.blocklist_cleartext = List(config.t2w_file_path('lists/blocklist_cleartext.txt'))
             for i in self.blocklist_cleartext:
-                self.block_list.add(hashlib.md5(i).hexdigest())
+                # Normalize and hash the url
+                i = hashlib.md5(normalize_url(i)).hexdigest()
+                self.block_list.add(i)
 
             self.block_list.dump()
 
@@ -945,15 +948,16 @@ class T2WRequest(http.Request):
 
             self.process_request(request)
 
-            parsed = urlparse(self.obj.address)
+            parsed = urlsplit(self.obj.address)
 
             self.var['address'] = self.obj.address
             self.var['onion'] = self.obj.onion.replace(".onion", "")
             self.var['path'] = parsed[2]
             self.var['full_path'] = self.obj.onion + self.var['path']
             self.var['full_url'] = self.var['full_path']
-            if parsed[4] is not None and parsed[4] != '':
-                self.var['full_url'] += '?' + parsed[4]
+            if parsed[3]:
+                self.var['full_url'] += '?' + parsed[3]
+            self.var['normalized_url'] = normalize_url(self.var['full_url'])
 
             if not crawler:
                 if not config.disable_disclaimer and not self.getCookie("disclaimer_accepted"):
@@ -973,6 +977,7 @@ class T2WRequest(http.Request):
                     if (hashlib.md5(self.obj.onion).hexdigest() in block_list or
                         hashlib.md5(self.obj.onion[-22:]).hexdigest() in block_list or
                         hashlib.md5(self.var['full_url']).hexdigest() in block_list or
+                        hashlib.md5(self.var['normalized_url']).hexdigest() in block_list or
                         hashlib.md5(self.var['full_path']).hexdigest() in block_list or
                         hashlib.md5(self.var['path']).hexdigest() in block_list):
                         self.sendError(403, 'error_hs_completely_blocked.tpl')
