@@ -963,11 +963,12 @@ class T2WRequest(http.Request):
 
             onionset = set([self.obj.onion, self.obj.onion[-22:]])
             urlset = set([full_url, normalized_url, full_path])
-            self.var['test_urls'] = []
-            self.var['test_urls'].extend(onionset)
-            self.var['test_urls'].extend(urlset)
-            self.var['test_urls'].extend(parent_urls(full_url, 1))
-            self.var['test_urls'].append(self.var['path'])
+
+            test_urls = []
+            test_urls.extend(onionset)
+            test_urls.extend(urlset)
+            test_urls.extend(parent_urls(full_url, 1))
+            test_urls.append(self.var['path'])
 
             if not crawler:
                 if not config.disable_disclaimer and not self.getCookie("disclaimer_accepted"):
@@ -985,7 +986,7 @@ class T2WRequest(http.Request):
 
                 elif config.mode == "BLOCKLIST":
                     if any(hashlib.md5(url).hexdigest() in block_list
-                           for url in self.var['test_urls']):
+                           for url in test_urls):
                         self.sendError(403, 'error_blocked_page.tpl')
                         defer.returnValue(NOT_DONE_YET)
 
