@@ -986,7 +986,7 @@ class T2WRequest(http.Request):
                 elif config.mode == "BLOCKLIST":
                     if any(hashlib.md5(url).hexdigest() in block_list
                            for url in self.var['test_urls']):
-                        self.sendError(403, 'error_hs_completely_blocked.tpl')
+                        self.sendError(403, 'error_blocked_page.tpl')
                         defer.returnValue(NOT_DONE_YET)
 
             agent = Agent(reactor, sockhost=config.sockshost, sockport=config.socksport, pool=self.pool)
