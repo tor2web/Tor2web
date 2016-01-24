@@ -1,4 +1,4 @@
-Tor2web [![Build Status](https://travis-ci.org/globaleaks/Tor2web.svg?branch=master)](https://travis-ci.org/globaleaks/Tor2web) [![Code Health](https://landscape.io/github/globaleaks/Tor2web/master/landscape.svg)](https://landscape.io/github/globaleaks/Tor2web/master)
+Tor2web [![Build Status](https://travis-ci.org/globaleaks/Tor2web.svg?branch=master)](https://travis-ci.org/globaleaks/Tor2web) [![Code Climate](https://codeclimate.com/github/globaleaks/Tor2web/badges/gpa.svg)](https://codeclimate.com/github/globaleaks/Tor2web)
 ==========
 
 ## Introduction
