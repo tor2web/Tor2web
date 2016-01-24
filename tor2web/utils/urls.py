@@ -39,3 +39,12 @@ def normalize_url(url):
     # Generate the normalized url
     url_norm = ''.join([base,path,qs_norm])
     return url_norm
+
+
+def parent_urls(url, limit=0):
+    """Generate parent urls above 'limit' level (0 = base)"""
+    # Clean up the url
+    url = normalize_url(url.rstrip('/'))
+    # Yield parent urls from second-last level down to 'limit'
+    for i in range(1, url.count('/')+1-limit):
+        yield url.rsplit('/', i)[0] + '/'

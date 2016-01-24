@@ -62,7 +62,7 @@ from tor2web.utils.stats import T2WStats
 from tor2web.utils.storage import Storage
 from tor2web.utils.templating import PageTemplate
 from tor2web.utils.gettor import getRedirectURL, getOSandLC, processGetTorRequest, getTorTask
-from tor2web.utils.urls import normalize_url
+from tor2web.utils.urls import normalize_url, parent_urls
 
 SOCKS_errors = {
     0x00: "error_sock_generic.tpl",
@@ -953,11 +953,21 @@ class T2WRequest(http.Request):
             self.var['address'] = self.obj.address
             self.var['onion'] = self.obj.onion.replace(".onion", "")
             self.var['path'] = parsed[2]
-            self.var['full_path'] = self.obj.onion + self.var['path']
-            self.var['full_url'] = self.var['full_path']
+
+            # Variations of the URL for testing against the blocklist
+            full_path = self.obj.onion + self.var['path']
+            full_url = full_path
             if parsed[3]:
-                self.var['full_url'] += '?' + parsed[3]
-            self.var['normalized_url'] = normalize_url(self.var['full_url'])
+                full_url += '?' + parsed[3]
+            normalized_url = normalize_url(full_url)
+
+            onionset = set([self.obj.onion, self.obj.onion[-22:]])
+            urlset = set([full_url, normalized_url, full_path])
+            self.var['test_urls'] = []
+            self.var['test_urls'].extend(onionset)
+            self.var['test_urls'].extend(urlset)
+            self.var['test_urls'].extend(parent_urls(full_url, 1))
+            self.var['test_urls'].append(self.var['path'])
 
             if not crawler:
                 if not config.disable_disclaimer and not self.getCookie("disclaimer_accepted"):
@@ -974,12 +984,8 @@ class T2WRequest(http.Request):
                     defer.returnValue(NOT_DONE_YET)
 
                 elif config.mode == "BLOCKLIST":
-                    if (hashlib.md5(self.obj.onion).hexdigest() in block_list or
-                        hashlib.md5(self.obj.onion[-22:]).hexdigest() in block_list or
-                        hashlib.md5(self.var['full_url']).hexdigest() in block_list or
-                        hashlib.md5(self.var['normalized_url']).hexdigest() in block_list or
-                        hashlib.md5(self.var['full_path']).hexdigest() in block_list or
-                        hashlib.md5(self.var['path']).hexdigest() in block_list):
+                    if any(hashlib.md5(url).hexdigest() in block_list
+                           for url in self.var['test_urls']):
                         self.sendError(403, 'error_hs_completely_blocked.tpl')
                         defer.returnValue(NOT_DONE_YET)
 
