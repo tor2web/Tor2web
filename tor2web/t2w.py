@@ -76,9 +76,9 @@ class T2WRPCServer(pb.Root):
         self.config = config
         self.stats = T2WStats()
         self.block_list = []
-        self.TorExitNodes = []
         self.blocked_ua = []
         self.hosts_map = {}
+        self.TorExitNodes = []
         self.certs_tofu = LimitedSizeDict(size_limit=config.ssl_tofu_cache_size)
 
         self.load_lists()
@@ -94,20 +94,18 @@ class T2WRPCServer(pb.Root):
             # (load -> hash -> clear feature; for security reasons)
             self.blocklist_cleartext = List(config.t2w_file_path('lists/blocklist_cleartext.txt'))
             for i in self.blocklist_cleartext:
-                # Normalize and hash the url
-                i = hashlib.md5(normalize_url(i)).hexdigest()
-                self.block_list.add(i)
+                self.block_list.add(hashlib.md5(normalize_url(i)).hexdigest())
 
             self.block_list.dump()
 
             self.blocklist_cleartext.clear()
             self.blocklist_cleartext.dump()
 
-        self.blocked_ua = []
+            self.blocklist_regexps = List(config.t2w_file_path('lists/blocklist_regexp.txt'))
+            self.blocklist_regexps = [re.compile(regexp_pattern) for regexp_pattern in self.blocklist_regexps]
+
         if config.blockcrawl:
-            tmp = List(config.t2w_file_path('lists/blocked_ua.txt'))
-            for ua in tmp:
-                self.blocked_ua.append(ua.lower())
+            self.blocked_ua = [ua.lower() for ua in List(config.t2w_file_path('lists/blocked_ua.txt'))]
 
         # Load Exit Nodes list with the refresh rate configured  in config file
         self.TorExitNodes = TorExitNodeList(config.t2w_file_path('lists/exitnodelist.txt'),
@@ -127,6 +125,9 @@ class T2WRPCServer(pb.Root):
 
     def remote_get_block_list(self):
         return list(self.block_list)
+
+    def remote_get_block_regexps(self):
+        return list(self.block_regexps)
 
     def remote_get_tor_exits_list(self):
         return list(self.TorExitNodes)
@@ -985,8 +986,9 @@ class T2WRequest(http.Request):
                     defer.returnValue(NOT_DONE_YET)
 
                 elif config.mode == "BLOCKLIST":
-                    if any(hashlib.md5(url).hexdigest() in block_list
-                           for url in test_urls):
+                    if (any(hashlib.md5(url).hexdigest() in block_list for url in test_urls) or \
+                        self.blocklist_regexps.search(full_url) is not None):
+
                         self.sendError(403, 'error_blocked_page.tpl')
                         defer.returnValue(NOT_DONE_YET)
 
@@ -1379,6 +1381,10 @@ def updateListsTask():
         global block_list
         block_list = l
 
+    def set_block_regexps(l):
+        global block_regexps
+        block_regepxs = l
+
     def set_blocked_ua_list(l):
         global blocked_ua_list
         blocked_ua_list = l
@@ -1392,6 +1398,7 @@ def updateListsTask():
         hosts_map = d
 
     rpc("get_block_list").addCallback(set_block_list)
+    rpc("get_block_regexps").addCallback(set_block_regexps)
     rpc("get_blocked_ua_list").addCallback(set_blocked_ua_list)
     rpc("get_tor_exits_list").addCallback(set_tor_exits_list)
     rpc("get_hosts_map").addCallback(set_hosts_map)
@@ -1563,6 +1570,7 @@ else:
     set_proctitle("tor2web-worker")
 
     block_list = []
+    block_regexps = []
     blocked_ua_list = []
     tor_exits_list = []
     hosts_map = {}
