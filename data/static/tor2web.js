@@ -11,7 +11,7 @@ function getHTTPObject() {
   if (XMLHttpRequest) {
     try {http = new XMLHttpRequest();}
     catch (e) {http = false;}
-  } else if(typeof ActiveXObject != 'undefined') {
+  } else if(typeof ActiveXObject !== 'undefined') {
     try {http = new ActiveXObject("Msxml2.tplHTTP");}
     catch (e) {
       try {http = new ActiveXObject("Microsoft.tplHTTP");}
@@ -22,7 +22,7 @@ function getHTTPObject() {
 }
 
 function handler() {
-  if(http.readyState == 4 && http.status == 200) {
+  if(http.readyState === 4 && http.status === 200) {
     show_hide_notification_form()
   }
 }
@@ -43,19 +43,13 @@ function sendNotification() {
 }
 
 function show_hide_tor2web_header(status) {
-  if(status == true) {
-    document.getElementById("tor2web-visible").style.display = 'none';
-    document.getElementById("tor2web-hidden").style.display = 'block';
-    jaaulde.utils.cookies.set('tor2web_header_hidden', 'true');
-  } else {
-    document.getElementById("tor2web-hidden").style.display = 'none';
-    document.getElementById("tor2web-visible").style.display = 'block';
-    jaaulde.utils.cookies.set('tor2web_header_hidden', 'false');
-  }
+  document.getElementById("tor2web-visible").style.display = (status === 'true') ? 'none' : 'block';
+  document.getElementById("tor2web-hidden").style.display = (status === 'true') ? 'block' : 'none';
+  jaaulde.utils.cookies.set('tor2web_header_hidden', status);
 }
 
 function show_hide_notification_form() {
-  if(tor2web_notification_form_visible == true) {
+  if(tor2web_notification_form_visible === true) {
     tor2web_notification_form_visible = false;
     document.getElementById("tor2web_notification_form").style.display = 'block';
   } else {
@@ -69,7 +63,7 @@ var tor2web_notification_form_visible = true;
 var http = getHTTPObject();
 
 window.onload = function() {
-  if(document.getElementById('tor2web') != null) {
+  if(document.getElementById('tor2web') !== null) {
 
     var url = document.getElementById('url');
     if (url) {
@@ -78,7 +72,7 @@ window.onload = function() {
 
   } else {
 
-    if(jaaulde.utils.cookies.get('tor2web_header_hidden') && jaaulde.utils.cookies.get('tor2web_header_hidden') == true) {
+    if(jaaulde.utils.cookies.get('tor2web_header_hidden') && jaaulde.utils.cookies.get('tor2web_header_hidden') === true) {
       show_hide_tor2web_header(true);
     }
 

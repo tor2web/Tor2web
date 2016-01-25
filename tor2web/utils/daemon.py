@@ -180,7 +180,7 @@ class Daemon(object):
                 self.daemon_start()
                 exit(0)
             else:
-                print "Unable to start Tor2web: process is already running."
+                print("Unable to start Tor2web: process is already running.")
                 exit(1)
         elif self.config.command == 'stop':
             if self.is_process_running():
@@ -201,7 +201,7 @@ class Daemon(object):
             self.daemon_start()
             exit(0)
         else:
-            print "Unknown command:", self.config.command
+            print("Unknown command:", self.config.command)
             raise SystemExit
 
         exit(1)

@@ -12,6 +12,7 @@
 """
 
 # -*- coding: utf-8 -*-
+from __future__ import print_function
 
 import os
 import re
@@ -1237,7 +1238,7 @@ def open_listenin_socket(ip, port):
         s.listen(1024)
         return s
     except Exception as e:
-        print "Tor2web Startup Failure: error while binding on %s %s (%s)" % (ip, port, e)
+        print("Tor2web Startup Failure: error while binding on %s %s (%s)" % (ip, port, e))
         exit(1)
 
 
@@ -1445,22 +1446,22 @@ if config.exit_node_list_refresh is None:
     config.exit_node_list_refresh = 600
 
 if not os.path.exists(config.datadir):
-    print "Tor2web Startup Failure: unexistent directory (%s)" % config.datadir
+    print("Tor2web Startup Failure: unexistent directory (%s)" % config.datadir)
     exit(1)
 
 if config.mode not in ['TRANSLATION', 'BLOCKLIST']:
-    print "Tor2web Startup Failure: config.mode must be one of: TRANSLATION / BLOCKLIST"
+    print("Tor2web Startup Failure: config.mode must be TRANSLATION or BLOCKLIST")
     exit(1)
 
 if config.mode == "TRANSLATION":
     if not verify_onion(config.onion):
-        print "Tor2web Startup Failure: TRANSLATION config.mode require config.onion configuration"
+        print("Tor2web Startup Failure: TRANSLATION config.mode require config.onion configuration")
         exit(1)
 
 for d in ['certs', 'logs']:
     path = os.path.join(config.datadir, d)
     if not os.path.exists(path):
-        print "Tor2web Startup Failure: unexistent directory (%s)" % path
+        print("Tor2web Startup Failure: unexistent directory (%s)" % path)
         exit(1)
 
 
@@ -1470,15 +1471,15 @@ def test_file_access(f):
 
 if config.transport in ('HTTPS', 'BOTH'):
     if not test_file_access(config.ssl_key):
-        print "Tor2web Startup Failure: unexistent file (%s)" % config.ssl_key
+        print("Tor2web Startup Failure: unexistent file (%s)" % config.ssl_key)
         exit(1)
 
     if not test_file_access(config.ssl_cert) and not test_file_access(config.ssl_intermediate):
-        print "Tor2web Startup Failure: unexistent file (%s)" % config.ssl_cert
+        print("Tor2web Startup Failure: unexistent file (%s)" % config.ssl_cert)
         exit(1)
 
     if not test_file_access(config.ssl_dh):
-        print "Generating HTTPS DH parameters (hold on, this may take a while!)"
+        print("Generating HTTPS DH parameters (hold on, this may take a while!)")
         dh = _lib.DH_new()
         _lib.DH_generate_parameters_ex(dh, 2048, 2L, _ffi.NULL)
         with open(config.ssl_dh, 'w') as dhfile:
