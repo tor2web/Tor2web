@@ -22,10 +22,7 @@ To support Tor2web Project you can help us with donations that will goes entirel
 ## Contacts
 To discuss with developers and tor2web operators join the [Tor2web-Talk@lists.tor2web.org](https://lists.ghserv.net/mailman/listinfo/tor2web-talk) mailing list (Thanks [GreenHost](http://www.greenhost.nl) for hosting it) or join IRC chat on [irc.oftc.net channel #tor2web](https://irc.lc/OFTC/tor2web/T2W_github_user) .
 
-If you need to contact us privately to propose Tor2web specific projects, to involve us as Hermes Center, please do [Contact Us Directly](http://logioshermes.org/home/about-mission/contacts/), we'd love to help you out!
-
 Follow us on [Twitter](https://twitter.com/tor2web) [![Twitter](http://i.imgur.com/wWzX9uB.png)](https://twitter.com/tor2web) 
-
 
 ## License
 Copyright (C) 2011-2016 Hermes No Profit Association - GlobaLeaks Project
