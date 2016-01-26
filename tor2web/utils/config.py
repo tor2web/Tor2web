@@ -90,7 +90,7 @@ class Config(Storage):
         self.__dict__['disable_banner'] = False
         self.__dict__['disable_tor_redirection'] = False
         self.__dict__['disable_gettor'] = False
-        self.__dict__['avoid_rewriting_visible_data'] = False
+        self.__dict__['avoid_rewriting_visible_content'] = False
         self.__dict__['smtpuser'] = 'hey_you_should_change_me'
         self.__dict__['smtppass'] = 'yes_you_really_should_change_me'
         self.__dict__['smtpmail'] = 'notification@demo.globaleaks.org'
