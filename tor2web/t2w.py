@@ -102,8 +102,8 @@ class T2WRPCServer(pb.Root):
             self.blocklist_cleartext.clear()
             self.blocklist_cleartext.dump()
 
-            self.blocklist_regexps = List(config.t2w_file_path('lists/blocklist_regexp.txt'))
-            self.blocklist_regexps = [re.compile(regexp_pattern) for regexp_pattern in self.blocklist_regexps]
+            self.block_regexps = List(config.t2w_file_path('lists/blocklist_regexp.txt'))
+            self.block_regexps = [re.compile(regexp_pattern) for regexp_pattern in self.block_regexps]
 
         if config.blockcrawl:
             self.blocked_ua = [ua.lower() for ua in List(config.t2w_file_path('lists/blocked_ua.txt'))]
@@ -987,9 +987,16 @@ class T2WRequest(http.Request):
                     defer.returnValue(NOT_DONE_YET)
 
                 elif config.mode == "BLOCKLIST":
-                    if (any(hashlib.md5(url).hexdigest() in block_list for url in test_urls) or \
-                        self.blocklist_regexps.search(full_url) is not None):
+                    blocked = False
+                    if any(hashlib.md5(url).hexdigest() in block_list for url in test_urls):
+                        blocked = True
+                    else:
+                        for block_regexp in block_regexps:
+                           if block_regexps.search(full_url) is not None:
+                               blocked = True
+                               break
 
+                    if blocked:
                         self.sendError(403, 'error_blocked_page.tpl')
                         defer.returnValue(NOT_DONE_YET)
 
