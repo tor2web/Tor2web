@@ -1,3 +1,6 @@
+Changes in version 3.1.47 - 2016-01-26
+    o Fix regexp based blocking implementation
+
 Changes in version 3.1.46 - 2016-01-26
     o Implement url blocking based on directories
     o Implement url blocking based on regexps
