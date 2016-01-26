@@ -115,7 +115,9 @@ class T2WSSLContextFactory(ssl.ContextFactory):
                     x509 = load_certificate(FILETYPE_PEM, f.read())
                     ctx.use_certificate(x509)
 
-            if os.path.isfile(self.intermediateFilePath):
+            if self.intermediateFilePath != self.certificateFilePath and \
+                os.path.isfile(self.intermediateFilePath):
+
                 if first:
                     ctx.use_certificate_chain_file(self.intermediateFilePath)
                 else:
