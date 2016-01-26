@@ -77,6 +77,7 @@ class T2WRPCServer(pb.Root):
         self.config = config
         self.stats = T2WStats()
         self.block_list = []
+        self.block_regexps = []
         self.blocked_ua = []
         self.hosts_map = {}
         self.TorExitNodes = []
