@@ -237,8 +237,12 @@ class Config(Storage):
             raise NameError(name)
 
     def t2w_file_path(self, path):
-        if os.path.exists(os.path.join(self.datadir, path)):
-            return os.path.join(self.datadir, path)
-        else:
-            return os.path.join(self.sysdatadir, path)
+        local_path = os.path.join(self.datadir, path)
+        global_path = os.path.join(self.sysdatadir, path)
 
+        if os.path.exists(local_path):
+            return local_path
+        elif os.path.exists(global_path):
+            return global_path
+        else:
+            return local_path
