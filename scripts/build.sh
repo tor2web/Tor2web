@@ -9,19 +9,23 @@ usage() {
   echo -e " -t tagname (build specific release/branch)"
   echo -e " -d distribution (available: precise, trusty, wheezy, jessie)"
   echo -e " -n (do not sign)"
+  echo -e " -p (push on repository)"
 }
 
 DISTRIBUTION="precise"
 TAG="master"
 NOSIGN=0
+PUSH=0
 
-while getopts "d:n:th" opt; do
+while getopts "d:t:np:h" opt; do
   case $opt in
     d) DISTRIBUTION="$OPTARG"
     ;;
     t) TAG="$OPTARG"
     ;;
     n) NOSIGN=1
+    ;;
+    p) PUSH=1
     ;;
     h)
         usage
@@ -51,7 +55,7 @@ fi
 # Preliminary Requirements Check
 ERR=0
 echo "Checking preliminary Tor2web Build requirements"
-for REQ in git debuild
+for REQ in git debuild dput
 do
   if which $REQ >/dev/null; then
     echo " + $REQ requirement meet"
@@ -94,3 +98,16 @@ for TARGET in $TARGETS; do
 
   cd ../../
 done
+
+if [ $PUSH -eq 1 ]; then
+  for TARGET in $TARGETS; do
+
+    BUILDDIR="T2WRelease-$TARGET"
+
+    cp -r $BUILDSRC $BUILDDIR
+
+    dput globaleaks tor2web*changes
+
+    cd ../../
+  done
+fi
