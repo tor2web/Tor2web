@@ -24,10 +24,6 @@ profile usr.bin.tor2web {
     /usr/bin/tor2web-worker rix,
     /usr/bin/python* ix,
 
-    # uname is required by pip
-    # https://github.com/globaleaks/GlobaLeaks/issues/1468
-    /bin/uname ix,
-
     /usr/share/tor2web/** rw,
     /usr/share/pyshared/** r,
     /usr/include/python2.7/** r,
@@ -47,4 +43,7 @@ profile usr.bin.tor2web {
 
     owner /tmp/** rwkl,
     owner /var/tmp/** rwkl,
+
+    # Explicit silent deny rules:
+    deny /bin/uname x       # needed by os.uname in pip
 }
