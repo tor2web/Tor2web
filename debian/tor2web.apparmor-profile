@@ -1,7 +1,6 @@
 #include <tunables/global>
 
 profile usr.bin.tor2web {
-
     #include <abstractions/base>
     #include <abstractions/nameservice>
 
@@ -24,6 +23,10 @@ profile usr.bin.tor2web {
     /usr/bin/tor2web r,
     /usr/bin/tor2web-worker rix,
     /usr/bin/python* ix,
+
+    # uname is required by pip
+    # https://github.com/globaleaks/GlobaLeaks/issues/1468
+    /bin/uname ix,
 
     /usr/share/tor2web/** rw,
     /usr/share/pyshared/** r,
