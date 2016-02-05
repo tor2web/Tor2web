@@ -1,3 +1,9 @@
+tor2web (3.1.49) stable; urgency=medium
+
+  * New stable release
+
+ -- GlobaLeaks software signing key <info@globaleaks.org>  Fri, 05 Feb 2016 18:34:30 +0100
+
 tor2web (3.1.48) stable; urgency=medium
 
   * New upstream release
