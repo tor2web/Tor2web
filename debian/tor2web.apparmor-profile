@@ -45,5 +45,5 @@ profile usr.bin.tor2web {
     owner /var/tmp/** rwkl,
 
     # Explicit silent deny rules:
-    deny /bin/uname x       # needed by os.uname in pip
+    deny /bin/uname x, # needed by os.uname in pip
 }
