@@ -7,10 +7,6 @@ export PYBUILD_DISABLE=test
 	dh $@ --with python2 --buildsystem=pybuild
 
 override_dh_install:
-	mkdir -p debian/tor2web/etc
-	mkdir -p debian/tor2web/etc/apparmor.d
-	mkdir -p debian/globaleaks/etc/apparmor.d/local
-	cp debian/tor2web.apparmor-profile debian/tor2web/etc/apparmor.d/usr.bin.tor2web
 	dh_apparmor --profile-name=usr.bin.tor2web
 	dh_install --fail-missing
 
