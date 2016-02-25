@@ -1,0 +1,113 @@
+--- a/src/common/compat.h
++++ b/src/common/compat.h
+@@ -542,6 +542,8 @@ typedef enum {
+   SOCKS5_TTL_EXPIRED                = 0x06,
+   SOCKS5_COMMAND_NOT_SUPPORTED      = 0x07,
+   SOCKS5_ADDRESS_TYPE_NOT_SUPPORTED = 0x08,
++  SOCKS5_HS_NOT_FOUND               = 0x23,
++  SOCKS5_HS_UNREACHABLE             = 0x24,
+ } socks5_reply_status_t;
+ 
+ /* ===== Insecure rng */
+diff --git a/src/or/or.h b/src/or/or.h
+index 3a53e5e..9d6445e 100644
+--- a/src/or/or.h
++++ b/src/or/or.h
+@@ -623,6 +623,11 @@ typedef enum {
+  * you don't want to do that over a randomly chosen exit */
+ #define END_STREAM_REASON_PRIVATE_ADDR 262
+ 
++/* The connection the hidden service has failed because it was not found inside
++ * of any Hidden Service Directory Authority, or the connection to it failed. */
++#define END_STREAM_REASON_HS_NOT_FOUND 323
++#define END_STREAM_REASON_HS_UNREACHABLE 324
++
+ /** Bitwise-and this value with endreason to mask out all flags. */
+ #define END_STREAM_REASON_MASK 511
+ 
+diff --git a/src/or/reasons.c b/src/or/reasons.c
+index c51d8ee..8a8ef4f 100644
+--- a/src/or/reasons.c
++++ b/src/or/reasons.c
+@@ -72,6 +72,8 @@ stream_end_reason_to_string(int reason)
+     case END_STREAM_REASON_CONNRESET:      return "connection reset";
+     case END_STREAM_REASON_TORPROTOCOL:    return "Tor protocol error";
+     case END_STREAM_REASON_NOTDIRECTORY:   return "not a directory";
++    case END_STREAM_REASON_HS_NOT_FOUND:   return "hidden service not found";
++    case END_STREAM_REASON_HS_UNREACHABLE: return "hidden service not reachable";
+     default:
+       log_fn(LOG_PROTOCOL_WARN, LD_PROTOCOL,
+              "Reason for ending (%d) not recognized.",reason);
+@@ -130,6 +132,12 @@ stream_end_reason_to_socks5_response(int reason)
+     case END_STREAM_REASON_PRIVATE_ADDR:
+       return SOCKS5_GENERAL_ERROR;
+ 
++    case END_STREAM_REASON_HS_NOT_FOUND:
++      return SOCKS5_HS_NOT_FOUND;
++    case END_STREAM_REASON_HS_UNREACHABLE:
++      return SOCKS5_HS_UNREACHABLE;
++
++
+     default:
+       log_fn(LOG_PROTOCOL_WARN, LD_PROTOCOL,
+              "Reason for ending (%d) not recognized; "
+diff --git a/src/or/rendclient.c b/src/or/rendclient.c
+index 6c751be..b966249 100644
+--- a/src/or/rendclient.c
++++ b/src/or/rendclient.c
+@@ -1212,8 +1212,8 @@
+     if (rend_cmp_service_ids(query, rend_data->onion_address))
+       continue;
+     assert_connection_ok(base_conn, now);
+-    if (rend_cache_lookup_entry(rend_data->onion_address, -1,
+-                                &entry) == 0 &&
++    rend_cache_lookup_entry(rend_data->onion_address, -1, &entry);
++    if (entry != NULL &&
+         rend_client_any_intro_points_usable(entry)) {
+       /* either this fetch worked, or it failed but there was a
+        * valid entry from before which we should reuse */
+@@ -1232,11 +1232,27 @@
+         if (!base_conn->marked_for_close)
+           connection_mark_unattached_ap(conn, END_STREAM_REASON_CANT_ATTACH);
+       }
+-    } else { /* 404, or fetch didn't get that far */
++    } else if (entry == NULL) {
++      /* We couldn't get a descriptor for this HS at all; maybe it
++       * doesn't exist. */
++
++      log_notice(LD_REND,"Closing stream for '%s.onion': hidden service was "
++                 "not found (no descriptors for it found).",
++                 safe_str_client(query));
++
++      connection_mark_unattached_ap(conn, END_STREAM_REASON_HS_NOT_FOUND);
++      rend_client_note_connection_attempt_ended(query);
++
++    } else {
++      /* We got a descriptor, but either (a) the HS published no intro points
++       * (i.e. it was shut down cleanly) or (b) we tried all the intro points
++       * it listed, and they failed. */
++
+       log_notice(LD_REND,"Closing stream for '%s.onion': hidden service is "
+                  "unavailable (try again later).",
+                  safe_str_client(query));
+-      connection_mark_unattached_ap(conn, END_STREAM_REASON_RESOLVEFAILED);
++
++      connection_mark_unattached_ap(conn, END_STREAM_REASON_HS_UNREACHABLE);
+       rend_client_note_connection_attempt_ended(rend_data);
+     }
+   } SMARTLIST_FOREACH_END(base_conn);
+diff --git a/src/tools/tor-resolve.c b/src/tools/tor-resolve.c
+index 4ef84f4..e24fbbd 100644
+--- a/src/tools/tor-resolve.c
++++ b/src/tools/tor-resolve.c
+@@ -167,6 +167,10 @@ socks5_reason_to_string(char reason)
+       return "command not supported";
+     case SOCKS5_ADDRESS_TYPE_NOT_SUPPORTED:
+       return "address type not supported";
++    case SOCKS5_HS_NOT_FOUND:
++      return "hidden service not found";
++    case SOCKS5_HS_UNREACHABLE:
++      return "hidden service unreachable";
+     default:
+       return "unknown SOCKS5 code";
+   }
