@@ -108,6 +108,7 @@ class Config(Storage):
         self.__dict__['mirror'] = []
         self.__dict__['dummyproxy'] = None
         self.__dict__['proto'] = 'http://' if self.__dict__['transport'] == 'HTTP' else 'https://'
+        self.__dict__['bufsize'] = 4096
 
         # Development VS. Production
         localpath = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), "..", "data"))

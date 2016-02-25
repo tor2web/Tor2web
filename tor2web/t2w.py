@@ -521,7 +521,7 @@ class T2WRequest(http.Request):
 
         data = self.stream + data
 
-        if len(data) >= 1000:
+        if len(data) >= config.bufsize * 2:
             if self.obj.special_content == 'HTML':
                 if not self.header_injected and data.find("<body") != -1:
                     banner = yield flattenString(self, templates['banner.tpl'])
@@ -533,11 +533,11 @@ class T2WRequest(http.Request):
             else:
                 data = re_sub(rexp['t2w'], self.proto + r'\2.' + config.basehost + self.port, data)
 
-            forward = data[:-500]
+            forward = data[:-config.bufsize]
 
             self.forwardData(self.handleCleartextForwardPart(forward))
 
-            self.stream = data[-500:]
+            self.stream = data[-config.bufsize:]
 
         else:
             self.stream = data
