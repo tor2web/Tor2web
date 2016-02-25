@@ -51,6 +51,7 @@ class Config(Storage):
         self.__dict__['command'] = options.command
         self.__dict__['nodename'] = 'tor2web'
         self.__dict__['datadir'] = '/home/tor2web'
+        self.__dict__['sysdatadir'] = '/usr/share/tor2web/data'
         self.__dict__['ssl_key'] = None
         self.__dict__['ssl_cert'] = None
         self.__dict__['ssl_intermediate'] = None
@@ -112,8 +113,6 @@ class Config(Storage):
         localpath = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), "..", "data"))
         if os.path.exists(localpath):
             self.__dict__['sysdatadir'] = localpath
-        else:
-            self.__dict__['sysdatadir'] = '/usr/share/tor2web'
 
         self.load()
 
