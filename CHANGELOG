@@ -1,3 +1,9 @@
+Changes in version 3.1.51 - 2016-02-25
+     o Add configurable bufsize for fine tuning of memory
+
+Changes in version 3.1.50 - 2016-02-25
+     o Fix regexp in relation to domains onion.something #287
+
 Changes in version 3.1.49 - 2016-02-05
     o Fix syntax error in apparmor script
     o Add example configuration for globaleaks
