@@ -1293,7 +1293,9 @@ class T2WDaemon(Daemon):
 
     def daemon_main(self):
         if self.config.logreqs:
-            self.logfile_access = logfile.DailyLogFile.fromFullPath(os.path.join(self.config.datadir, 'logs', 'access.log'))
+            self.logfile_access = logfile.LogFile.fromFullPath(os.path.join(self.config.datadir, 'logs', 'access.log'),
+                                                               rotateLength=1000000,
+                                                               maxRotatedFiles=10)
         else:
             self.logfile_access = log.NullFile()
 
@@ -1301,8 +1303,9 @@ class T2WDaemon(Daemon):
             if self.config.debugtostdout and self.config.nodaemon:
                 self.logfile_debug = sys.stdout
             else:
-                self.logfile_debug = logfile.DailyLogFile.fromFullPath(
-                    os.path.join(self.config.datadir, 'logs', 'debug.log'))
+                self.logfile_debug = logfile.LogFile.fromFullPath(os.path.join(self.config.datadir, 'logs', 'debug.log'),
+                                                                  rotateLength=1000000,
+                                                                  maxRotatedFiles=10)
         else:
             self.logfile_debug = log.NullFile()
 
