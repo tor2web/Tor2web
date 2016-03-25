@@ -86,6 +86,7 @@ class Config(Storage):
         self.__dict__['overriderobotstxt'] = True
         self.__dict__['blockhotlinking'] = True
         self.__dict__['blockhotlinking_exts'] = ['jpg', 'png', 'gif']
+        self.__dict__['deny_caching'] = True
         self.__dict__['extra_http_response_headers'] = None
         self.__dict__['disable_disclaimer'] = False
         self.__dict__['disable_banner'] = False

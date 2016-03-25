@@ -602,13 +602,21 @@ class T2WRequest(http.Request):
             data = self.zip(data, True)
 
         self.setHeader(b'content-length', intToBytes(len(data)))
-        self.setHeader(b'cache-control', b'no-cache')
-        
-        if config.blockcrawl:
-            self.setHeader(b'x-robots-tag', b'noindex')
 
         if self.isSecure():
             self.setHeader(b'strict-transport-security', b'max-age=31536000')
+
+        if config.mode == 'TRANSLATION':
+            # no additional headers are injected when in translation mode
+            return
+
+        if config.deny_caching:
+            self.setHeader(b'cache-control', b'no-cache no-store, must-revalidate')
+            self.setHeader(b'pragma', 'no-cache')
+            self.setHeader(b'expires', b'-1')
+
+        if config.blockcrawl:
+            self.setHeader(b'x-robots-tag', b'noindex')
 
         if config.extra_http_response_headers:
             for header, value in config.extra_http_response_headers.iteritems():
@@ -771,8 +779,8 @@ class T2WRequest(http.Request):
         # we try to deny some ua/crawlers regardless the request is (valid or not) / (local or not)
         # we deny EVERY request to known user agents reconized with pattern matching
         if crawler and config.blockcrawl:
-          self.sendError(403, "error_blocked_ua.tpl")
-          defer.returnValue(NOT_DONE_YET)
+            self.sendError(403, "error_blocked_ua.tpl")
+            defer.returnValue(NOT_DONE_YET)
 
         # 1: Client capability assessment stage
         if request.headers.getRawHeaders(b'accept-encoding') is not None:
@@ -1076,10 +1084,6 @@ class T2WRequest(http.Request):
 
         elif keyLower == 'content-length':
             self.receivedContentLen = valueLower
-            # this header needs to be stripped
-            return
-
-        elif keyLower == 'cache-control':
             # this header needs to be stripped
             return
 
