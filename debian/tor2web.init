@@ -71,32 +71,6 @@ else
     exit 0
 fi
 
-# Let's try to figure our some sane defaults:
-if [ -r /proc/sys/fs/file-max ]; then
-    system_max=`cat /proc/sys/fs/file-max`
-    if [ "$system_max" -gt "80000" ] ; then
-        MAX_FILEDESCRIPTORS=32768
-    elif [ "$system_max" -gt "40000" ] ; then
-        MAX_FILEDESCRIPTORS=16384
-    elif [ "$system_max" -gt "10000" ] ; then
-        MAX_FILEDESCRIPTORS=8192
-    else
-        MAX_FILEDESCRIPTORS=1024
-        cat << EOF
-
-Warning: Your system has very few filedescriptors available in total.
-
-Maybe you should try raising that by adding 'fs.file-max=100000' to your
-/etc/sysctl.conf file.  Feel free to pick any number that you deem appropriate.
-Then run 'sysctl -p'.  See /proc/sys/fs/file-max for the current value, and
-file-nr in the same directory for how many of those are used at the moment.
-
-EOF
-        fi
-else
-        MAX_FILEDESCRIPTORS=8192
-fi
-
 if [ -d "/etc/letsencrypt/live" ] && [ -d "/etc/letsencrypt/archive" ]; then
 	echo "Letsencrypt detected, fixing permission for /etc/letsencrypt/{live,archive} for $DAEMON_USER user"
 	chgrp $DAEMON_USER /etc/letsencrypt/live/ 
@@ -128,9 +102,8 @@ fi
 
 do_t2w_start()
 {
-    if [ -n "$MAX_FILEDESCRIPTORS" ]; then
-        ulimit -n "$MAX_FILEDESCRIPTORS"
-    fi
+    # Raise the file descriptors limit to the max
+    ulimit -n `cat /proc/sys/fs/file-max`
 
     # Check to see if the daemon is already running.
     $DAEMON_CMD --command=status
