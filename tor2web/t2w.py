@@ -605,6 +605,7 @@ class T2WRequest(http.Request):
 
         if self.isSecure():
             self.setHeader(b'strict-transport-security', b'max-age=31536000')
+            self.setHeader(b'Content-Security-Policy', b'upgrade-insecure-requests')
 
         if config.mode == 'TRANSLATION':
             # no additional headers are injected when in translation mode
