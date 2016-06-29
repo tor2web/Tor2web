@@ -17,16 +17,14 @@ fi
 
 SUPPORTED_PLATFORM=0
 if [ "$DISTRO_CODENAME" = "precise" ] ||
-   [ "$DISTRO_CODENAME" = "trusty" ] ||
-   [ "$DISTRO_CODENAME" = "wheezy" ] ||
-   [ "$DISTRO_CODENAME" = "jessie" ]; then
+   [ "$DISTRO_CODENAME" = "trusty" ]; then
   SUPPORTED_PLATFORM=1
 fi
 
 if [ $SUPPORTED_PLATFORM -eq 0 ]; then
   echo "!!!!!!!!!!!! WARNING !!!!!!!!!!!!"
   echo "You are attempting to install Tor2web on an unsupported platform."
-  echo "Supported platform are Ubuntu (precise, trusty) and Debian (wheezy, jessie)"
+  echo "Supported platform are Ubuntu (precise, trusty)"
 
   while true; do
     read -p "Do you wish to continue anyhow? [y|n]?" yn
@@ -63,13 +61,13 @@ DO () {
     CMD=$3
   fi
   echo -n "Running: \"$CMD\"... "
-  $CMD &>${INSTALL_LOG}
+  $CMD &>${LOGFILE}
   if [ "$?" -eq "$RET" ]; then
     echo "SUCCESS"
   else
     echo "FAIL"
     echo "COMBINED STDOUT/STDERR OUTPUT OF FAILED COMMAND:"
-    cat ${INSTALL_LOG}
+    cat ${FILE}
     exit 1
   fi
 }
