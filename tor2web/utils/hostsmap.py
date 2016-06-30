@@ -28,13 +28,15 @@ class HostsMap(object):
         # regexp to match lines "host onion"
         # lines starting with comments are also ignored
         try:
-            hostmapline = re.compile("[^ #][^ ]+ [a-zA-Z0-9]{16}\.onion")
             with open(path, 'r') as hosts_file:
                 for line in hosts_file.read().split('\n'):
-                    if hostmapline.match(line):
-                        parts = re.split('\s+', line)
-                        host = parts[0]
-                        onion = parts[1]
-                        self.hosts[host] = onion
+                    parts = re.split('\s+', line)
+                    host = parts[0]
+                    onion = parts[1]
+                    dp = parts[2] if len(parts) == 3 else None
+                    self.hosts[host] = {
+                      'onion': onion,
+                      'dp': dp
+                    }
         except Exception:
             pass

@@ -117,7 +117,10 @@ class T2WRPCServer(pb.Root):
 
         self.hosts_map = HostsMap(config.t2w_file_path('lists/hosts_map.txt')).hosts
         if config.mode == "TRANSLATION":
-            self.hosts_map[config.basehost] = config.onion
+            self.hosts_map[config.basehost] = {
+                'onion': config.onion,
+                'dp': config.dummyproxy
+            }
 
     def remote_get_config(self):
         return self.config.__dict__
@@ -936,7 +939,7 @@ class T2WRequest(http.Request):
         else:
             # the requested resource is remote, we act as proxy
             if config.mode == 'TRANSLATION' and request.host in hosts_map:
-                self.obj.onion = hosts_map[request.host]
+                self.obj.onion = hosts_map[request.host]['onion']
             else:
                 self.obj.onion = request.host.split("." + config.basehost)[0].split(".")[-1] + ".onion"
 
@@ -1013,10 +1016,10 @@ class T2WRequest(http.Request):
             agent = Agent(reactor, sockhost=config.sockshost, sockport=config.socksport, pool=self.pool)
             ragent = RedirectAgent(agent, 1)
 
-            if config.dummyproxy is None:
-                proxy_url = self.obj.address
+            if config.mode == 'TRANSLATION' and request.host in hosts_map and hosts_map[request.host]['dp'] is not None:
+                proxy_url = 'normal-' + hosts_map[request.host]['dp'] + parsed[2] + '?' + parsed[3]
             else:
-                proxy_url = 'normal-' + config.dummyproxy + parsed[2] + '?' + parsed[3]
+                proxy_url = self.obj.address
 
             self.proxy_d = ragent.request(self.method,
                                           proxy_url,
