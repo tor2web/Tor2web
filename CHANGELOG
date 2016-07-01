@@ -1,3 +1,11 @@
+Changes in version 3.1.52 - 2016-07-01
+     o Refactor install script removing requirement for updating it
+       when the signing PGP key is updated.
+     o Make log rotation keep only recent logs entries.
+     o Automagically fix mixed contents warnings on HTTPs
+     o Update default configuration for GlobaLeaks integration
+     o Add dummy proxy support in hostsmap configuration
+
 Changes in version 3.1.51 - 2016-02-25
      o Add configurable bufsize for fine tuning of memory
 
