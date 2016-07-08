@@ -15,16 +15,10 @@ if which lsb_release >/dev/null; then
   DISTRO_CODENAME="$( lsb_release -cs )"
 fi
 
-SUPPORTED_PLATFORM=0
-if [ "$DISTRO_CODENAME" = "precise" ] ||
-   [ "$DISTRO_CODENAME" = "trusty" ]; then
-  SUPPORTED_PLATFORM=1
-fi
-
-if [ $SUPPORTED_PLATFORM -eq 0 ]; then
+if [ $DISTRO_CODENAME != "trusty" ]; then
   echo "!!!!!!!!!!!! WARNING !!!!!!!!!!!!"
   echo "You are attempting to install Tor2web on an unsupported platform."
-  echo "Supported platform are Ubuntu (precise, trusty)"
+  echo "Supported platform is Ubuntu Trusty (14.04)"
 
   while true; do
     read -p "Do you wish to continue anyhow? [y|n]?" yn
@@ -38,7 +32,7 @@ fi
 
 echo "Performing Tor2web installation on $DISTRO - $DISTRO_CODENAME"
 
-if [ $SUPPORTED_PLATFORM -eq 0 ]; then
+if [ $DISTRO_CODENAME != "trusty" ]; then
   # In case of unsupported platforms we fallback on trusty
   echo "Given that the platform is not supported the install script will use trusty repository."
   echo "In case of failure refer to the wiki for manual setup possibilities."
@@ -99,7 +93,7 @@ DO "rm -f $TMPFILE"
 DO "apt-get update -y"
 
 # on Ubuntu python-pip requires universe repository
-if [ $DISTRO == 'Ubuntu' ];then
+if [ $DISTRO == "Ubuntu" ];then
   if [ "$DISTRO_CODENAME" = "precise" ]; then
     echo "Installing python-software-properties"
     DO "apt-get install python-software-properties -y"
