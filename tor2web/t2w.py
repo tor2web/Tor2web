@@ -698,15 +698,20 @@ class T2WRequest(http.Request):
 
         self.obj.headers = req.headers
 
-        # we remove the x-forwarded-for header that may contain a leaked ip
+        # we remove the x-forwarded-for and forwarded header that may contain a leaked ip
         self.obj.headers.removeHeader(b'x-forwarded-for')
+        self.obj.headers.removeHeader(b'Forwarded')
+
+        # remove an obsolete header that is replaced by 'Forwarded'
+        self.obj.headers.removeHeader(b'x-forwarded-proto')
 
         self.obj.headers.setRawHeaders(b'host', [self.obj.onion])
         self.obj.headers.setRawHeaders(b'connection', [b'keep-alive'])
         self.obj.headers.setRawHeaders(b'accept-encoding', [b'gzip, chunked'])
         self.obj.headers.setRawHeaders(b'x-tor2web', [b'1'])
-        self.obj.headers.setRawHeaders(b'x-forwarded-host', [req.host])
-        self.obj.headers.setRawHeaders(b'x-forwarded-proto', [b'http' if config.transport == 'HTTP' else b'https'])
+
+        self.obj.headers.setRawHeaders(b'Forwarded', [b'proto=%s;host=%s' % (self.obj.client_proto.rstrip(':/'), self.obj.host_tor2web) ])
+        
 
         return True
 
