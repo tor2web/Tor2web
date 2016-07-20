@@ -76,9 +76,7 @@ class Config(Storage):
         self.__dict__['sockretryautomatically'] = True
         self.__dict__['cipher_list'] = 'ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:' \
                                        'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-SHA256:' \
-                                       'ECDHE-RSA-AES256-SHA:DHE-DSS-AES256-SHA:DHE-RSA-AES128-SHA:' \
-                                       'DES-CBC3-SHA'  # this last one (not FS) is kept only for
-                                                       # compatibility reasons :/
+                                       'ECDHE-RSA-AES256-SHA:DHE-DSS-AES256-SHA:DHE-RSA-AES128-SHA:'
         self.__dict__['ssl_tofu_cache_size'] = 100
         self.__dict__['mode'] = 'BLOCKLIST'
         self.__dict__['onion'] = None
