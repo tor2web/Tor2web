@@ -1,3 +1,6 @@
+Changes in version 3.1.53 - 2016-10-16
+     o Fix packaging in relation to zope library
+
 Changes in version 3.1.52 - 2016-07-01
      o Refactor install script removing requirement for updating it
        when the signing PGP key is updated.
