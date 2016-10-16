@@ -34,6 +34,9 @@ Depends:
  , build-essential
  , apparmor
  , apparmor-utils
+ , python-zope.component
+ , python-zope.event
+ , python-zope.interface
 Description: Tor2web proxy.
   Tor2web is an HTTP proxy software that enables access to
   Tor Hidden Services by mean of common web browsers.
