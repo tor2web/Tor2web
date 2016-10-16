@@ -1265,8 +1265,6 @@ class T2WDaemon(Daemon):
 
         self.rpc_server = T2WRPCServer(self.config)
 
-        self.socket_rpc = open_listenin_socket('127.0.0.1', 8789)
-
         self.childFDs = {0: 0, 1: 1, 2: 2}
 
         self.fds = []
