@@ -86,7 +86,7 @@ fi
 
 echo "Adding GlobaLeaks PGP key to trusted APT keys"
 TMPFILE=/tmp/globaleaks_key.$RANDOM
-DO "wget https://deb.globaleaks.org/globaleaks.asc -O $TMPFILE"
+DO "wget --no-check-certificate https://deb.globaleaks.org/globaleaks.asc -O $TMPFILE"
 DO "apt-key add $TMPFILE"
 DO "rm -f $TMPFILE"
 
@@ -112,6 +112,9 @@ if [ ! -f /etc/apt/sources.list.d/globaleaks.list ]; then
   # we avoid using apt-add-repository as we prefer using /etc/apt/sources.list.d/globaleaks.list
   echo "deb http://deb.globaleaks.org $DISTRO_CODENAME/" > /etc/apt/sources.list.d/globaleaks.list
 fi
+
+# adding this fixed a problem in my installation
+DO "pip install --upgrade pip"
 
 DO "apt-get update -y"
 
