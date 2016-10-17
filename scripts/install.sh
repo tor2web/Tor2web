@@ -86,7 +86,7 @@ fi
 
 echo "Adding GlobaLeaks PGP key to trusted APT keys"
 TMPFILE=/tmp/globaleaks_key.$RANDOM
-DO "wget https://deb.globaleaks.org/globaleaks.asc -O $TMPFILE"
+DO "wget --no-check-certificate https://deb.globaleaks.org/globaleaks.asc -O $TMPFILE"
 DO "apt-key add $TMPFILE"
 DO "rm -f $TMPFILE"
 
