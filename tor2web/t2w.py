@@ -1356,17 +1356,19 @@ def start_worker():
 
     factory = T2WLimitedRequestsFactory(factory, requests_countdown)
 
-
-    try:
-        context_factory = T2WSSLContextFactory(config.ssl_key,
+      
+    # only generate this if we're doing HTTPS.
+    if config.transport in ('HTTPS', 'BOTH'):
+        try:
+            context_factory = T2WSSLContextFactory(config.ssl_key,
                                                config.ssl_cert,
                                                config.ssl_intermediate,
                                                config.ssl_dh,
                                                config.cipher_list)
-    except:
-        rpc_log("Unable to load SSL certificate; check certificate configuration.")
-        rpc_shutdown()
-        return
+        except:
+            rpc_log("Unable to load SSL certificate; check certificate configuration.")
+            rpc_shutdown()
+            return
 
     fds_https, fds_http = [], []
     if 'T2W_FDS_HTTPS' in os.environ:
