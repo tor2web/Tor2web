@@ -1245,7 +1245,7 @@ class T2WLimitedRequestsFactory(WrappingFactory):
             except Exception:
                 pass
 
-def open_listenin_socket(ip, port):
+def open_listening_socket(ip, port):
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -1277,25 +1277,25 @@ class T2WDaemon(Daemon):
             if ip is None:
                 continue
 
-            if self.config.transport in ('HTTPS', 'BOTH'):
-                if i_https:
-                    self.fds_https += ','
-
-                s = open_listenin_socket(ip, self.config.listen_port_https)
-                self.fds.append(s)
-                self.childFDs[s.fileno()] = s.fileno()
-                self.fds_https += str(s.fileno())
-                i_https += 1
-
             if self.config.transport in ('HTTP', 'BOTH'):
                 if i_http:
                     self.fds_http += ','
 
-                s = open_listenin_socket(ip, self.config.listen_port_http)
+                s = open_listening_socket(ip, self.config.listen_port_http)
                 self.fds.append(s)
                 self.childFDs[s.fileno()] = s.fileno()
                 self.fds_http += str(s.fileno())
                 i_http += 1
+
+            if self.config.transport in ('HTTPS', 'BOTH'):
+                if i_https:
+                    self.fds_https += ','
+
+                s = open_listening_socket(ip, self.config.listen_port_https)
+                self.fds.append(s)
+                self.childFDs[s.fileno()] = s.fileno()
+                self.fds_https += str(s.fileno())
+                i_https += 1
 
     def daemon_main(self):
         if self.config.logreqs:
@@ -1316,8 +1316,6 @@ class T2WDaemon(Daemon):
             self.logfile_debug = log.NullFile()
 
         log.startLogging(self.logfile_debug)
-
-        reactor.listenTCPonExistingFD = listenTCPonExistingFD
 
         reactor.listenUNIX(os.path.join(self.config.rundir, 'rpc.socket'), factory=pb.PBServerFactory(self.rpc_server))
 
@@ -1356,38 +1354,35 @@ def start_worker():
 
     factory = T2WLimitedRequestsFactory(factory, requests_countdown)
 
-
-    try:
-        context_factory = T2WSSLContextFactory(config.ssl_key,
-                                               config.ssl_cert,
-                                               config.ssl_intermediate,
-                                               config.ssl_dh,
-                                               config.cipher_list)
-    except:
-        rpc_log("Unable to load SSL certificate; check certificate configuration.")
-        rpc_shutdown()
-        return
-
-    fds_https, fds_http = [], []
-    if 'T2W_FDS_HTTPS' in os.environ:
-        fds_https = [int(x) for x in os.environ['T2W_FDS_HTTPS'].split(",") if x]
-
-    if 'T2W_FDS_HTTP' in os.environ:
-        fds_http = [int(x) for x in os.environ['T2W_FDS_HTTP'].split(",") if x]
-
     reactor.listenTCPonExistingFD = listenTCPonExistingFD
     reactor.listenSSLonExistingFD = listenSSLonExistingFD
 
-    for fd in fds_https:
-        ports.append(reactor.listenSSLonExistingFD(reactor,
-                                                   fd=fd,
-                                                   factory=factory,
-                                                   contextFactory=context_factory))
+    if 'T2W_FDS_HTTP' in os.environ:
+        fds_http = [int(x) for x in os.environ['T2W_FDS_HTTP'].split(",") if x]
+        for fd in fds_http:
+            ports.append(reactor.listenTCPonExistingFD(reactor,
+                                                       fd=fd,
+                                                       factory=factory))
 
-    for fd in fds_http:
-        ports.append(reactor.listenTCPonExistingFD(reactor,
-                                                   fd=fd,
-                                                   factory=factory))
+    fds_https, fds_http = [], []
+    if 'T2W_FDS_HTTPS' in os.environ:
+        try:
+            context_factory = T2WSSLContextFactory(config.ssl_key,
+                                                   config.ssl_cert,
+                                                   config.ssl_intermediate,
+                                                   config.ssl_dh,
+                                                   config.cipher_list)
+        except:
+            rpc_log("Unable to load SSL certificate; check certificate configuration.")
+            rpc_shutdown()
+            return
+
+        fds_https = [int(x) for x in os.environ['T2W_FDS_HTTPS'].split(",") if x]
+        for fd in fds_https:
+            ports.append(reactor.listenSSLonExistingFD(reactor,
+                                                       fd=fd,
+                                                       factory=factory,
+                                                       contextFactory=context_factory))
 
     if config.smtpmailto_exceptions:
         # if config.smtp_mail is configured we change the excepthook
