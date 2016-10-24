@@ -1,3 +1,6 @@
+Changes in version 3.1.54 - 2016-10-24
+     o Fix issue #250
+
 Changes in version 3.1.53 - 2016-10-16
      o Fix packaging in relation to zope library
 
