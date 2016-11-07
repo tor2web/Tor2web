@@ -50,6 +50,7 @@ from twisted.python.compat import networkString, intToBytes
 from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
 from twisted.internet.task import LoopingCall
+
 from tor2web import __version__
 from tor2web.utils.config import Config
 from tor2web.utils.daemon import Daemon, set_pdeathsig, set_proctitle
@@ -599,13 +600,7 @@ class T2WRequest(http.Request):
         self.forwardData(data, True)
         self.finish()
 
-    def contentFinish(self, data):
-        if self.obj.client_supports_gzip:
-            self.setHeader(b'content-encoding', b'gzip')
-            data = self.zip(data, True)
-
-        self.setHeader(b'content-length', intToBytes(len(data)))
-
+    def setHeaders():
         if self.isSecure():
             self.setHeader(b'strict-transport-security', b'max-age=31536000; includeSubDomains')
             self.setHeader(b'Content-Security-Policy', b'upgrade-insecure-requests')
@@ -618,27 +613,40 @@ class T2WRequest(http.Request):
         if config.blockcrawl:
             self.setHeader(b'x-robots-tag', b'noindex')
 
+        self.setHeader(b'x-check-tor', b'true' if self.obj.client_uses_tor else b'false')
+
         if config.extra_http_response_headers:
             for header, value in config.extra_http_response_headers.iteritems():
                 self.setHeader(header, value)
 
-        self.write(data)
+    def writeContent(self, data):
+        self.setHeaders()
+
+        self.setHeader(b'content-length', intToBytes(len(data)))
+
+        if len(data):
+            if self.obj.client_supports_gzip:
+                self.setHeader(b'content-encoding', b'gzip')
+                data = self.zip(data, True)
+
+            self.write(data)
+
         self.finish()
 
     def sendError(self, error=500, errortemplate='error_generic.tpl'):
         self.setResponseCode(error)
         self.setHeader(b'content-type', 'text/html')
         self.var['errorcode'] = error
-        return flattenString(self, templates[errortemplate]).addCallback(self.contentFinish)
+        return flattenString(self, templates[errortemplate]).addCallback(self.writeContent)
 
     def handleError(self, failure):
         if type(failure.value) is SOCKSError:
             self.setResponseCode(502)       # it's possible this should be a 504.  But definitely not 404.
             self.var['errorcode'] = failure.value.code
             if failure.value.code in SOCKS_errors:
-                return flattenString(self, templates[SOCKS_errors[failure.value.code]]).addCallback(self.contentFinish)
+                return flattenString(self, templates[SOCKS_errors[failure.value.code]]).addCallback(self.writeContent)
             else:
-                return flattenString(self, templates[SOCKS_errors[0x00]]).addCallback(self.contentFinish)
+                return flattenString(self, templates[SOCKS_errors[0x00]]).addCallback(self.writeContent)
         else:
             self.sendError()
 
@@ -760,13 +768,8 @@ class T2WRequest(http.Request):
             defer.returnValue(None)
 
         # check if the user is using Tor
-        client_ip = self.getClientIP()
-        if self.getClientIP() in tor_exits_list:
-            client_uses_tor = True
-            self.setHeader(b'x-check-tor', b'true')
-        else:
-            client_uses_tor = False
-            self.setHeader(b'x-check-tor', b'false')
+        self.obj.client_ip = self.getClientIP()
+        self.obj.client_uses_tor = self.getClientIP() in tor_exits_list
 
         crawler = False
         if request.headers.getRawHeaders(b'user-agent') is not None:
@@ -799,29 +802,29 @@ class T2WRequest(http.Request):
                     self.setHeader(b'access-control-expose-headers', b'x-check-tor')
 
                     # response answer compliant to https://check.torproject.org/api/ip
-                    if client_uses_tor:
-                        content = "{\"IsTor\": true,\"IP\":\"" + client_ip + "\"}"
+                    if self.obj.client_uses_tor:
+                        content = "{\"IsTor\": true,\"IP\":\"" + self.obj.client_ip + "\"}"
                     else:
-                        content = "{\"IsTor\": false,\"IP\":\"" + client_ip + "\"}"
+                        content = "{\"IsTor\": false,\"IP\":\"" + self.obj.client_ip + "\"}"
 
-                    defer.returnValue(self.contentFinish(content))
+                    defer.returnValue(self.writeContent(content))
 
                 elif staticpath == "dev/null":
                     content = "A" * random.randint(20, 1024)
                     self.setHeader(b'content-type', 'text/plain')
-                    defer.returnValue(self.contentFinish(content))
+                    defer.returnValue(self.writeContent(content))
 
                 elif staticpath == "stats/yesterday":
                     self.setHeader(b'content-type', 'application/json')
                     content = yield rpc("get_yesterday_stats")
-                    defer.returnValue(self.contentFinish(content))
+                    defer.returnValue(self.writeContent(content))
 
                 # allow either black or block list for backwards compatibility
                 elif config.publish_lists and (staticpath == "lists/blacklist" or staticpath == "lists/blocklist"):
                     self.setHeader(b'content-type', 'text/plain')
                     content = yield rpc("get_block_list")
                     content = "\n".join(item for item in content)
-                    defer.returnValue(self.contentFinish(content))
+                    defer.returnValue(self.writeContent(content))
 
                 elif staticpath == "notification" and config.smtpmailto_notifications != '':
                     # ################################################################
@@ -860,7 +863,7 @@ class T2WRequest(http.Request):
                             pass
 
                     self.setHeader(b'content-type', 'text/plain')
-                    defer.returnValue(self.contentFinish(''))
+                    defer.returnValue(self.writeContent(''))
 
                 elif not config.disable_gettor and staticpath.startswith('gettor'):
                     # handle GetTor requests (files and signatures)
@@ -909,7 +912,7 @@ class T2WRequest(http.Request):
                         flattenString(
                             self,
                             templates['error_gettor.tpl']
-                        ).addCallback(self.contentFinish)
+                        ).addCallback(self.writeContent)
 
                         defer.returnValue(NOT_DONE_YET)
 
@@ -918,11 +921,11 @@ class T2WRequest(http.Request):
                         _, ext = os.path.splitext(staticpath)
                         self.setHeader(b'content-type', mimetypes.types_map[ext])
                         content = antanistaticmap[staticpath]
-                        defer.returnValue(self.contentFinish(content))
+                        defer.returnValue(self.writeContent(content))
 
                     elif type(antanistaticmap[staticpath]) == PageTemplate:
                         defer.returnValue(
-                            flattenString(self, antanistaticmap[staticpath]).addCallback(self.contentFinish))
+                            flattenString(self, antanistaticmap[staticpath]).addCallback(self.writeContent))
                 
                 
 
@@ -944,11 +947,10 @@ class T2WRequest(http.Request):
                 defer.returnValue(NOT_DONE_YET)
 
             # if the user is using tor redirect directly to the hidden service
-            if client_uses_tor:
-                if not config.disable_tor_redirection:
-                    self.redirect("http://" + self.obj.onion + request.uri)
-                    self.finish()
-                    defer.returnValue(None)
+            if self.obj.client_uses_tor and not config.disable_tor_redirection:
+                self.redirect("http://" + self.obj.onion + request.uri)
+                self.finish()
+                defer.returnValue(None)
 
             # Avoid image hotlinking
             if config.blockhotlinking and request.uri.lower().endswith(tuple(config.blockhotlinking_exts)):
@@ -986,7 +988,7 @@ class T2WRequest(http.Request):
                     self.setResponseCode(401)
                     self.setHeader(b'content-type', 'text/html')
                     self.var['url'] = self.obj.uri
-                    flattenString(self, templates['disclaimer.tpl']).addCallback(self.contentFinish)
+                    flattenString(self, templates['disclaimer.tpl']).addCallback(self.writeContent)
                     defer.returnValue(NOT_DONE_YET)
 
             if config.mode != "TRANSLATION":
@@ -1033,15 +1035,18 @@ class T2WRequest(http.Request):
             self.var['errorcode'] = int(response.code) - 600
             if self.var['errorcode'] in SOCKS_errors:
                 return flattenString(self, templates[SOCKS_errors[self.var['errorcode']]]).addCallback(
-                    self.contentFinish)
+                    self.writeContent)
             else:
-                return flattenString(self, templates[SOCKS_errors[0x00]]).addCallback(self.contentFinish)
+                return flattenString(self, templates[SOCKS_errors[0x00]]).addCallback(self.writeContent)
 
         self.setResponseCode(response.code)
         self.processResponseHeaders(response.headers)
 
+        self.setHeaders()
+
         # if there's no response, we're done.
         if not response.length:
+            self.setHeader(b'content-length', intToBytes(0))
             self.finish()
             return defer.succeed
 
@@ -1560,6 +1565,7 @@ ports = []
 
 def nullStartedConnecting(self, connector):
     pass
+
 
 pool = client.HTTPConnectionPool(reactor, True)
 pool.maxPersistentPerHost = config.sockmaxpersistentperhost
