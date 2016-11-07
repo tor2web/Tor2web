@@ -610,10 +610,6 @@ class T2WRequest(http.Request):
             self.setHeader(b'strict-transport-security', b'max-age=31536000; includeSubDomains')
             self.setHeader(b'Content-Security-Policy', b'upgrade-insecure-requests')
 
-        if config.mode == 'TRANSLATION':
-            # no additional headers are injected when in translation mode
-            return
-
         if config.deny_caching:
             self.setHeader(b'cache-control', b'no-cache no-store, must-revalidate')
             self.setHeader(b'pragma', 'no-cache')
@@ -1046,7 +1042,7 @@ class T2WRequest(http.Request):
 
         # if there's no response, we're done.
         if not response.length:
-            self.contentFinish('')
+            self.finish()
             return defer.succeed
 
         finished = defer.Deferred()
