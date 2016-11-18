@@ -600,7 +600,7 @@ class T2WRequest(http.Request):
         self.forwardData(data, True)
         self.finish()
 
-    def setHeaders():
+    def setHeaders(self):
         if self.isSecure():
             self.setHeader(b'strict-transport-security', b'max-age=31536000; includeSubDomains')
             self.setHeader(b'Content-Security-Policy', b'upgrade-insecure-requests')
