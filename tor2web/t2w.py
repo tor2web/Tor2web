@@ -374,19 +374,6 @@ class Agent(client.Agent):
                                               parsedURI.originForm)
         defer.returnValue(ret)
 
-class RedirectAgent(client.RedirectAgent):
-    """
-    Overridden client.RedirectAgent version where we evaluate and handle automatically only HTTPS redirects
-    """
-    def _handleResponse(self, response, method, uri, headers, redirectCount):
-        locationHeaders = response.headers.getRawHeaders('location', [])
-        if locationHeaders:
-            location = self._resolveLocation(uri, locationHeaders[0])
-            parsed = client._URI.fromBytes(location)
-            if parsed.scheme == 'https':
-                return client.RedirectAgent._handleResponse(self, response, method, uri, headers, redirectCount)
-
-        return response
 
 class T2WRequest(http.Request):
     """
@@ -1012,16 +999,13 @@ class T2WRequest(http.Request):
                         defer.returnValue(NOT_DONE_YET)
 
             agent = Agent(reactor, sockhost=config.sockshost, sockport=config.socksport, pool=self.pool)
-            ragent = RedirectAgent(agent, 1)
 
             if config.mode == 'TRANSLATION' and request.host in hosts_map and hosts_map[request.host]['dp'] is not None:
                 proxy_url = 'normal-' + hosts_map[request.host]['dp'] + parsed[2] + '?' + parsed[3]
             else:
                 proxy_url = self.obj.address
 
-            self.proxy_d = ragent.request(self.method,
-                                          proxy_url,
-                                          self.obj.headers, bodyProducer=producer)
+            self.proxy_d = agent.request(self.method, proxy_url, self.obj.headers, bodyProducer=producer)
 
             self.proxy_d.addCallback(self.cbResponse)
             self.proxy_d.addErrback(self.handleError)
