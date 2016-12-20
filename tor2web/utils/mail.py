@@ -21,6 +21,7 @@ from OpenSSL import SSL
 from twisted.internet import reactor, defer
 from twisted.mail.smtp import ESMTPSenderFactory
 from twisted.internet.ssl import ClientContextFactory
+from twisted.protocols import tls
 
 from tor2web import __version__
 
