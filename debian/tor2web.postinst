@@ -28,4 +28,7 @@ if ! python -c "$CHECK_PIP_VERSION" 2>/dev/null; then
 fi
 pip install -r /usr/share/tor2web/requirements.txt
 
-#DEBHELPER#
+# Explictly compile pyc files at postinst time
+if which pycompile >/dev/null 2>&1; then
+	pycompile -p tor2web
+fi

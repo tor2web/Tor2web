@@ -2,6 +2,7 @@
 
 export PYBUILD_NAME=tor2web
 export PYBUILD_DISABLE=test
+export PYBUILD_INSTALL_ARGS=--no-compile
 
 %:
 	dh $@ --with python2 --buildsystem=pybuild
