@@ -56,7 +56,7 @@ from tor2web.utils.config import Config
 from tor2web.utils.daemon import Daemon, set_pdeathsig, set_proctitle
 from tor2web.utils.hostsmap import HostsMap
 from tor2web.utils.lists import LimitedSizeDict, List, TorExitNodeList
-from tor2web.utils.mail import sendmail, MailException
+from tor2web.utils.mail import sendmail, MailExceptionHooker
 from tor2web.utils.misc import listenTCPonExistingFD, listenSSLonExistingFD, re_sub, verify_onion
 from tor2web.utils.socks import SOCKSError, SOCKS5ClientEndpoint, TLSWrapClientEndpoint
 from tor2web.utils.ssl import T2WSSLContextFactory, HTTPSVerifyingContextFactory
@@ -1329,7 +1329,7 @@ class T2WDaemon(Daemon):
 
         if self.config.smtpmailto_exceptions:
             # if self.config.smtp_mail is configured we change the excepthook
-            sys.excepthook = MailException
+            sys.excepthook = MailExceptionHooker(self.config)
 
         reactor.run()
 
@@ -1387,7 +1387,7 @@ def start_worker():
 
     if config.smtpmailto_exceptions:
         # if config.smtp_mail is configured we change the excepthook
-        sys.excepthook = MailException
+        sys.excepthook = MailExceptionHooker(config)
 
 
 def updateListsTask():

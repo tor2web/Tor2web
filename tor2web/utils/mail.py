@@ -95,6 +95,8 @@ def sendexceptionmail(config, etype, value, tb):
 
     sendmail(config, message)
 
+def MailExcetionHooker(config):
+    def MailExceptionSender(etype, value, tb):
+         sendexceptionmail(config, etype, value, tb)
+    return MailExceptionSender
 
-def MailException(etype, value, tb):
-    sendexceptionmail(config, etype, value, tb)
