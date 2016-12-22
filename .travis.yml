@@ -1,9 +1,8 @@
 language: python
-sudo: false
+dist: trusty
+sudo: required
 python:
   - "2.7"
-install:
-  - pip install coverage coveralls
+install: true
 script:
-  - coverage run setup.py test # tests still to be implemented
-  - coveralls || true
+  - $TRAVIS_BUILD_DIR/scripts/travis.sh
