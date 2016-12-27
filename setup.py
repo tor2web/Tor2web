@@ -2,15 +2,14 @@
 #-*- coding: utf-8 -*-
 
 import os
+import pip
 import re
 from setuptools import find_packages, setup
 
 from tor2web import __version__
 
-def get_requires():
-    with open('requirements.txt') as f:
-        requires = f.readlines()
-        return requires
+install_requires = [str(r.req) for r in pip.req.parse_requirements('requirements.txt',
+                                                                   session=pip.download.PipSession())]
 
 setup(
     name="tor2web",
@@ -20,5 +19,5 @@ setup(
     url="https://tor2web.org/",
     packages=find_packages(exclude=['*.tests', '*.tests.*']),
     scripts=["bin/tor2web"],
-    install_requires=get_requires()
+    install_requires=install_requires
 )
