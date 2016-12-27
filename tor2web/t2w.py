@@ -169,20 +169,18 @@ class T2WRPCServer(pb.Root):
         reactor.stop()
 
 
-@defer.inlineCallbacks
 def rpc(f, *args, **kwargs):
     d = rpc_factory.getRootObject()
     d.addCallback(lambda obj: obj.callRemote(f, *args, **kwargs))
-    ret = yield d
-    defer.returnValue(ret)
+    return d
 
 
 def rpc_log(msg):
-    rpc("log_debug", str(msg))
+    return rpc("log_debug", str(msg))
 
 
 def rpc_shutdown():
-    rpc("shutdown")
+    return rpc("shutdown")
 
 
 class T2WPP(protocol.ProcessProtocol):
