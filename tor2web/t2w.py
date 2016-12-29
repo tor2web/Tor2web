@@ -1489,12 +1489,14 @@ if config.transport in ('HTTPS', 'BOTH'):
         print("Tor2web Startup Failure: unexistent file (%s)" % config.ssl_cert)
         exit(1)
 
-    if not test_file_access(config.ssl_dh):
+    if not test_file_access(config.ssl_dh) and hasattr(_lib, 'PEM_write_bio_DHparams'):
         print("Generating HTTPS DH parameters (hold on, this may take a while!)")
+
         dh = _lib.DH_new()
-        _lib.DH_generate_parameters_ex(dh, 2048, 2L, _ffi.NULL)
-        with open(config.ssl_dh, 'w') as dhfile:
-            _lib.DHparams_print_fp(dhfile, dh)
+         _lib.DH_generate_parameters_ex(dh, 2048, 2L, _ffi.NULL)
+        bio = _lib.BIO_new_file(config.ssl_dh, "w")
+        _lib.PEM_write_bio_DHparams(bio, dh)
+        _lib.BIO_free(bio)
 
 
 if config.listen_ipv6 == "::" or config.listen_ipv4 == config.listen_ipv6:
