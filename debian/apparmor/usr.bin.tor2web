@@ -13,10 +13,11 @@ profile usr.bin.tor2web {
     capability sys_tty_config,
     capability kill,
 
-    /proc/*/mounts r,
-
-    /proc/*/fd/ r,
-    /proc/*/fd/* r,
+    @{PROC}/ r,
+    @{PROC}/@{pid}/fd/ r,
+    @{PROC}/@{pid}/fd/* r,
+    @{PROC}/@{pid}/mounts r,
+    @{PROC}/@{pid}/status r,
 
     /usr/bin/ r,
     /bin/dash ix,
@@ -36,8 +37,10 @@ profile usr.bin.tor2web {
     /etc/tor2web.conf r,
     /home/tor2web/ rwk,
     /home/tor2web/** lrwk,
+
     /run/tor2web/ rw,
-    /run/tor2web/** lrw,
+    /run/tor2web/** lrwk,
+    /var/run/tor2web/** lrwk,
 
     /etc/letsencrypt/** mrwlk,
 
@@ -46,4 +49,6 @@ profile usr.bin.tor2web {
 
     # Explicit silent deny rules:
     deny /bin/uname x, # needed by os.uname in pip
+    deny /usr/bin/gcc-** x,
+    deny /sbin/ldconfig x,
 }
