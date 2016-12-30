@@ -88,6 +88,15 @@ for TARGET in $TARGETS; do
 
   cp -r $BUILDSRC $BUILDDIR
   cd $BUILDDIR/Tor2web
+
+  rm debian/control
+
+  if [ "$TARGET" == 'xenial' ]; then
+    ln -s controlX/control.$TARGET debian/control
+  else
+    ln -s controlX/control.trusty debian/control
+  fi
+
   sed -i "s/stable; urgency=/$TARGET; urgency=/g" debian/changelog
 
   if [ $NOSIGN -eq 1 ]; then
