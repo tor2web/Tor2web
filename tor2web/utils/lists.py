@@ -22,7 +22,12 @@ from StringIO import StringIO
 from twisted.internet import reactor, ssl
 from twisted.internet.task import LoopingCall
 from twisted.internet.defer import Deferred
-from twisted.web.client import HTTPPageGetter, HTTPClientFactory, _URI
+from twisted.web.client import HTTPPageGetter, HTTPClientFactory
+
+try:
+    from twisted.web.client import URI
+except ImportError:
+    from twisted.web.client import _URI as URI
 
 from tor2web.utils.ssl import HTTPSVerifyingContextFactory
 

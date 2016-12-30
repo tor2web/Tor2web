@@ -51,6 +51,11 @@ from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
 from twisted.internet.task import LoopingCall
 
+try:
+    from twisted.web.client import URI
+except ImportError:
+    from twisted.web.client import _URI as URI
+
 from tor2web import __version__
 from tor2web.utils.config import Config
 from tor2web.utils.daemon import Daemon, set_pdeathsig, set_proctitle
@@ -350,7 +355,7 @@ class Agent(client.Agent):
         """
         Edited version of twisted Agent.request in order to make it asyncronous!
         """
-        parsedURI = client._URI.fromBytes(uri)
+        parsedURI = URI.fromBytes(uri)
 
         is_https = yield rpc("is_https", parsedURI.host)
 
@@ -380,7 +385,7 @@ class RedirectAgent(client.RedirectAgent):
         locationHeaders = response.headers.getRawHeaders('location', [])
         if locationHeaders:
             location = self._resolveLocation(uri, locationHeaders[0])
-            parsed = client._URI.fromBytes(location)
+            parsed = URI.fromBytes(location)
             if parsed.scheme == 'https':
                 return client.RedirectAgent._handleResponse(self, response, method, uri, headers, redirectCount)
 
@@ -1493,7 +1498,7 @@ if config.transport in ('HTTPS', 'BOTH'):
         print("Generating HTTPS DH parameters (hold on, this may take a while!)")
 
         dh = _lib.DH_new()
-         _lib.DH_generate_parameters_ex(dh, 2048, 2L, _ffi.NULL)
+        _lib.DH_generate_parameters_ex(dh, 2048, 2L, _ffi.NULL)
         bio = _lib.BIO_new_file(config.ssl_dh, "w")
         _lib.PEM_write_bio_DHparams(bio, dh)
         _lib.BIO_free(bio)
