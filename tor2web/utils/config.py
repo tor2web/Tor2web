@@ -67,7 +67,7 @@ class Config(Storage):
         self.__dict__['listen_ipv6'] = None
         self.__dict__['listen_port_http'] = 80
         self.__dict__['listen_port_https'] = 443
-        self.__dict__['basehost'] = 'tor2web.org'
+        self.__dict__['basehost'] = 'AUTO'
         self.__dict__['sockshost'] = '127.0.0.1'
         self.__dict__['socksport'] = 9050
         self.__dict__['socksoptimisticdata'] = True

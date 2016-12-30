@@ -536,9 +536,9 @@ class T2WRequest(http.Request):
                     self.header_injected = True
 
             if config.avoid_rewriting_visible_content and self.obj.special_content == 'HTML':
-                data = re_sub(rexp['html_t2w'], r'\1\2' + self.proto + r'\3.' + config.basehost + self.port + r'\4', data)
+                data = re_sub(rexp['html_t2w'], r'\1\2' + self.proto + r'\3.' + self.var['basehost'] + self.port + r'\4', data)
             else:
-                data = re_sub(rexp['t2w'], self.proto + r'\2.' + config.basehost + self.port, data)
+                data = re_sub(rexp['t2w'], self.proto + r'\2.' + self.var['basehost'] + self.port, data)
 
             forward = data[:-config.bufsize]
 
@@ -563,9 +563,9 @@ class T2WRequest(http.Request):
                 self.header_injected = True
 
         if config.avoid_rewriting_visible_content and self.obj.special_content == 'HTML':
-            data = re_sub(rexp['html_t2w'], r'\1\2' + self.proto + r'\3.' + config.basehost + self.port + r'\4', data)
+            data = re_sub(rexp['html_t2w'], r'\1\2' + self.proto + r'\3.' + self.var['basehost'] + self.port + r'\4', data)
         else:
-            data = re_sub(rexp['t2w'], self.proto + r'\2.' + config.basehost + self.port, data)
+            data = re_sub(rexp['t2w'], self.proto + r'\2.' + self.var['basehost'] + self.port, data)
 
         data = self.handleCleartextForwardPart(data, True)
         self.forwardData(data, True)
@@ -644,7 +644,7 @@ class T2WRequest(http.Request):
 
     def handleError(self, failure):
         if type(failure.value) is SOCKSError:
-            self.setResponseCode(502)       # it's possible this should be a 504.  But definitely not 404.
+            self.setResponseCode(502)
             self.var['errorcode'] = failure.value.code
             if failure.value.code in SOCKS_errors:
                 return flattenString(self, templates[SOCKS_errors[failure.value.code]]).addCallback(self.writeContent)
@@ -701,7 +701,7 @@ class T2WRequest(http.Request):
         self.obj.host_tor = "http://" + self.obj.onion
         self.obj.address = self.obj.host_tor + self.obj.uri
         self.obj.client_proto = 'http://' if config.transport == 'HTTP' else 'https://'
-        self.obj.host_tor2web = self.obj.client_proto + self.obj.onion[:-len("onion")] + config.basehost + self.port
+        self.obj.host_tor2web = self.obj.client_proto + self.obj.onion[:-len("onion")] + self.var['basehost'] + self.port
 
         self.obj.headers = req.headers
 
@@ -733,8 +733,8 @@ class T2WRequest(http.Request):
         staticpath = re.sub('^/', '', staticpath)
 
         resource_is_local = (config.mode != "TRANSLATION" and
-                             (request.host == config.basehost or
-                              request.host == 'www.' + config.basehost)) or \
+                             (request.host == self.var['basehost'] or
+                              request.host == 'www.' + self.var['basehost'])) or \
                             isIPAddress(request.host) or \
                             isIPv6Address(request.host) or \
                             (config.overriderobotstxt and request.uri == '/robots.txt') or \
@@ -753,8 +753,8 @@ class T2WRequest(http.Request):
             producer = None
 
         if config.mirror is not None:
-            if config.basehost in config.mirror:
-                config.mirror.remove(config.basehost)
+            if self.var['basehost'] in config.mirror:
+                config.mirror.remove(self.var['basehost'])
             if len(config.mirror) > 1:
                 self.var['mirror'] = choice(config.mirror)
             elif len(config.mirror) == 1:
@@ -851,7 +851,7 @@ class T2WRequest(http.Request):
                     # ################################################################
 
                     if 'by' in args and 'url' in args and 'comment' in args:
-                        tmp = ["From: Tor2web Node %s.%s <%s>\n" % (config.nodename, config.basehost, config.smtpmail),
+                        tmp = ["From: Tor2web Node %s.%s <%s>\n" % (config.nodename, self.var['basehost'], config.smtpmail),
                                "To: %s\n" % config.smtpmailto_notifications,
                                "Subject: Tor2web Node (IPv4 %s, IPv6 %s): notification for %s\n" % (
                                    config.listen_ipv4, config.listen_ipv6, args['url'][0]),
@@ -939,11 +939,23 @@ class T2WRequest(http.Request):
             defer.returnValue(NOT_DONE_YET)
 
         else:
+            if config.basehost == 'AUTO':
+                self.var['basehost'] = "tor2web.org"
+
+                try:
+                    self.var['basehost'] = request.host.split('.', 1)[1]
+                except:
+                    pass
+            else:
+                self.var['basehost'] = config.basehost
+
+            rexp['w2t'] = re.compile(r'(http:|https:)?//([a-z0-9\.]*[a-z0-9]{16})\.' + self.var['basehost'], re.I)
+
             # the requested resource is remote, we act as proxy
             if config.mode == 'TRANSLATION' and request.host in hosts_map:
                 self.obj.onion = hosts_map[request.host]['onion']
             else:
-                self.obj.onion = request.host.split("." + config.basehost)[0].split(".")[-1] + ".onion"
+                self.obj.onion = request.host.split("." + basehost)[0].split(".")[-1] + ".onion"
 
             if not request.host or not verify_onion(self.obj.onion):
                 self.sendError(406, 'error_invalid_hostname.tpl')
