@@ -58,7 +58,7 @@ def getPageCached(url, contextFactory=None, *args, **kwargs):
 
     See HTTPClientCacheFactory to see what extra args can be passed.
     """
-    uri = _URI.fromBytes(url)
+    uri = URI.fromBytes(url)
     scheme = uri.scheme
     host = uri.host
     port = uri.port
