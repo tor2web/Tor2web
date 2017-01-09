@@ -49,16 +49,5 @@ if [ ! -f /etc/tor2web.conf ]; then
   cp /usr/share/tor2web/data/conf/tor2web-default.conf /etc/tor2web.conf
 fi
 
-if which openssl >/dev/null; then
-  if [ ! -f /home/tor2web/certs/tor2web-key.pem ]; then
-    openssl req -nodes -newkey rsa:4096 -keyout /home/tor2web/certs/tor2web-key.pem -out /home/tor2web/certs/tor2web-csr.pem -subj "/C=XX/ST=X/L=X/O=X/OU=X/CN=tor2web.org"
-    openssl x509 -req -days 3650 -in /home/tor2web/certs/tor2web-csr.pem -signkey /home/tor2web/certs/tor2web-key.pem -out /home/tor2web/certs/tor2web-cert.pem
-  fi
-
-  if [ ! -f /home/tor2web/certs/tor2web-dh.pem ]; then
-    openssl dhparam -out /home/tor2web/certs/tor2web-dh.pem 2048
-  fi
-fi
-
 chown tor2web:tor2web /home/tor2web/ -R
 chmod 660 /home/tor2web/certs/ -R
