@@ -954,7 +954,7 @@ class T2WRequest(http.Request):
             if config.mode == 'TRANSLATION' and request.host in hosts_map:
                 self.obj.onion = hosts_map[request.host]['onion']
             else:
-                self.obj.onion = request.host.split("." + basehost)[0].split(".")[-1] + ".onion"
+                self.obj.onion = request.host.split("." + self.var['basehost'])[0].split(".")[-1] + ".onion"
 
             if not request.host or not verify_onion(self.obj.onion):
                 self.sendError(406, 'error_invalid_hostname.tpl')
