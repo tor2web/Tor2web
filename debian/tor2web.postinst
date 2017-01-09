@@ -45,23 +45,20 @@ mkdir -p /home/tor2web/lists
 mkdir -p /home/tor2web/logs
 mkdir -p /home/tor2web/torbrowser
 
+if [ ! -f /etc/tor2web.conf ]; then
+  cp /usr/share/tor2web/data/conf/tor2web-default.conf /etc/tor2web.conf
+fi
+
+if which openssl >/dev/null; then
+  if [ ! -f /home/tor2web/certs/tor2web-key.pem ]; then
+    openssl req -nodes -newkey rsa:4096 -keyout /home/tor2web/certs/tor2web-key.pem -out /home/tor2web/certs/tor2web-csr.pem -subj "/C=XX/ST=X/L=X/O=X/OU=X/CN=tor2web.org"
+    openssl x509 -req -days 3650 -in /home/tor2web/certs/tor2web-csr.pem -signkey /home/tor2web/certs/tor2web-key.pem -out /home/tor2web/certs/tor2web-cert.pem
+  fi
+
+  if [ ! -f /home/tor2web/certs/tor2web-dh.pem ]; then
+    openssl dhparam -out /home/tor2web/certs/tor2web-dh.pem 2048
+  fi
+fi
+
 chown tor2web:tor2web /home/tor2web/ -R
-
-# XXX. Hardcore installation of tor2web dependencies using pip.
-# This is needed until tor2web will be packaged removing the need
-# for Twisted==13.2.0 and pyopenssl==0.14
-CHECK_PIP_VERSION="
-import pip
-from pkg_resources import parse_version as v
-exit(v(pip.__version__) < v('1.3'))
-"
-
-if ! python -c "$CHECK_PIP_VERSION" 2>/dev/null; then
-  curl https://bootstrap.pypa.io/get-pip.py | python
-fi
-pip install -r /usr/share/tor2web/requirements.txt
-
-# Explictly compile pyc files at postinst time
-if which pycompile >/dev/null 2>&1; then
-	pycompile -p tor2web
-fi
+chmod 660 /home/tor2web/certs/ -R
