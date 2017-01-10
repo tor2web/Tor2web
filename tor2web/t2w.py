@@ -629,7 +629,7 @@ class T2WRequest(http.Request):
         if type(failure.value) is SOCKSError:
             self.setResponseCode(502)
             self.var['errorcode'] = failure.value.code
-            return flattenString(self, templates['error_sock_generic.tpl']).addCallback(self.writeContent)
+            return flattenString(self, templates['error_sock.tpl']).addCallback(self.writeContent)
         else:
             return self.sendError()
 
@@ -1020,7 +1020,7 @@ class T2WRequest(http.Request):
         if 600 <= int(response.code) <= 699:
             self.setResponseCode(500)
             self.var['errorcode'] = int(response.code) - 600
-            return flattenString(self, templates['error_sock_generic.tpl']).addCallback(self.writeContent)
+            return flattenString(self, templates['error_sock.tpl']).addCallback(self.writeContent)
 
         self.setResponseCode(response.code)
         self.processResponseHeaders(response.headers)
