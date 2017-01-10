@@ -71,12 +71,6 @@ from tor2web.utils.templating import PageTemplate
 from tor2web.utils.gettor import getRedirectURL, getOSandLC, processGetTorRequest, getTorTask
 from tor2web.utils.urls import normalize_url, parent_urls
 
-SOCKS_errors = {
-    0x00: "error_sock_generic.tpl",
-    0x23: "error_sock_hs_not_found.tpl",
-    0x24: "error_sock_hs_not_reachable.tpl"
-}
-
 
 class T2WRPCServer(pb.Root):
     def __init__(self, config):
@@ -635,12 +629,9 @@ class T2WRequest(http.Request):
         if type(failure.value) is SOCKSError:
             self.setResponseCode(502)
             self.var['errorcode'] = failure.value.code
-            if failure.value.code in SOCKS_errors:
-                return flattenString(self, templates[SOCKS_errors[failure.value.code]]).addCallback(self.writeContent)
-            else:
-                return flattenString(self, templates[SOCKS_errors[0x00]]).addCallback(self.writeContent)
+            return flattenString(self, templates['error_sock_generic.tpl']).addCallback(self.writeContent)
         else:
-            self.sendError()
+            return self.sendError()
 
     def unzip(self, data, end=False):
         data1, data2 = '', ''
@@ -1029,11 +1020,7 @@ class T2WRequest(http.Request):
         if 600 <= int(response.code) <= 699:
             self.setResponseCode(500)
             self.var['errorcode'] = int(response.code) - 600
-            if self.var['errorcode'] in SOCKS_errors:
-                return flattenString(self, templates[SOCKS_errors[self.var['errorcode']]]).addCallback(
-                    self.writeContent)
-            else:
-                return flattenString(self, templates[SOCKS_errors[0x00]]).addCallback(self.writeContent)
+            return flattenString(self, templates['error_sock_generic.tpl']).addCallback(self.writeContent)
 
         self.setResponseCode(response.code)
         self.processResponseHeaders(response.headers)
