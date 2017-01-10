@@ -112,9 +112,6 @@ class T2WRPCServer(pb.Root):
             self.block_regexps = List(config.t2w_file_path('lists/blocklist_regexp.txt'))
             self.block_regexps = [re.compile(regexp_pattern) for regexp_pattern in self.block_regexps]
 
-        if config.blockcrawl:
-            self.blocked_ua = [ua.lower() for ua in List(config.t2w_file_path('lists/blocked_ua.txt'))]
-
         # Load Exit Nodes list with the refresh rate configured  in config file
         self.TorExitNodes = TorExitNodeList(config.t2w_file_path('lists/exitnodelist.txt'),
                                             'https://check.torproject.org/exit-addresses',
@@ -608,14 +605,6 @@ class T2WRequest(http.Request):
             self.setHeader(b'strict-transport-security', b'max-age=31536000; includeSubDomains')
             self.setHeader(b'Content-Security-Policy', b'upgrade-insecure-requests')
 
-        if config.deny_caching:
-            self.setHeader(b'cache-control', b'no-cache no-store, must-revalidate')
-            self.setHeader(b'pragma', 'no-cache')
-            self.setHeader(b'expires', b'-1')
-
-        if config.blockcrawl:
-            self.setHeader(b'x-robots-tag', b'noindex')
-
         self.setHeader(b'x-check-tor', b'true' if self.obj.client_uses_tor else b'false')
 
         if config.extra_http_response_headers:
@@ -779,13 +768,6 @@ class T2WRequest(http.Request):
                 if re.match(ua, request.headers.getRawHeaders(b'user-agent')[0].lower()):
                     crawler = True
                     continue
-
-        # 0: Request admission control stage
-        # we try to deny some ua/crawlers regardless the request is (valid or not) / (local or not)
-        # we deny EVERY request to known user agents reconized with pattern matching
-        if crawler and config.blockcrawl:
-            self.sendError(403, "error_blocked_ua.tpl")
-            defer.returnValue(NOT_DONE_YET)
 
         # 1: Client capability assessment stage
         if request.headers.getRawHeaders(b'accept-encoding') is not None:
