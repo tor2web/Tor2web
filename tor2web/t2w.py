@@ -78,7 +78,7 @@ class T2WRPCServer(pb.Root):
         self.stats = T2WStats()
         self.block_list = []
         self.block_regexps = []
-        self.blocked_ua = []
+        self.crawler_list = []
         self.hosts_map = {}
         self.TorExitNodes = []
         self.certs_tofu = LimitedSizeDict(size_limit=config.ssl_tofu_cache_size)
@@ -106,6 +106,8 @@ class T2WRPCServer(pb.Root):
             self.block_regexps = List(config.t2w_file_path('lists/blocklist_regexp.txt'))
             self.block_regexps = [re.compile(regexp_pattern) for regexp_pattern in self.block_regexps]
 
+        self.crawler_list = [ua.lower() for ua in List(config.t2w_file_path('lists/crawlers.txt'))]
+
         # Load Exit Nodes list with the refresh rate configured  in config file
         self.TorExitNodes = TorExitNodeList(config.t2w_file_path('lists/exitnodelist.txt'),
                                             'https://check.torproject.org/exit-addresses',
@@ -122,8 +124,8 @@ class T2WRPCServer(pb.Root):
     def remote_get_config(self):
         return self.config.__dict__
 
-    def remote_get_blocked_ua_list(self):
-        return list(self.blocked_ua)
+    def remote_get_crawler_list(self):
+        return list(self.crawler_list)
 
     def remote_get_block_list(self):
         return list(self.block_list)
@@ -756,7 +758,7 @@ class T2WRequest(http.Request):
 
         crawler = False
         if request.headers.getRawHeaders(b'user-agent') is not None:
-            for ua in blocked_ua_list:
+            for ua in crawler_list:
                 if re.match(ua, request.headers.getRawHeaders(b'user-agent')[0].lower()):
                     crawler = True
                     continue
@@ -1383,9 +1385,9 @@ def updateListsTask():
         global block_regexps
         block_regepxs = l
 
-    def set_blocked_ua_list(l):
-        global blocked_ua_list
-        blocked_ua_list = l
+    def set_crawler_list(l):
+        global crawler_list
+        crawler_list = l
 
     def set_tor_exits_list(l):
         global tor_exits_list
@@ -1397,7 +1399,7 @@ def updateListsTask():
 
     rpc("get_block_list").addCallback(set_block_list)
     rpc("get_block_regexps").addCallback(set_block_regexps)
-    rpc("get_blocked_ua_list").addCallback(set_blocked_ua_list)
+    rpc("get_crawler_list").addCallback(set_crawler_list)
     rpc("get_tor_exits_list").addCallback(set_tor_exits_list)
     rpc("get_hosts_map").addCallback(set_hosts_map)
 
@@ -1572,7 +1574,7 @@ else:
 
     block_list = []
     block_regexps = []
-    blocked_ua_list = []
+    crawler_list = []
     tor_exits_list = []
     hosts_map = {}
     ports = []

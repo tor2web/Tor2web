@@ -1,0 +1,7 @@
+Googlebot
+Bingbot
+Yahoo! Slurp
+DuckDuckBot
+Baiduspider
+YandexBot
+ia_archiver
