@@ -610,15 +610,15 @@ class T2WRequest(http.Request):
     def writeContent(self, data):
         self.setHeaders()
 
-         if len(data):
-             if self.obj.client_supports_gzip:
-                 self.setHeader(b'content-encoding', b'gzip')
-                 data = self.zip(data, True)
+        if len(data):
+            if self.obj.client_supports_gzip:
+                self.setHeader(b'content-encoding', b'gzip')
+                data = self.zip(data, True)
 
-             self.setHeader(b'content-length', intToBytes(len(data)))
-             self.write(data)
-         else:
-             self.setHeader(b'content-length', intToBytes(0))
+            self.setHeader(b'content-length', intToBytes(len(data)))
+            self.write(data)
+        else:
+            self.setHeader(b'content-length', intToBytes(0))
 
         self.finish()
 
