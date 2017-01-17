@@ -1,7 +1,9 @@
 Googlebot
 Bingbot
-Yahoo! Slurp
+Slurp
 DuckDuckBot
 Baiduspider
 YandexBot
+Sogou
+Exabot
 ia_archiver
