@@ -62,7 +62,7 @@ from tor2web.utils.daemon import Daemon, set_pdeathsig, set_proctitle
 from tor2web.utils.hostsmap import HostsMap
 from tor2web.utils.lists import LimitedSizeDict, List, TorExitNodeList
 from tor2web.utils.mail import sendmail, MailExceptionHooker
-from tor2web.utils.misc import listenTCPonExistingFD, listenSSLonExistingFD, re_sub, verify_onion
+from tor2web.utils.misc import listenTCPonExistingFD, listenSSLonExistingFD, re_sub, is_onion
 from tor2web.utils.socks import SOCKSError, SOCKS5ClientEndpoint, TLSWrapClientEndpoint
 from tor2web.utils.ssl import T2WSSLContextFactory, HTTPSVerifyingContextFactory
 from tor2web.utils.stats import T2WStats
@@ -327,21 +327,37 @@ class Agent(client.Agent):
             kwargs['timeout'] = self._connectTimeout
         kwargs['bindAddress'] = self._bindAddress
 
-        if scheme == 'http':
-            return SOCKS5ClientEndpoint(self._reactor, self._sockhost, self._sockport,
-                                        host, port, config.socksoptimisticdata, **kwargs)
-        elif scheme == 'https':
-            torSockEndpoint = SOCKS5ClientEndpoint(self._reactor, self._sockhost,
-                                                   self._sockport, host, port, config.socksoptimisticdata, **kwargs)
-            return TLSWrapClientEndpoint(HTTPSVerifyingContextFactory(host, verify_tofu), torSockEndpoint)
-        elif scheme == 'normal-http':
-             return TCP4ClientEndpoint(self._reactor, host, port, **kwargs)
-        elif scheme == 'normal-https':
-            return SSL4ClientEndpoint(self._reactor, host, port,
-                                      self._wrapContextFactory(host, port),
-                                      **kwargs)
+        if scheme not in ('http', 'https'):
+            raise SchemeNotSupported("Unsupported scheme: %r" % (scheme,))
+
+        if is_onion(host):
+            if scheme == 'http':
+                return SOCKS5ClientEndpoint(self._reactor,
+                                            self._sockhost,
+                                            self._sockport,
+                                            host,
+                                            port,
+                                            config.socksoptimisticdata,
+                                            **kwargs)
+            elif scheme == 'https':
+                torSockEndpoint = SOCKS5ClientEndpoint(self._reactor,
+                                                       self._sockhost,
+                                                       self._sockport,
+                                                       host,
+                                                       port,
+                                                       config.socksoptimisticdata,
+                                                       **kwargs)
+                return TLSWrapClientEndpoint(HTTPSVerifyingContextFactory(host, verify_tofu),
+                                             torSockEndpoint)
         else:
             raise SchemeNotSupported("Unsupported scheme: %r" % (scheme,))
+            if scheme == 'http':
+                return TCP4ClientEndpoint(self._reactor, host, port, **kwargs)
+            elif scheme == 'https':
+                return SSL4ClientEndpoint(self._reactor, host, port,
+                                          self._wrapContextFactory(host, port),
+                                          **kwargs)
+
 
     @defer.inlineCallbacks
     def request(self, method, uri, headers, bodyProducer=None):
@@ -611,14 +627,14 @@ class T2WRequest(http.Request):
         self.setHeaders()
 
         if len(data):
-            if self.obj.client_supports_gzip:
-                self.setHeader(b'content-encoding', b'gzip')
-                data = self.zip(data, True)
+             if self.obj.client_supports_gzip:
+                 self.setHeader(b'content-encoding', b'gzip')
+                 data = self.zip(data, True)
 
-            self.setHeader(b'content-length', intToBytes(len(data)))
-            self.write(data)
+             self.setHeader(b'content-length', intToBytes(len(data)))
+             self.write(data)
         else:
-            self.setHeader(b'content-length', intToBytes(0))
+             self.setHeader(b'content-length', intToBytes(0))
 
         self.finish()
 
@@ -758,10 +774,11 @@ class T2WRequest(http.Request):
 
         crawler = False
         if request.headers.getRawHeaders(b'user-agent') is not None:
+            user_agent = request.headers.getRawHeaders(b'user-agent')[0].lower()
             for ua in crawler_list:
-                if re.match(ua, request.headers.getRawHeaders(b'user-agent')[0].lower()):
+                if re.match(user_agent, ua):
                     crawler = True
-                    continue
+                    break
 
         # 1: Client capability assessment stage
         if request.headers.getRawHeaders(b'accept-encoding') is not None:
@@ -798,7 +815,7 @@ class T2WRequest(http.Request):
                     defer.returnValue(self.writeContent(content))
 
                 # allow either black or block list for backwards compatibility
-                elif config.publish_lists and (staticpath == "lists/blacklist" or staticpath == "lists/blocklist"):
+                elif config.publish_lists and staticpath == "lists/blocklist":
                     self.setHeader(b'content-type', 'text/plain')
                     content = yield rpc("get_block_list")
                     content = "\n".join(item for item in content)
@@ -932,7 +949,7 @@ class T2WRequest(http.Request):
             else:
                 self.obj.onion = request.host.split("." + self.var['basehost'])[0].split(".")[-1] + ".onion"
 
-            if not request.host or not verify_onion(self.obj.onion):
+            if not request.host or not is_onion(self.obj.onion):
                 self.sendError(406, 'error_invalid_hostname.tpl')
                 defer.returnValue(NOT_DONE_YET)
 
@@ -957,22 +974,6 @@ class T2WRequest(http.Request):
             self.var['onion'] = self.obj.onion.replace(".onion", "")
             self.var['path'] = parsed[2]
 
-            # Variations of the URL for testing against the blocklist
-            full_path = self.obj.onion + self.var['path']
-            full_url = full_path
-            if parsed[3]:
-                full_url += '?' + parsed[3]
-            normalized_url = normalize_url(full_url)
-
-            onionset = set([self.obj.onion, self.obj.onion[-22:]])
-            urlset = set([full_url, normalized_url, full_path])
-
-            test_urls = []
-            test_urls.extend(onionset)
-            test_urls.extend(urlset)
-            test_urls.extend(parent_urls(full_url, 1))
-            test_urls.append(self.var['path'])
-
             if not crawler:
                 if not config.disable_disclaimer and not self.getCookie("disclaimer_accepted"):
                     self.setResponseCode(401)
@@ -981,31 +982,48 @@ class T2WRequest(http.Request):
                     flattenString(self, templates['disclaimer.tpl']).addCallback(self.writeContent)
                     defer.returnValue(NOT_DONE_YET)
 
-            if config.mode != "TRANSLATION":
+            blocked = False
+
+            if config.mode == "BLOCKLIST":
+                # Variations of the URL for testing against the blocklist
+                full_path = self.obj.onion + self.var['path']
+                full_url = full_path
+                if parsed[3]:
+                    full_url += '?' + parsed[3]
+                normalized_url = normalize_url(full_url)
+
+                onionset = set([self.obj.onion, self.obj.onion[-22:]])
+                urlset = set([full_url, normalized_url, full_path])
+
+                test_urls = []
+                test_urls.extend(onionset)
+                test_urls.extend(urlset)
+                test_urls.extend(parent_urls(full_url, 1))
+                test_urls.append(self.var['path'])
+
                 rpc_log("detected <onion_url>.tor2web Hostname: %s" % self.obj.onion)
-                if not verify_onion(self.obj.onion):
+                if not is_onion(self.obj.onion):
                     self.sendError(406, 'error_invalid_hostname.tpl')
                     defer.returnValue(NOT_DONE_YET)
 
-                elif config.mode == "BLOCKLIST":
-                    blocked = False
-                    if any(hashlib.md5(url).hexdigest() in block_list for url in test_urls):
-                        blocked = True
-                    else:
-                        for block_regexp in block_regexps:
-                           if block_regexps.search(full_url) is not None:
-                               blocked = True
-                               break
+                blocked = False
+                if any(hashlib.md5(url).hexdigest() in block_list for url in test_urls):
+                    blocked = True
+                else:
+                    for block_regexp in block_regexps:
+                       if block_regexp.search(full_url) is not None:
+                           blocked = True
+                           break
 
-                    if blocked:
-                        self.sendError(403, 'error_blocked_page.tpl')
-                        defer.returnValue(NOT_DONE_YET)
+            if blocked:
+                self.sendError(403, 'error_blocked_page.tpl')
+                defer.returnValue(NOT_DONE_YET)
 
             agent = Agent(reactor, sockhost=config.sockshost, sockport=config.socksport, pool=self.pool)
             ragent = RedirectAgent(agent, 1)
 
             if config.mode == 'TRANSLATION' and request.host in hosts_map and hosts_map[request.host]['dp'] is not None:
-                proxy_url = 'normal-' + hosts_map[request.host]['dp'] + parsed[2] + '?' + parsed[3]
+                proxy_url = hosts_map[request.host]['dp'] + parsed[2] + '?' + parsed[3]
             else:
                 proxy_url = self.obj.address
 
@@ -1087,8 +1105,6 @@ class T2WRequest(http.Request):
         self.responseHeaders.setRawHeaders(key, values)
 
     def processResponseHeaders(self, headers):
-        # currently we track only responding hidden services
-        # we don't need to block on the rpc now so no yield is needed
         rpc("update_stats", str(self.obj.onion.replace(".onion", "")))
 
         for key, values in headers.getAllRawHeaders():
@@ -1225,8 +1241,7 @@ class T2WLimitedRequestsFactory(WrappingFactory):
             #
             # known bug: currently when the limit is reached all
             # the active requests are trashed.
-            # this simple solution is used to achieve
-            # stronger stability.
+            # this simple solution is used for resiliency reasons.
             try:
                 reactor.stop()
             except Exception:
@@ -1341,9 +1356,6 @@ def start_worker():
 
     factory = T2WLimitedRequestsFactory(factory, requests_countdown)
 
-    reactor.listenTCPonExistingFD = listenTCPonExistingFD
-    reactor.listenSSLonExistingFD = listenSSLonExistingFD
-
     if 'T2W_FDS_HTTP' in os.environ:
         fds_http = [int(x) for x in os.environ['T2W_FDS_HTTP'].split(",") if x]
         for fd in fds_http:
@@ -1453,7 +1465,7 @@ if config.mode not in ['TRANSLATION', 'BLOCKLIST']:
     exit(1)
 
 if config.mode == "TRANSLATION":
-    if not verify_onion(config.onion):
+    if not is_onion(config.onion):
         print("Tor2web Startup Failure: TRANSLATION config.mode require config.onion configuration")
         exit(1)
 

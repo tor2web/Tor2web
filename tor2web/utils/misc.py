@@ -24,7 +24,7 @@ def listenTCPonExistingFD(reactor, fd, factory):
 def listenSSLonExistingFD(reactor, fd, factory, contextFactory):
 
     tlsFactory = tls.TLSMemoryBIOFactory(contextFactory, False, factory)
-    port = reactor.listenTCPonExistingFD(reactor, fd, tlsFactory)
+    port = listenTCPonExistingFD(reactor, fd, tlsFactory)
     port._type = 'TLS'
     return port
 
@@ -51,29 +51,10 @@ def re_sub(pattern, replacement, string):
 
     return re.sub(pattern, _r, string)
 
-def verify_onion(address):
+def is_onion(address):
     """
     Check to see if the address is a .onion.
     returns the onion address as a string if True else returns False
     """
-    try:
-        pieces = address.split(".")
-
-        # all pieces must exist and be alnums
-        for piece in pieces:
-           if piece == '':
-              return False
-
-           if not piece.isalnum():
-              return False
-
-        # get the final two pieces
-        onion, tld = pieces[-2:]
-
-        if len(onion) == 16 and tld.lower() == 'onion':
-           return True
-
-    except Exception:
-        pass
-
-    return False
+    pattern = re.compile('^([0-9a-z]){16}.onion$')
+    return pattern.match(hostname) != None
