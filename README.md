@@ -18,11 +18,11 @@ To support the Tor2web project you can help us with donations that will goes ent
 [Help us by sending us a small donation!](https://www.hermescenter.org/home/about-mission/support-us/)
 
 ## Contacts
-To discuss with developers and tor2web operators join the [Tor2web Mailing List](https://lists.ghserv.net/mailman/listinfo/tor2web-talk) or join IRC chat on [irc.oftc.net channel #tor2web](https://irc.lc/OFTC/tor2web/T2W_github_user) .
+To discuss with developers and tor2web operators join the [Tor2web Mailing List](https://lists.ghserv.net/mailman/listinfo/tor2web-talk) or join IRC chat on [irc.oftc.net channel #tor2web](https://webchat.oftc.net/?nick=gl-guest.&channels=tor2web) .
 
 Follow us on [Twitter](https://twitter.com/tor2web) [![Twitter](http://i.imgur.com/wWzX9uB.png)](https://twitter.com/tor2web) 
 
 ## License
 This software is released under the AGPLv3 license. See LICENSE file for more information.
 
-Copyright (c) 2011-2016 - [Hermes Center for Transparency and Digital Human Rights](https://www.hermescenter.org)
+Copyright (c) 2011-2017 - [Hermes Center for Transparency and Digital Human Rights](https://www.hermescenter.org)
