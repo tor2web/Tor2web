@@ -740,6 +740,7 @@ class T2WRequest(http.Request):
                             request.uri.startswith('/gettor') or \
                             request.uri.startswith('/checktor')
 
+        producer = None
         if content_length is not None:
             self.bodyProducer.length = int(content_length)
             producer = self.bodyProducer
@@ -747,8 +748,6 @@ class T2WRequest(http.Request):
         elif transfer_encoding is not None:
             producer = self.bodyProducer
             request.headers.removeHeader(b'transfer-encoding')
-        else:
-            producer = None
 
         if config.mirror is not None:
             if self.var['basehost'] in config.mirror:
@@ -1226,6 +1225,8 @@ class T2WProxyFactory(http.HTTPFactory):
 class T2WLimitedRequestsFactory(WrappingFactory):
     def __init__(self, wrappedFactory, allowedRequests):
         WrappingFactory.__init__(self, wrappedFactory)
+        self.allowed_requests = allowedRequests
+        self.requests_counter = 0
         self.requests_countdown = allowedRequests
 
     def registerProtocol(self, p):
@@ -1234,14 +1235,18 @@ class T2WLimitedRequestsFactory(WrappingFactory):
         """
         WrappingFactory.registerProtocol(self, p)
 
+        self.requests_counter += 1
+        if self.requests_counter == self.allowed_requests:
+            for p in ports:
+                try:
+                    p.stopListening()
+                except Exception:
+                    pass
+
+    def unregisterProtocol(self, p):
         self.requests_countdown -= 1
 
         if self.requests_countdown <= 0:
-            # bai bai mai friend
-            #
-            # known bug: currently when the limit is reached all
-            # the active requests are trashed.
-            # this simple solution is used for resiliency reasons.
             try:
                 reactor.stop()
             except Exception:
@@ -1347,6 +1352,10 @@ class T2WDaemon(Daemon):
 
 
 def start_worker():
+    if config.smtpmailto_exceptions:
+        # if config.smtp_mail is configured we change the excepthook
+        sys.excepthook = MailExceptionHooker(config)
+
     LoopingCall(updateListsTask).start(600)
 
     factory = T2WProxyFactory()
@@ -1359,9 +1368,9 @@ def start_worker():
     if 'T2W_FDS_HTTP' in os.environ:
         fds_http = [int(x) for x in os.environ['T2W_FDS_HTTP'].split(",") if x]
         for fd in fds_http:
-            ports.append(reactor.listenTCPonExistingFD(reactor,
-                                                       fd=fd,
-                                                       factory=factory))
+            ports.append(listenTCPonExistingFD(reactor,
+                                               fd=fd,
+                                               factory=factory))
 
     fds_https, fds_http = [], []
     if 'T2W_FDS_HTTPS' in os.environ:
@@ -1378,15 +1387,10 @@ def start_worker():
 
         fds_https = [int(x) for x in os.environ['T2W_FDS_HTTPS'].split(",") if x]
         for fd in fds_https:
-            ports.append(reactor.listenSSLonExistingFD(reactor,
-                                                       fd=fd,
-                                                       factory=factory,
-                                                       contextFactory=context_factory))
-
-    if config.smtpmailto_exceptions:
-        # if config.smtp_mail is configured we change the excepthook
-        sys.excepthook = MailExceptionHooker(config)
-
+            ports.append(listenSSLonExistingFD(reactor,
+                                               fd=fd,
+                                               factory=factory,
+                                               contextFactory=context_factory))
 
 def updateListsTask():
     def set_block_list(l):
@@ -1422,8 +1426,8 @@ def SigQUIT(SIG, FRM):
     except Exception:
         pass
 
-
 sys.excepthook = None
+
 set_pdeathsig(signal.SIGINT)
 
 # #########################
@@ -1561,11 +1565,8 @@ if usr_tpl_dir != sys_tpl_dir and os.path.exists(usr_tpl_dir):
         templates[f.basename()] = PageTemplate(XMLString(f.getContent()))
 # ##############################################################################
 
-ports = []
-
 def nullStartedConnecting(self, connector):
     pass
-
 
 pool = client.HTTPConnectionPool(reactor, True)
 pool.maxPersistentPerHost = config.sockmaxpersistentperhost

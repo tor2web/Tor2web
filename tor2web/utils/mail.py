@@ -101,4 +101,3 @@ def MailExceptionHooker(config):
     def MailExceptionSender(etype, value, tb):
          sendexceptionmail(config, etype, value, tb)
     return MailExceptionSender
-

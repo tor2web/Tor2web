@@ -18,8 +18,10 @@ import socket
 
 from twisted.protocols import tls
 
+
 def listenTCPonExistingFD(reactor, fd, factory):
     return reactor.adoptStreamPort(fd, socket.AF_INET, factory)
+
 
 def listenSSLonExistingFD(reactor, fd, factory, contextFactory):
 
@@ -27,6 +29,7 @@ def listenSSLonExistingFD(reactor, fd, factory, contextFactory):
     port = listenTCPonExistingFD(reactor, fd, tlsFactory)
     port._type = 'TLS'
     return port
+
 
 def re_sub(pattern, replacement, string):
     def _r(m):
@@ -51,7 +54,8 @@ def re_sub(pattern, replacement, string):
 
     return re.sub(pattern, _r, string)
 
-def is_onion(address):
+
+def is_onion(hostname):
     """
     Check to see if the address is a .onion.
     returns the onion address as a string if True else returns False
