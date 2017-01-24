@@ -50,4 +50,5 @@ if [ ! -f /etc/tor2web.conf ]; then
 fi
 
 chown tor2web:tor2web /home/tor2web/ -R
-chmod 660 /home/tor2web/certs/ -R
+find /home/tor2web/ -type d -exec chmod 770 {} \;
+find /home/tor2web/ -type f -exec chmod 660 {} \;
