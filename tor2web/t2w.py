@@ -72,6 +72,10 @@ from tor2web.utils.gettor import getRedirectURL, getOSandLC, processGetTorReques
 from tor2web.utils.urls import normalize_url, parent_urls
 
 
+def test_file_access(f):
+  return os.path.exists(f) and os.path.isfile(f) and os.access(f, os.R_OK)
+
+
 class T2WRPCServer(pb.Root):
     def __init__(self, config):
         self.config = config
@@ -1482,10 +1486,6 @@ for d in ['certs', 'logs']:
     if not os.path.exists(path):
         print("Tor2web Startup Failure: unexistent directory (%s)" % path)
         exit(1)
-
-
-def test_file_access(f):
-  return os.path.exists(f) and os.path.isfile(f) and os.access(f, os.R_OK)
 
 
 if config.transport in ('HTTPS', 'BOTH'):
