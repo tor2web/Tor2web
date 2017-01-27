@@ -1,3 +1,6 @@
+Changes in version 3.1.67 - 2016-01-27
+     o Fix issue #319
+
 Changes in version 3.1.66 - 2016-01-19
      o Implement subprocessing avoiding connection close
        when reaching request number limit
