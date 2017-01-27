@@ -350,11 +350,15 @@ class Agent(client.Agent):
                 return TLSWrapClientEndpoint(HTTPSVerifyingContextFactory(host, verify_tofu),
                                              torSockEndpoint)
         else:
-            raise SchemeNotSupported("Unsupported scheme: %r" % (scheme,))
             if scheme == 'http':
-                return TCP4ClientEndpoint(self._reactor, host, port, **kwargs)
+                return TCP4ClientEndpoint(self._reactor,
+                                          host,
+                                          port,
+                                          **kwargs)
             elif scheme == 'https':
-                return SSL4ClientEndpoint(self._reactor, host, port,
+                return SSL4ClientEndpoint(self._reactor,
+                                          host,
+                                          port,
                                           self._wrapContextFactory(host, port),
                                           **kwargs)
 
