@@ -326,11 +326,6 @@ class Agent(client.Agent):
         def verify_tofu(hostname, cert):
             return rpc("verify_tls_tofu", hostname, cert)
 
-        kwargs = {}
-        if self._connectTimeout is not None:
-            kwargs['timeout'] = self._connectTimeout
-        kwargs['bindAddress'] = self._bindAddress
-
         if scheme not in ('http', 'https'):
             raise SchemeNotSupported("Unsupported scheme: %r" % (scheme,))
 
@@ -341,30 +336,26 @@ class Agent(client.Agent):
                                             self._sockport,
                                             host,
                                             port,
-                                            config.socksoptimisticdata,
-                                            **kwargs)
+                                            config.socksoptimisticdata)
             elif scheme == 'https':
                 torSockEndpoint = SOCKS5ClientEndpoint(self._reactor,
                                                        self._sockhost,
                                                        self._sockport,
                                                        host,
                                                        port,
-                                                       config.socksoptimisticdata,
-                                                       **kwargs)
+                                                       config.socksoptimisticdata)
                 return TLSWrapClientEndpoint(HTTPSVerifyingContextFactory(host, verify_tofu),
                                              torSockEndpoint)
         else:
             if scheme == 'http':
                 return TCP4ClientEndpoint(self._reactor,
                                           host,
-                                          port,
-                                          **kwargs)
+                                          port)
             elif scheme == 'https':
                 return SSL4ClientEndpoint(self._reactor,
                                           host,
                                           port,
-                                          self._wrapContextFactory(host, port),
-                                          **kwargs)
+                                          self._wrapContextFactory(host, port))
 
 
     @defer.inlineCallbacks
