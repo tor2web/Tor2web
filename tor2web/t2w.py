@@ -1141,51 +1141,17 @@ class T2WRequest(http.Request):
         except Exception:
             pass
 
+    def handleContentChunk(self, data):
+        self.bodyProducer.dataReceived(data)
+
 
 class T2WProxy(http.HTTPChannel):
     requestFactory = T2WRequest
 
-    def headerReceived(self, line):
-        """
-        Overridden to reduce the function actions and
-        in particular to avoid self._transferDecoder actions and
-        implement a streaming proxy
-        """
-        header, data = line.split(b':', 1)
-        header = header.lower()
-        data = data.strip()
-        req = self.requests[-1]
-        if header == b'content-length':
-            try:
-                self.length = int(data)
-            except ValueError:
-                self.transport.write(b"HTTP/1.1 400 Bad Request\r\n\r\n")
-                self.length = None
-                self.transport.loseConnection()
-                return
-            self._transferDecoder = _IdentityTransferDecoder(
-                self.length, req.bodyProducer.dataReceived, self._finishRequestBody)
-        elif header == b'transfer-encoding' and data.lower() == b'chunked':
-            self.length = None
-            self._transferDecoder = _ChunkedTransferDecoder(
-                req.bodyProducer.dataReceived, self._finishRequestBody)
-
-        reqHeaders = req.requestHeaders
-        values = reqHeaders.getRawHeaders(header)
-        if values is not None:
-            values.append(data)
-        else:
-            reqHeaders.setRawHeaders(header, [data])
-
     def allHeadersReceived(self):
-        """
-        Overridden to reduce the function actions
-        """
-        req = self.requests[-1]
-        req.parseCookies()
-        self.persistent = self.checkPersistence(req, self._version)
+        http.HTTPChannel.allHeadersReceived(self)
 
-        req.requestReceived(self._command, self._path, self._version)
+        self.requests[-1].requestReceived(self._command, self._path, self._version)
 
     def allContentReceived(self):
         if len(self.requests):
@@ -1203,6 +1169,7 @@ class T2WProxy(http.HTTPChannel):
         # time to finish generating output.
         if self.timeOut:
             self._savedTimeOut = self.setTimeout(None)
+
 
 
 class T2WProxyFactory(http.HTTPFactory):
