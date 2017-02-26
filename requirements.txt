@@ -1,9 +1,11 @@
 Parsley==1.2
-Twisted==13.2.0
-cffi==0.8.2
-cryptography==0.8.2
+Twisted==16.0.0
+cffi==1.5.2
+cryptography==1.2.3
 enum34==0.9.23
-pyOpenSSL==0.14
+idna==2.2
+ipaddress==1.0.18
+pyOpenSSL==0.15.1
 pyasn1==0.1.7
 pycparser==2.10
 six==1.5.2
