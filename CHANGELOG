@@ -1,29 +1,32 @@
-Changes in version 3.1.68 - 2016-01-27
+Changes in version 3.1.69 - 2017-03-05
+     o Align dependencies versions to the one used in GlobaLeaks
+
+Changes in version 3.1.68 - 2017-01-27
      o Fix regular expressions used fro url rewriting
 
-Changes in version 3.1.67 - 2016-01-27
+Changes in version 3.1.67 - 2017-01-27
      o Fix issue #319
 
-Changes in version 3.1.66 - 2016-01-19
+Changes in version 3.1.66 - 2017-01-19
      o Implement subprocessing avoiding connection close
        when reaching request number limit
 
-Changes in version 3.1.65 - 2016-01-17
+Changes in version 3.1.65 - 2017-01-17
      o Apply minor bugfixing
 
-Changes in version 3.1.64 - 2016-01-17
+Changes in version 3.1.64 - 2017-01-17
      o Apply minor bugfixing
 
-Changes in version 3.1.63 - 2016-01-10
+Changes in version 3.1.63 - 2017-01-10
      o Apply minor bugfixing
 
-Changes in version 3.1.62 - 2016-01-10
+Changes in version 3.1.62 - 2017-01-10
      o Remove experimental code
 
-Changes in version 3.1.61 - 2016-01-10
+Changes in version 3.1.61 - 2017-01-10
      o Packaging fixes
 
-Changes in version 3.1.60 - 2016-01-10
+Changes in version 3.1.60 - 2017-01-10
      o Apply minor bugfixing
 
 Changes in version 3.1.59 - 2016-12-30
