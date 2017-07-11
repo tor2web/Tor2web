@@ -2,8 +2,8 @@
 
 # user permission check
 if [ ! $(id -u) = 0 ]; then
-    echo "Error: Tor2web install script must be runned by root"
-    exit 1
+  echo "Error: Tor2web install script must be runned by root"
+  exit 1
 fi
 
 LOGFILE="./install.log"
@@ -55,13 +55,13 @@ DO () {
     CMD=$3
   fi
   echo -n "Running: \"$CMD\"... "
-  $CMD &>${LOGFILE}
+  eval $CMD &>${LOGFILE}
   if [ "$?" -eq "$RET" ]; then
     echo "SUCCESS"
   else
     echo "FAIL"
     echo "COMBINED STDOUT/STDERR OUTPUT OF FAILED COMMAND:"
-    cat ${FILE}
+    cat ${LOGFILE}
     exit 1
   fi
 }
@@ -69,7 +69,7 @@ DO () {
 # Preliminary Requirements Check
 ERR=0
 echo "Checking preliminary Tor2web requirements"
-for REQ in apt-key apt-get
+for REQ in apt-key apt-get wget
 do
   if which $REQ >/dev/null; then
     echo " + $REQ requirement meet"
@@ -92,20 +92,17 @@ DO "rm -f $TMPFILE"
 
 DO "apt-get update -y"
 
-# on Ubuntu python-pip requires universe repository
-if [ $DISTRO == "Ubuntu" ];then
-  if [ "$DISTRO_CODENAME" = "precise" ]; then
-    echo "Installing python-software-properties"
-    DO "apt-get install python-software-properties -y"
-  fi
+if echo "$DISTRO_CODENAME" | grep -qE "^(wheezy)$"; then
+  echo "Installing python-software-properties"
+  DO "apt-get install python-software-properties -y"
+else
+  echo "Installing software-properties-common"
+  DO "apt-get install software-properties-common -y"
+fi
 
-  if [ "$DISTRO_CODENAME" = "trusty" ]; then
-    echo "Installing software-properties-common"
-    DO "apt-get install software-properties-common -y"
-  fi
-
+if ! grep -q "^deb .*universe" /etc/apt/sources.list /etc/apt/sources.list.d/*; then
   echo "Adding Ubuntu Universe repository"
-  add-apt-repository "deb http://archive.ubuntu.com/ubuntu $(lsb_release -sc) universe"
+  DO "add-apt-repository 'deb http://archive.ubuntu.com/ubuntu $(lsb_release -sc) universe'"
 fi
 
 if [ ! -f /etc/apt/sources.list.d/globaleaks.list ]; then
@@ -114,5 +111,4 @@ if [ ! -f /etc/apt/sources.list.d/globaleaks.list ]; then
 fi
 
 DO "apt-get update -y"
-
 DO "apt-get install tor2web -y"
