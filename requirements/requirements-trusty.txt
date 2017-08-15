@@ -5,7 +5,7 @@ cryptography==1.2.3
 enum34==0.9.23
 idna==2.0
 pyOpenSSL==0.15.1
-pyasn1==0.1.9
+pyasn1==0.3.4
 pycparser==2.10
 service_identity==16.0.0
 six==1.5.2
