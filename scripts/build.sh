@@ -7,12 +7,13 @@ usage() {
   echo "Valid options:"
   echo " -h"
   echo -e " -t tagname (build specific release/branch)"
-  echo -e " -d distribution (available: precise, trusty, wheezy, jessie)"
+  echo -e " -d distribution (available: trusty, xenial, wheezy, jessie)"
   echo -e " -n (do not sign)"
   echo -e " -p (push on repository)"
 }
 
-DISTRIBUTION="precise"
+TARGETS="trusty xenial wheezy jessie"
+DISTRIBUTION="trusty"
 TAG="master"
 NOSIGN=0
 PUSH=0
@@ -37,18 +38,12 @@ while getopts "d:t:np:h" opt; do
   esac
 done
 
-if [ "$DISTRIBUTION" != "all" ] &&
-   [ "$DISTRIBUTION" != "precise" ] &&
-   [ "$DISTRIBUTION" != "trusty" ] &&
-   [ "$DISTRIBUTION" != "wheezy" ] &&
-   [ "$DISTRIBUTION" != "jessie" ]; then
+if ! [[ $TARGETS =~ $DISTRIBUTION ]] && [[ $DISTRIBUTION != 'all' ]]; then
  usage
  exit 1
 fi
 
-if [ "$DISTRIBUTION" == "all" ]; then
-  TARGETS="precise trusty wheezy jessie"
-else
+if [ "$DISTRIBUTION" != 'all' ]; then
   TARGETS=$DISTRIBUTION
 fi
 
@@ -89,13 +84,14 @@ for TARGET in $TARGETS; do
   cp -r $BUILDSRC $BUILDDIR
   cd $BUILDDIR/Tor2web
 
-  rm debian/control
+  rm debian/control requirements.txt
 
-  if [ "$TARGET" == 'xenial' ]; then
-    ln -s controlX/control.$TARGET debian/control
-  else
-    ln -s controlX/control.trusty debian/control
+  if [ "$TARGET" != 'xenial' ]; then
+    TARGET='trusty'
   fi
+
+  cp debian/controlX/control.$TARGET debian/control
+  cp requirements/requirements-$TARGET.txt requirements.txt
 
   sed -i "s/stable; urgency=/$TARGET; urgency=/g" debian/changelog
 
