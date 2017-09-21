@@ -29,7 +29,7 @@ DAEMON_USER=tor2web
 
 DAEMON_ARGS="--pidfile ${DAEMON_PIDFILE} --uid ${DAEMON_USER} --gid ${DAEMON_USER}"
 
-DAEMON_CMD="$DAEMON $DAEMON_ARGS"
+STARTCMD="$DAEMON $DAEMON_ARGS"
 
 SCRIPTNAME=$0
 
@@ -98,32 +98,20 @@ else
 fi
 
 if [ -d "/etc/letsencrypt/live" ] && [ -d "/etc/letsencrypt/archive" ]; then
-	echo "Letsencrypt detected, fixing permission for /etc/letsencrypt/{live,archive} for $DAEMON_USER user"
-	chgrp $DAEMON_USER /etc/letsencrypt/live/ 
-	chgrp $DAEMON_USER /etc/letsencrypt/archive
-	chmod g+rx /etc/letsencrypt/archive
-	chmod g+rx /etc/letsencrypt/live
+    echo "Letsencrypt detected, fixing permission for /etc/letsencrypt/{live,archive} for $DAEMON_USER user"
+    chgrp $DAEMON_USER /etc/letsencrypt/live/
+    chgrp $DAEMON_USER /etc/letsencrypt/archive
+    chmod g+rx /etc/letsencrypt/archive
+    chmod g+rx /etc/letsencrypt/live
+fi
+
+if [[ "$APPARMOR_SANDBOXING" -eq "1" && "$(cat /sys/module/apparmor/parameters/enabled 2>/dev/null)" != 'Y' ]]; then
+    echo "WARNING: Missing Apparmor Sandboxing support"
+    APPARMOR_SANDBOXING=0
 fi
 
 if [ "${APPARMOR_SANDBOXING}" -eq "1" ]; then
-    APPARMOR_STARTED=0
-
-    log_action_begin_msg "Enabling Tor2web Apparmor Sandboxing"
-
-    test -x /usr/sbin/aa-status \
-        && test -x /usr/sbin/aa-exec \
-        && test -e /etc/apparmor.d/usr.bin.tor2web \
-        && /usr/sbin/aa-status --enabled \
-        && DAEMON_CMD="/usr/sbin/aa-exec --profile=usr.bin.tor2web -- ${DAEMON_CMD}" \
-        && APPARMOR_STARTED=1
-
-        if [ "${APPARMOR_STARTED}" -eq "0" ]; then
-            log_action_end_msg 1 "Unable to initialize AppArmor!"
-            echo "Unable to initialize AppArmor!"
-            echo "AppArmor is probably disabled; please enable it by following instructions at https://wiki.debian.org/AppArmor/HowToUse"
-            echo "If you understand the risks involved and you know what you are doing, you can disable Tor2web's Apparmor support by editing /etc/default/tor2web and configuring APPARMOR_SANDBOXING=0"
-            exit 1
-        fi
+    STARTCMD="aa-exec --profile=usr.bin.tor2web -- $STARTCMD"
 fi
 
 do_t2w_start()
@@ -133,14 +121,14 @@ do_t2w_start()
     fi
 
     # Check to see if the daemon is already running.
-    $DAEMON_CMD --command=status
+    $STARTCMD --command=status
     RETVAL=$?
     if [ $RETVAL -eq 0 ]; then
         log_end_msg 0 "already running"
         exit 0
     fi
 
-    $DAEMON_CMD --command=start
+    $STARTCMD --command=start
     RETVAL=$?
     if [ $RETVAL -ne 0 ]; then
         log_end_msg 1 "couldn't start"
@@ -150,17 +138,17 @@ do_t2w_start()
 
 do_t2w_stop()
 {
-    $DAEMON_CMD --command=stop
+    $STARTCMD --command=stop
 }
 
 do_t2w_reload()
 {
-    $DAEMON_CMD --command=reload    
+    $STARTCMD --command=reload
 }
 
 do_t2w_status()
 {
-    $DAEMON_CMD --command=status
+    $STARTCMD --command=status
     RETVAL=$?
     if [ $RETVAL -eq 1 ]; then
         log_failure_msg "Tor2web is not running"
