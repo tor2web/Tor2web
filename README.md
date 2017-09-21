@@ -2,14 +2,12 @@ Tor2web [![Build Status](https://travis-ci.org/globaleaks/Tor2web.svg?branch=mas
 ==========
 
 ## Introduction
-Tor2web is a web proxy software that let you access Tor Hidden Services from
-the Internet under the domain *.tor2web.org (but also many others such as *.onion.to, *.onion.city, *.onion.cab)
-rather than by using .onion, reachable only from within Tor Darknet.
+Tor2web is an HTTP proxy software that enables access to Tor Hidden Services by mean of common web browsers
 
-Tor2web is now part of a larger project ([GlobaLeaks](https://github.com/globaleaks/GlobaLeaks/wiki/)), and is a crucial point in an architectural design aimed to make Tor Hidden Services (HS) easily reachable for all internet users, even if they have not installed Tor.
+The software originally developed by [Aaron Swartz](https://en.wikipedia.org/wiki/Aaron_Swartz) and [Virgil Griffith](https://en.wikipedia.org/wiki/Virgil_Griffith) is now developed and mainteined by the [Hermes Center for Transparency and Digital Human Rights](https://www.hermescenter.org) as part of the ([GlobaLeaks](https://github.com/globaleaks/GlobaLeaks/wiki/)) project.
 
 ## Documentation
-* Official website: [www.tor2web.org](https://tor2web.org/)
+* Official website: [www.tor2web.org](https://www.tor2web.org/)
 * Documentation on Wiki: [Github Wiki](https://github.com/globaleaks/tor2web/wiki)
 
 ## Donate
