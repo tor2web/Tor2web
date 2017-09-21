@@ -7,6 +7,16 @@ if [ ! $(id -u) = 0 ]; then
 fi
 
 LOGFILE="./install.log"
+ASSUMEYES=0
+
+for arg in "$@"; do
+  shift
+  case "$arg" in
+    --assume-yes ) ASSUMEYES=1; shift;;
+    -- ) shift; break;;
+    * ) break;;
+  esac
+done
 
 DISTRO="unknown"
 DISTRO_CODENAME="unknown"
@@ -15,32 +25,36 @@ if which lsb_release >/dev/null; then
   DISTRO_CODENAME="$( lsb_release -cs )"
 fi
 
-if [ $DISTRO_CODENAME != "trusty" ]; then
-  echo "!!!!!!!!!!!! WARNING !!!!!!!!!!!!"
-  echo "You are attempting to install Tor2web on an unsupported platform."
-  echo "Supported platform is Ubuntu Trusty (14.04)"
+if echo "$DISTRO_CODENAME" | grep -vqE "^xenial$" ; then
+  echo "WARNING: GlobaLeaks is supported and tested only on Ubuntu Xenial (16.04)"
 
-  while true; do
-    read -p "Do you wish to continue anyhow? [y|n]?" yn
-    case $yn in
-      [Yy]*) break;;
-      [Nn]*) echo "Installation aborted."; exit;;
-      *) echo $yn; echo "Please answer y/n."; continue;;
-    esac
-  done
+  if [ $ASSUMEYES -eq 0 ]; then
+    while true; do
+      read -p "Do you wish to continue anyway? [y|n]?" yn
+      case $yn in
+        [Yy]*) break;;
+        [Nn]*) exit 1;;
+        *) echo $yn; echo "Please answer y/n.";  continue;;
+      esac
+    done
+  fi
 fi
 
 echo "Performing Tor2web installation on $DISTRO - $DISTRO_CODENAME"
 
-if [ $DISTRO_CODENAME != "trusty" ]; then
-  # In case of unsupported platforms we fallback on trusty
-  echo "Given that the platform is not supported the install script will use trusty repository."
-  echo "In case of failure refer to the wiki for manual setup possibilities."
-  echo "Tor2web Wiki Address: https://github.com/globaleaks/Tor2web/wiki"
-
-  # Given the fact that the platform is not supported be try as it is an Ubuntu 14.04
+# The supported platforms are experimentally more than only Ubuntu as
+# publicly communicated to users.
+#
+# Depending on the intention of the user to proceed anyhow installing on
+# a not supported distro we using the experimental package if it exists
+# or xenial as fallback.
+if echo "$DISTRO_CODENAME" | grep -vqE "^(trusty|xenial|wheezy|jessie)$"; then
+  # In case of unsupported platforms we fallback on Xenial
+  echo "No packages available for the current distribution; the install script will use the Xenial repository."
+  echo "In case of a failure refer to the wiki for manual setup possibilities."
+  echo "GlobaLeaks wiki: https://github.com/globaleaks/GlobaLeaks/wiki"
   DISTRO="Ubuntu"
-  DISTRO_CODENAME="trusty"
+  DISTRO_CODENAME="xenial"
 fi
 
 DO () {
