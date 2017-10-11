@@ -77,7 +77,6 @@ class Config(Storage):
         self.__dict__['cipher_list'] = 'ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:' \
                                        'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-SHA256:' \
                                        'ECDHE-RSA-AES256-SHA:DHE-DSS-AES256-SHA:DHE-RSA-AES128-SHA:'
-        self.__dict__['ssl_tofu_cache_size'] = 100
         self.__dict__['mode'] = 'BLOCKLIST'
         self.__dict__['onion'] = None
         self.__dict__['blockhotlinking'] = True

@@ -85,7 +85,6 @@ class T2WRPCServer(pb.Root):
         self.crawler_list = []
         self.hosts_map = {}
         self.TorExitNodes = []
-        self.certs_tofu = LimitedSizeDict(size_limit=config.ssl_tofu_cache_size)
 
         self.load_lists()
 
@@ -142,17 +141,6 @@ class T2WRPCServer(pb.Root):
 
     def remote_get_hosts_map(self):
         return dict(self.hosts_map)
-
-    def remote_is_https(self, hostname):
-        return hostname in self.certs_tofu
-
-    def remote_verify_tls_tofu(self, hostname, cert):
-        h = hashlib.sha512(cert).hexdigest()
-        if hostname not in self.certs_tofu:
-            self.certs_tofu[hostname] = h
-            return True
-
-        return self.certs_tofu[hostname] == h
 
     def remote_update_stats(self, onion):
         self.stats.update(onion)
@@ -323,9 +311,6 @@ class Agent(client.Agent):
                                connectTimeout, bindAddress, pool)
 
     def _getEndpoint(self, scheme, host, port):
-        def verify_tofu(hostname, cert):
-            return rpc("verify_tls_tofu", hostname, cert)
-
         if scheme not in ('http', 'https'):
             raise SchemeNotSupported("Unsupported scheme: %r" % (scheme,))
 
@@ -344,7 +329,7 @@ class Agent(client.Agent):
                                                        host,
                                                        port,
                                                        config.socksoptimisticdata)
-                return TLSWrapClientEndpoint(HTTPSVerifyingContextFactory(host, verify_tofu),
+                return TLSWrapClientEndpoint(HTTPSVerifyingContextFactory(host),
                                              torSockEndpoint)
         else:
             if scheme == 'http':
@@ -365,12 +350,8 @@ class Agent(client.Agent):
         """
         parsedURI = URI.fromBytes(uri)
 
-        is_https = yield rpc("is_https", parsedURI.host)
-
-        scheme = 'https' if is_https else 'http'
-
         for key, values in headers.getAllRawHeaders():
-            fixed_values = [re_sub(rexp['w2t'], r'' + scheme + r'://\2.onion', value) for value in values]
+            fixed_values = [re_sub(rexp['w2t'], r'http://\2.onion', value) for value in values]
             headers.setRawHeaders(key, fixed_values)
 
         try:

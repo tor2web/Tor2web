@@ -16,8 +16,7 @@ import glob
 
 import os
 from OpenSSL import SSL
-from OpenSSL.crypto import load_certificate, dump_certificate, FILETYPE_PEM, \
- _raise_current_error
+from OpenSSL.crypto import load_certificate, FILETYPE_PEM
 from OpenSSL._util import lib as _lib, ffi as _ffi
 from pyasn1.type import univ, constraint, char, namedtype, tag
 from pyasn1.codec.der.decoder import decode
@@ -145,10 +144,9 @@ class T2WSSLContextFactory(ssl.ContextFactory):
 
 
 class HTTPSVerifyingContextFactory(ssl.ClientContextFactory):
-    def __init__(self, hostname, verify_tofu=None):
+    def __init__(self, hostname):
         self.hostname = hostname
-        self.verify_tofu = verify_tofu
-        
+
         # read in T2WSSLContextFactory why this settings ends in enabling only TLS
         self.method = SSL.SSLv23_METHOD
 
@@ -187,9 +185,4 @@ class HTTPSVerifyingContextFactory(ssl.ClientContextFactory):
             elif self.hostname in altnames(x509):
                 verify = True
 
-            if verify and self.verify_tofu is not None:
-                return self.verify_tofu(self.hostname, dump_certificate(FILETYPE_PEM, x509))
-
         return verify
-
-CERTS_TOFU = {}
