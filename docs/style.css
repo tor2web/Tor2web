@@ -1,0 +1,19 @@
+html, body { margin: 0; padding: 0; font-family: "Georgia", "Times", "Times New Roman", serif; font-size:1em;  letter-spacing: .025em; }
+.header { background-color: #298229; margin: 0; padding: .2em; color: white; }
+.header a:link, .header a:visited { color: white; text-decoration: underline; }
+h1 { text-align: center; font-family: "American Typewriter", "Andale Mono", "Monaco", "MPW", monospaced; font-weight: normal; }
+h1 a { font-weight: bold; }
+h2 { margin-top: 1.5em; color: #5a2c7c; font-family: "Tahoma", "Arial", "Helvetica";}
+h3 { margin-top: 1.5em; color: #5a2c7c; font-family: "Tahoma", "Arial", "Helvetica";}
+p { margin-left: 1.5em; margin-right: 1.5em }
+.body { margin: auto; width: 50em; padding-top: .5em;}
+
+.example { border: 1px solid #ccc; float: right; background: #eee; padding: 1em; margin: 1em }
+.example h3 { padding-top: 0; margin-top: 0; }
+.example ul { padding-left: 1.5em; }
+
+address { padding: 1.5em; color: #555; text-align: center;}
+code, pre { background-color: #eee;}
+pre { padding: 1em; }
+a:link { color: #298229; }
+a:visited { color:#444444; }
