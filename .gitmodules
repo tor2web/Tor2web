@@ -1,0 +1,3 @@
+[submodule "t"]
+	path = t
+	url = https://github.com/cheako/tor2web-tests.git

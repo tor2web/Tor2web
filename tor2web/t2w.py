@@ -201,14 +201,18 @@ class T2WPP(protocol.ProcessProtocol):
 
 
 def spawnT2W(father, childFDs, fds_https, fds_http):
+    executable = sys.executable;
+    cmdline = [ sys.executable, __file__] + sys.argv[1:];
+    if os.environ.has_key('TTW_COVERAGE'):
+        executable = os.environ['TTW_COVERAGE'];
+        cmdline = [ os.environ['TTW_COVERAGE'], 'run', __file__] + sys.argv[1:];
+
     child_env = os.environ.copy()
     child_env['T2W_FDS_HTTPS'] = fds_https
     child_env['T2W_FDS_HTTP'] = fds_http
 
     return reactor.spawnProcess(T2WPP(father, childFDs, fds_https, fds_http),
-                                sys.executable,
-                                [sys.executable, __file__] + sys.argv[1:],
-                                env=child_env,
+                                executable,cmdline,env=child_env,
                                 childFDs=childFDs)
 
 
@@ -1293,7 +1297,7 @@ class T2WDaemon(Daemon):
         self.quitting = True
 
         for pid in self.subprocesses:
-            os.kill(pid, signal.SIGINT)
+            os.kill(pid, signal.SIGTERM)
 
         self.subprocesses = []
 
@@ -1375,7 +1379,7 @@ def SigQUIT(SIG, FRM):
 
 sys.excepthook = None
 
-set_pdeathsig(signal.SIGINT)
+set_pdeathsig(signal.SIGTERM)
 
 # #########################
 # Security UMASK hardening
@@ -1541,8 +1545,6 @@ else:
     os.chmod(os.path.join(config.rundir, "rpc.socket"), 0600)
 
     signal.signal(signal.SIGUSR1, SigQUIT)
-    signal.signal(signal.SIGTERM, SigQUIT)
-    signal.signal(signal.SIGINT, SigQUIT)
 
     start_worker()
 

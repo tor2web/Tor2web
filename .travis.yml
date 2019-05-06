@@ -1,8 +1,17 @@
-language: python
-dist: trusty
-sudo: required
-python:
-  - "2.7"
-install: true
+services:
+- docker
+
+# Don't assume ruby.
+language: generic
+
+before_install:
+- docker build -t tor2web .
+- echo CID=`docker run -d tor2web tail -f /dev/null` | tee cid
+
 script:
-  - $TRAVIS_BUILD_DIR/scripts/travis.sh
+# - scripts/travis.sh
+- . cid; docker exec -e TTWLANG=python $CID /bin/sh -c 'cd /usr/src/github/Tor2web; python2 setup.py install && { prove -v -f t/tx || true; prove -f; }'
+
+# Generate and deploy documentation
+after_success:
+- . cid; docker exec `./.codecov-env.sh` $CID /bin/sh -c 'cd /usr/src/github/Tor2web; head /dev/null .coverage*; python-coverage combine; python-coverage xml -i; head /dev/null .coverage*; codecov -X gcov'
