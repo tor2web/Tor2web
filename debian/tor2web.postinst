@@ -6,33 +6,11 @@ if which pycompile >/dev/null 2>&1; then
   pycompile -p tor2web
 fi
 
-CHECK_PIP_VERSION="
-import pip
-from pkg_resources import parse_version as v
-exit(v(pip.__version__) < v('1.3'))
-"
-
 DISTRO="unknown"
 DISTRO_CODENAME="unknown"
 if which lsb_release >/dev/null; then
   DISTRO="$( lsb_release -is )"
   DISTRO_CODENAME="$( lsb_release -cs )"
-fi
-
-PIP_NEEDED=1
-if echo "$DISTRO_CODENAME" | grep -qE "^xenial$"; then
-  PIP_NEEDED=0
-fi
-
-if [ $PIP_NEEDED -eq 1 ]; then
-  # XXX. Hardcore installation of globaleaks dependencies using pip.
-  # Please remove the following lines once up-to-date python-storm,
-  # python-cryptography, and python-pip will be available in debian.
-  if ! python -c "$CHECK_PIP_VERSION" 2>/dev/null; then
-    curl https://bootstrap.pypa.io/get-pip.py | python
-  fi
-
-  pip install -r /usr/share/tor2web/requirements.txt
 fi
 
 if ! id -u tor2web >/dev/null 2>&1; then

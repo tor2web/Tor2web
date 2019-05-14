@@ -10,4 +10,4 @@ rm -rf requirements.txt
 ln -s requirements/requirements-xenial.txt requirements.txt
 pip install -r requirements.txt
 
-./scripts/build.sh -d trusty -t $TRAVIS_COMMIT -n
+./scripts/build.sh -d xenial -t $TRAVIS_COMMIT -n

@@ -7,13 +7,13 @@ usage() {
   echo "Valid options:"
   echo " -h"
   echo -e " -t tagname (build specific release/branch)"
-  echo -e " -d distribution (available: trusty, xenial, wheezy, jessie)"
+  echo -e " -d distribution (available: xenial, bionic)"
   echo -e " -n (do not sign)"
   echo -e " -p (push on repository)"
 }
 
-TARGETS="trusty xenial wheezy jessie"
-DISTRIBUTION="trusty"
+TARGETS="xenial bionic"
+DISTRIBUTION="xenial"
 TAG="master"
 NOSIGN=0
 PUSH=0
@@ -85,10 +85,6 @@ for TARGET in $TARGETS; do
   cd $BUILDDIR/Tor2web
 
   rm debian/control requirements.txt
-
-  if [ "$TARGET" != 'xenial' ]; then
-    TARGET='trusty'
-  fi
 
   cp debian/controlX/control.$TARGET debian/control
   cp requirements/requirements-$TARGET.txt requirements.txt
