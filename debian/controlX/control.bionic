@@ -20,7 +20,7 @@ Depends:
  python3:any,
  python3-cryptography,
  python3-openssl,
- python3-twisted-core,
+ python3-twisted,
  tor
 Description: Tor2web proxy.
   Tor2web is an HTTP proxy software that enables access to

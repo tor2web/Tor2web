@@ -1,7 +1,7 @@
-tar-ignore = Tor2web-3.0/doc/_build
+tar-ignore = Tor2web/doc/_build
 
 tar-ignore = *.py[co]
-tar-ignore = Tor2web-3.0/*.egg
-tar-ignore = Tor2web-3.0/testing_dir
-tar-ignore = Tor2web-3.0/_trial_temp
-tar-ignore = Tor2web-3.0/.pybuild
+tar-ignore = Tor2web/*.egg
+tar-ignore = Tor2web/testing_dir
+tar-ignore = Tor2web/_trial_temp
+tar-ignore = Tor2web/.pybuild
