@@ -147,37 +147,21 @@ if [ "$DISTRO" == "LinuxMint" ]; then
   DISTRO_CODENAME=$(grep UBUNTU_CODENAME /etc/os-release | sed -e 's/UBUNTU_CODENAME=//')
 fi
 
-if echo "$DISTRO_CODENAME" | grep -vqE "^bionic" ; then
-  echo "WARNING: GlobaLeaks is currently maintained and tested with reference to Ubuntu Bionic (18.04)"
-
-  if [ $ASSUMEYES -eq 0 ]; then
-    while true; do
-      read -p "Do you wish to continue anyway? [y|n]?" yn
-      case $yn in
-        [Yy]*) break;;
-        [Nn]*) exit 1;;
-        *) echo $yn; echo "Please answer y/n.";  continue;;
-      esac
-    done
-  fi
-fi
-
-echo "Detected OS: $DISTRO - $DISTRO_CODENAME"
-
 # The supported platforms are experimentally more than only Ubuntu as
 # publicly communicated to users.
 #
 # Depending on the intention of the user to proceed anyhow installing on
 # a not supported distro we using the experimental package if it exists
 # or xenial as fallback.
-if echo "$DISTRO_CODENAME" | grep -vqE "^(bionic|xenial$"; then
+if echo "$DISTRO_CODENAME" | grep -vqE "^(bionic|xenial)"; then
   # In case of unsupported platforms we fallback on Bionic
-  echo "No packages available for the current distribution; the install script will use the Bionic repository."
-  echo "In case of a failure refer to the wiki for manual setup possibilities."
-  echo "GlobaLeaks wiki: https://github.com/globaleaks/GlobaLeaks/wiki"
+  echo "Detected OS: $DISTRO - $DISTRO_CODENAME, which is not supported: fallback to 'bionic'"
   DISTRO="Ubuntu"
   DISTRO_CODENAME="bionic"
+else
+    echo "Detected OS: $DISTRO - $DISTRO_CODENAME"
 fi
+
 
 echo "Adding GlobaLeaks PGP key to trusted APT keys"
 TMPFILE=$TMPDIR/globaleaks_key
