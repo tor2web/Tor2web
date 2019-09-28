@@ -719,7 +719,7 @@ class T2WRequest(http.Request):
             user_agent = request.headers.getRawHeaders(b'user-agent')[0].lower()
             for ua in crawler_list:
                 continue
-                if re.match(user_agent, ua):
+                if re.match(user_agent, ua.encode('utf-8')):
                     crawler = True
                     break
 
