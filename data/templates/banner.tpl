@@ -30,12 +30,12 @@
       </div>
       <div style="clear:both"></div>
       <div class="tor2web_showhide">
-        <a href="javascript:show_hide_tor2web_header(true)">hide Tor2web header</a>
+        <a href="javascript:show_hide_tor2web_header('true')">hide Tor2web header</a>
       </div>
     </div>
     <div id="tor2web-hidden">
       <div class="tor2web_showhide">
-        <a href="javascript:show_hide_tor2web_header(false)">show Tor2web header</a>
+        <a href="javascript:show_hide_tor2web_header('false')">show Tor2web header</a>
       </div>
     </div>
   </div>

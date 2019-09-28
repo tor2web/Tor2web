@@ -15,7 +15,7 @@
 
 import re
 import traceback
-from StringIO import StringIO
+from io import StringIO
 
 from OpenSSL import SSL
 from twisted.internet import reactor, defer
@@ -26,7 +26,7 @@ from twisted.protocols import tls
 from tor2web import __version__
 
 
-def sendmail(config, messageFile):
+def sendmail(config, to, messageFile):
     """
     Sends an email using SSLv3 over SMTP
 
@@ -51,7 +51,7 @@ def sendmail(config, messageFile):
         config.smtpuser.encode('utf-8'),
         config.smtppass.encode('utf-8'),
         config.smtpmail,
-        config.smtpmailto_exceptions,
+        to,
         messageFile,
         resultDeferred,
         contextFactory=contextFactory,
@@ -94,7 +94,7 @@ def sendexceptionmail(config, etype, value, tb):
     info_string = ''.join(tmp)
     message = StringIO(info_string)
 
-    sendmail(config, message)
+    sendmail(config, config.smtpmailto_exceptions, message)
 
 
 def MailExceptionHooker(config):

@@ -47,7 +47,7 @@ class Daemon(object):
 
         os.setsid()
         os.chdir(self.config.rundir)
-        os.umask(077)
+        os.umask(0o77)
 
         if os.fork() != 0:  # fork again so we are not a session leader
             os._exit(0)
@@ -67,7 +67,7 @@ class Daemon(object):
         if not os.path.exists(self.config.rundir):
             os.mkdir(self.config.rundir)
 
-        os.chmod(self.config.rundir, 0700)
+        os.chmod(self.config.rundir, 0o700)
 
         if not self.config.nodaemon:
             self.become_daemon()
@@ -75,7 +75,7 @@ class Daemon(object):
         with open(self.config.pidfile, 'w') as f:
             f.write("%s" % os.getpid())
 
-        os.chmod(self.config.pidfile, 0600)
+        os.chmod(self.config.pidfile, 0o600)
 
         @atexit.register
         def goodbye():
@@ -201,7 +201,7 @@ class Daemon(object):
             self.daemon_start()
             exit(0)
         else:
-            print("Unknown command:", self.config.command)
+            print(("Unknown command:", self.config.command))
             raise SystemExit
 
         exit(1)

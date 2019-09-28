@@ -12,24 +12,24 @@
 
 # -*- coding: utf-8 -*-
 
-import urlparse
-import urllib
+import urllib.parse
+import urllib.request, urllib.parse, urllib.error
 
 
 def sort_querystring(query_string):
     """Sort a query string using field names and urlencode it"""
     # Split the query string into parts
-    qs_parts = urlparse.parse_qsl(query_string)
+    qs_parts = urllib.parse.parse_qsl(query_string)
     # Sort the parts (by field) and remove duplicates
     qs_parts = sorted(set(qs_parts))
     # Return sorted query string
-    return urllib.urlencode(qs_parts)
+    return urllib.parse.urlencode(qs_parts)
 
 
 def normalize_url(url):
     """Produce a normalized, blockable url"""
     # Split the URL into parts
-    url_parts = urlparse.urlsplit(url)
+    url_parts = urllib.parse.urlsplit(url)
     # We don't need 'scheme' or 'fragment'
     base,path,qs = url_parts[1:4]
     # Sort the query string

@@ -12,7 +12,7 @@
 """
 
 # -*- coding: utf-8 -*-
-from __future__ import print_function
+
 
 import os
 import re
@@ -23,15 +23,16 @@ import signal
 import socket
 import zlib
 import hashlib
-from StringIO import StringIO
+from io import BytesIO
 from random import choice
 from functools import partial
-from urlparse import urlsplit
+from urllib.parse import urlsplit
 from cgi import parse_header
 
 from OpenSSL._util import ffi as _ffi, lib as _lib
 
-from zope.interface import implements
+from zope.interface import implementer
+
 from twisted.spread import pb
 from twisted.internet import reactor, protocol, defer, address
 from twisted.internet.abstract import isIPAddress, isIPv6Address
@@ -42,9 +43,9 @@ from twisted.web.error import SchemeNotSupported
 from twisted.web.http import datetimeToString, StringTransport, \
     _IdentityTransferDecoder, _ChunkedTransferDecoder, parse_qs
 from twisted.web.http_headers import Headers
+from twisted.web.iweb import IAgentEndpointFactory, IAgent, IPolicyForHTTPS
 from twisted.web.server import NOT_DONE_YET
 from twisted.web.template import flattenString, XMLString
-from twisted.web.iweb import IBodyProducer
 from twisted.python import log, logfile
 from twisted.python.compat import networkString, intToBytes
 from twisted.python.failure import Failure
@@ -153,7 +154,7 @@ class T2WRPCServer(pb.Root):
 
     def remote_log_debug(self, line):
         date = datetimeToString()
-        t2w_daemon.logfile_debug.write(date + " " + str(line) + "\n")
+        t2w_daemon.logfile_debug.write(date.decode('utf-8') + " " + str(line) + "\n")
 
     def remote_shutdown(self):
         reactor.stop()
@@ -251,7 +252,7 @@ class BodyReceiver(protocol.Protocol):
         self._data.append(chunk)
 
     def connectionLost(self, reason):
-        self._finished.callback(''.join(self._data))
+        self._finished.callback(b''.join(self._data))
 
 
 class BodyStreamer(protocol.Protocol):
@@ -263,12 +264,10 @@ class BodyStreamer(protocol.Protocol):
         self._streamfunction(data)
 
     def connectionLost(self, reason):
-        self._finished.callback('')
+        self._finished.callback(b'')
 
 
 class BodyProducer(object):
-    implements(IBodyProducer)
-
     def __init__(self):
         self.length = _newclient.UNKNOWN_LENGTH
         self.finished = defer.Deferred()
@@ -300,71 +299,24 @@ class BodyProducer(object):
     def stopProducing(self):
         pass
 
+
 class Agent(client.Agent):
     def __init__(self, reactor,
-                 contextFactory=client.WebClientContextFactory(),
+                 contextFactory=client.BrowserLikePolicyForHTTPS(),
                  connectTimeout=None, bindAddress=None,
                  pool=None, sockhost=None, sockport=None):
         self._sockhost = sockhost
         self._sockport = sockport
         client.Agent.__init__(self, reactor, contextFactory,
-                               connectTimeout, bindAddress, pool)
+                              connectTimeout, bindAddress, pool)
 
-    def _getEndpoint(self, scheme, host, port):
-        if scheme not in ('http', 'https'):
-            raise SchemeNotSupported("Unsupported scheme: %r" % (scheme,))
-
-        if is_onion(host):
-            if scheme == 'http':
-                return SOCKS5ClientEndpoint(self._reactor,
-                                            self._sockhost,
-                                            self._sockport,
-                                            host,
-                                            port,
-                                            config.socksoptimisticdata)
-            elif scheme == 'https':
-                torSockEndpoint = SOCKS5ClientEndpoint(self._reactor,
-                                                       self._sockhost,
-                                                       self._sockport,
-                                                       host,
-                                                       port,
-                                                       config.socksoptimisticdata)
-                return TLSWrapClientEndpoint(HTTPSVerifyingContextFactory(host),
-                                             torSockEndpoint)
-        else:
-            if scheme == 'http':
-                return TCP4ClientEndpoint(self._reactor,
-                                          host,
-                                          port)
-            elif scheme == 'https':
-                return SSL4ClientEndpoint(self._reactor,
-                                          host,
-                                          port,
-                                          self._wrapContextFactory(host, port))
-
-
-    @defer.inlineCallbacks
     def request(self, method, uri, headers, bodyProducer=None):
-        """
-        Edited version of twisted Agent.request in order to make it asyncronous!
-        """
-        parsedURI = URI.fromBytes(uri)
-
         for key, values in headers.getAllRawHeaders():
-            fixed_values = [re_sub(rexp['w2t'], r'http://\2.onion', value) for value in values]
+            fixed_values = [re_sub(rexp['w2t'], b'http://\2.onion', value) for value in values]
             headers.setRawHeaders(key, fixed_values)
 
-        try:
-            endpoint = self._getEndpoint(parsedURI.scheme, parsedURI.host,
-                                         parsedURI.port)
-        except SchemeNotSupported:
-            defer.returnValue(Failure())
+        return client.Agent.request(self, method, uri, headers, bodyProducer)
 
-        key = (parsedURI.scheme, parsedURI.host, parsedURI.port)
-        ret = yield self._requestWithEndpoint(key, endpoint, method, parsedURI,
-                                              headers, bodyProducer,
-                                              parsedURI.originForm)
-        defer.returnValue(ret)
 
 class RedirectAgent(client.RedirectAgent):
     """
@@ -373,12 +325,46 @@ class RedirectAgent(client.RedirectAgent):
     def _handleResponse(self, response, method, uri, headers, redirectCount):
         locationHeaders = response.headers.getRawHeaders('location', [])
         if locationHeaders:
-            location = self._resolveLocation(uri, locationHeaders[0])
-            parsed = URI.fromBytes(location)
-            if parsed.scheme == 'https':
+            location = self._resolveLocation(uri, locationHeaders[0].encode('utf-8'))
+            parsed = client.URI.fromBytes(location)
+            if parsed.scheme == b'https':
                 return client.RedirectAgent._handleResponse(self, response, method, uri, headers, redirectCount)
 
         return response
+
+
+
+@implementer(IAgentEndpointFactory, IAgent)
+class SOCKS5Agent(object):
+    endpointFactory = SOCKS5ClientEndpoint
+    _tlsWrapper = TLSWrapClientEndpoint
+
+    def __init__(self, reactor, contextFactory=client.BrowserLikePolicyForHTTPS(),
+                 connectTimeout=None, bindAddress=None, pool=None, proxyEndpoint=None, endpointArgs={}):
+        if not IPolicyForHTTPS.providedBy(contextFactory):
+            raise NotImplementedError(
+                'contextFactory must implement IPolicyForHTTPS')
+        self.proxyEndpoint = proxyEndpoint
+        self.endpointArgs = endpointArgs
+        self._policyForHTTPS = contextFactory
+        self._wrappedAgent = Agent.usingEndpointFactory(reactor, self, pool=pool)
+        self._wrappedAgent = RedirectAgent(self._wrappedAgent, 1)
+
+    def request(self, *a, **kw):
+        return self._wrappedAgent.request(*a, **kw)
+
+    def _getEndpoint(self, scheme, host, port):
+        endpoint = self.endpointFactory(host, port, self.proxyEndpoint, **self.endpointArgs)
+
+        if scheme == b'https':
+            tlsPolicy = self._policyForHTTPS.creatorForNetloc(host, port)
+            endpoint = self._tlsWrapper(tlsPolicy, endpoint)
+
+        return endpoint
+
+    def endpointForURI(self, uri):
+        return self._getEndpoint(uri.scheme, uri.host, uri.port)
+
 
 class T2WRequest(http.Request):
     """
@@ -401,7 +387,7 @@ class T2WRequest(http.Request):
         self.proxy_d = None
         self.proxy_response = None
 
-        self.stream = ''
+        self.stream = b''
 
         self.header_injected = False
         # If we should disable the banner,
@@ -423,32 +409,14 @@ class T2WRequest(http.Request):
 
         self.pool = pool
 
-    def getRequestHostname(self):
-        """
-            Function overload to fix ipv6 bug:
-                http://twistedmatrix.com/trac/ticket/6014
-        """
-        host = self.getHeader(b'host')
-        if not host:
-            return networkString(self.getHost().host)
-        if host[0] == '[':
-            return host.split(']', 1)[0] + "]"
-
-        # return everything before the ':'
-        return networkString(host.split(':', 1)[0])
-
-
     def forwardData(self, data, end=False):
         if not self.startedWriting:
             if self.obj.client_supports_gzip:
                 self.setHeader(b'content-encoding', b'gzip')
 
             if config.extra_http_response_headers:
-                for header, value in config.extra_http_response_headers.iteritems():
+                for header, value in list(config.extra_http_response_headers.items()):
                     self.setHeader(header, value)
-
-            if data and end:
-                self.setHeader(b'content-length', intToBytes(len(data)))
 
         if data:
             self.write(data)
@@ -497,10 +465,10 @@ class T2WRequest(http.Request):
 
         self.host = self.channel.transport.getHost()
 
-        self.proto = 'http://' if config.transport == 'HTTP' else 'https://'
+        self.proto = b'http://' if config.transport == 'HTTP' else b'https://'
 
         port = self.channel.transport.getHost().port
-        self.port = '' if port in [80,443] else ':%d' % port
+        self.port = '' if port in [80,443] else ':%d' % port#).encode('utf-8')
 
         self.process()
 
@@ -508,9 +476,8 @@ class T2WRequest(http.Request):
         """
         Inject tor2web banner inside the returned page
         """
-        return str(data.group(1)) + str(banner)
+        return data.group(1) + banner
 
-    @defer.inlineCallbacks
     def handleFixPart(self, data):
         if self.obj.server_response_is_gzip:
             data = self.unzip(data)
@@ -519,47 +486,42 @@ class T2WRequest(http.Request):
 
         if len(data) >= config.bufsize * 2:
             if self.obj.special_content == 'HTML':
-                if not self.header_injected and data.find("<body") != -1:
-                    banner = yield flattenString(self, templates['banner.tpl'])
-                    data = re.sub(rexp['body'], partial(self.add_banner, banner), data)
+                if not self.header_injected and data.find(b"<body") != -1:
+                    data = re.sub(rexp['body'], partial(self.add_banner, self.banner), data)
                     self.header_injected = True
 
             if config.avoid_rewriting_visible_content and self.obj.special_content == 'HTML':
-                data = re_sub(rexp['html_t2w'], r'\1\2' + self.proto + r'\3.' + self.var['basehost'] + self.port + r'\4', data)
+                data = re_sub(rexp['html_t2w'], b'\1\2' + self.proto + b'\3.' + self.var['basehost'].encode('utf-8') + self.port.encode('utf-8') + b'\4', data)
             else:
-                data = re_sub(rexp['t2w'], self.proto + r'\2.' + self.var['basehost'] + self.port, data)
+                data = re_sub(rexp['t2w'], self.proto + b'\2.' + self.var['basehost'].encode('utf-8') + self.port.encode('utf-8'), data)
 
+        if len(data) >= config.bufsize * 2:
             forward = data[:-config.bufsize]
-
             self.forwardData(self.handleCleartextForwardPart(forward))
-
             self.stream = data[-config.bufsize:]
-
         else:
             self.stream = data
 
-    @defer.inlineCallbacks
     def handleFixEnd(self, data):
         if self.obj.server_response_is_gzip:
             data = self.unzip(data, True)
 
         data = self.stream + data
 
-        if self.obj.special_content == 'HTML':
-            if not self.header_injected and data.find("<body") != -1:
-                banner = yield flattenString(self, templates['banner.tpl'])
-                data = re.sub(rexp['body'], partial(self.add_banner, banner), data)
-                self.header_injected = True
+        if len(data) >= config.bufsize * 2:
+            if self.obj.special_content == 'HTML':
+                if not self.header_injected and data.find(b"<body") != -1:
+                    data = re.sub(rexp['body'], partial(self.add_banner, self.banner), data)
+                    self.header_injected = True
 
-        if config.avoid_rewriting_visible_content and self.obj.special_content == 'HTML':
-            data = re_sub(rexp['html_t2w'], r'\1\2' + self.proto + r'\3.' + self.var['basehost'] + self.port + r'\4', data)
-        else:
-            data = re_sub(rexp['t2w'], self.proto + r'\2.' + self.var['basehost'] + self.port, data)
+            if config.avoid_rewriting_visible_content and self.obj.special_content == 'HTML':
+                data = re_sub(rexp['html_t2w'], b'\1\2' + self.proto + b'\3.' + self.var['basehost'].encode('utf-8') + self.port.encode('utf-8') + b'\4', data)
+            else:
+                data = re_sub(rexp['t2w'], self.proto + b'\2.' + self.var['basehost'].encode('utf-8') + self.port.encode('utf-8'), data)
 
-        data = self.handleCleartextForwardPart(data, True)
-        self.forwardData(data, True)
+        self.forwardData(self.handleCleartextForwardPart(data, True), True)
 
-        self.stream = ''
+        self.stream = b''
 
         self.finish()
 
@@ -600,13 +562,16 @@ class T2WRequest(http.Request):
         self.setHeader(b'x-check-tor', b'true' if self.obj.client_uses_tor else b'false')
 
         if config.extra_http_response_headers:
-            for header, value in config.extra_http_response_headers.iteritems():
+            for header, value in list(config.extra_http_response_headers.items()):
                 self.setHeader(header, value)
 
     def writeContent(self, data):
         self.setHeaders()
 
         if len(data):
+             if isinstance(data, str):
+                 data = data.encode('utf-8')
+
              if self.obj.client_supports_gzip:
                  self.setHeader(b'content-encoding', b'gzip')
                  data = self.zip(data, True)
@@ -633,7 +598,7 @@ class T2WRequest(http.Request):
             return self.sendError()
 
     def unzip(self, data, end=False):
-        data1, data2 = '', ''
+        data1, data2 = b'', b''
 
         try:
             if self.decoderGzip is None:
@@ -645,13 +610,13 @@ class T2WRequest(http.Request):
             if end:
                 data2 = self.decoderGzip.flush()
 
-        except Exception:
+        except:
             pass
 
         return data1 + data2
 
     def zip(self, data, end=False):
-        data1, data2 = '', ''
+        data1, data2 = b'', b''
 
         try:
             if self.encoderGzip is None:
@@ -663,7 +628,7 @@ class T2WRequest(http.Request):
             if end:
                 data2 = self.encoderGzip.flush()
 
-        except Exception:
+        except:
             pass
 
         return data1 + data2
@@ -676,7 +641,7 @@ class T2WRequest(http.Request):
         """
         rpc_log(req)
 
-        self.obj.uri = req.uri
+        self.obj.uri = req.uri.decode('utf-8')
         self.obj.host_tor = "http://" + self.obj.onion
         self.obj.address = self.obj.host_tor + self.obj.uri
         self.obj.client_proto = 'http://' if config.transport == 'HTTP' else 'https://'
@@ -685,40 +650,42 @@ class T2WRequest(http.Request):
         self.obj.headers = req.headers
 
         # we remove the x-forwarded-for header that may contain a leaked ip
-        self.obj.headers.removeHeader(b'x-forwarded-for')
+        #self.obj.headers.removeHeader(b'x-forwarded-for')
 
         self.obj.headers.setRawHeaders(b'host', [self.obj.onion])
         self.obj.headers.setRawHeaders(b'connection', [b'keep-alive'])
         self.obj.headers.setRawHeaders(b'accept-encoding', [b'gzip, chunked'])
-        self.obj.headers.setRawHeaders(b'x-tor2web', [b'1'])
-        self.obj.headers.setRawHeaders(b'x-forwarded-host', [req.host])
-        self.obj.headers.setRawHeaders(b'x-forwarded-proto', [b'http' if config.transport == 'HTTP' else b'https'])
+        #self.obj.headers.setRawHeaders(b'x-tor2web', [b'1'])
+        #self.obj.headers.setRawHeaders(b'x-forwarded-host', [req.host])
+        #self.obj.headers.setRawHeaders(b'x-forwarded-proto', [b'http' if config.transport == 'HTTP' else b'https'])
 
         return True
 
     @defer.inlineCallbacks
     def process(self):
+        self.banner = yield flattenString(self, templates['banner.tpl'])
+
         request = Storage()
         request.headers = self.requestHeaders
-        request.host = self.getRequestHostname()
+        request.host = self.getRequestHostname().decode('utf-8')
         request.uri = self.uri
 
         content_length = self.getHeader(b'content-length')
         transfer_encoding = self.getHeader(b'transfer-encoding')
 
-        staticpath = request.uri
+        staticpath = request.uri.decode('utf-8')
         staticpath = re.sub('/$', '/index.html', staticpath)
         staticpath = re.sub('^(/antanistaticmap/)?', '', staticpath)
         staticpath = re.sub('^/', '', staticpath)
 
         resource_is_local = (config.mode != "TRANSLATION" and
                              (request.host == self.var['basehost'] or
-                              request.host == 'www.' + self.var['basehost'])) or \
+                              request.host == self.var['basehost'])) or \
                             isIPAddress(request.host) or \
                             isIPv6Address(request.host) or \
-                            request.uri.startswith('/antanistaticmap/') or \
-                            request.uri.startswith('/gettor') or \
-                            request.uri.startswith('/checktor')
+                            request.uri.startswith(b'/antanistaticmap/') or \
+                            request.uri.startswith(b'/gettor') or \
+                            request.uri.startswith(b'/checktor')
 
         producer = None
         if content_length is not None:
@@ -742,10 +709,10 @@ class T2WRequest(http.Request):
             if config.listen_port_https == 443:
                 self.redirect("https://" + request.host + request.uri)
             else:
-                self.redirect("https://" + request.host + ":" + str(config.listen_port_https) + request.uri)
+                self.redirect(b"https://" + request.host + b":" + str(config.listen_port_https).encode('utf-8') + request.uri)
 
             self.finish()
-            defer.returnValue(None)
+            return
 
         # check if the user is using Tor
         self.obj.client_ip = self.getClientIP()
@@ -755,13 +722,14 @@ class T2WRequest(http.Request):
         if request.headers.getRawHeaders(b'user-agent') is not None:
             user_agent = request.headers.getRawHeaders(b'user-agent')[0].lower()
             for ua in crawler_list:
+                continue
                 if re.match(user_agent, ua):
                     crawler = True
                     break
 
         # 1: Client capability assessment stage
         if request.headers.getRawHeaders(b'accept-encoding') is not None:
-            if re.search('gzip', request.headers.getRawHeaders(b'accept-encoding')[0]):
+            if re.search(b'gzip', request.headers.getRawHeaders(b'accept-encoding')[0]):
                 self.obj.client_supports_gzip = True
 
         # 2: Content delivery stage
@@ -781,24 +749,21 @@ class T2WRequest(http.Request):
                     else:
                         content = "{\"IsTor\": false,\"IP\":\"" + self.obj.client_ip + "\"}"
 
-                    defer.returnValue(self.writeContent(content))
-
-                elif staticpath == "dev/null":
-                    content = "A" * random.randint(20, 1024)
-                    self.setHeader(b'content-type', 'text/plain')
-                    defer.returnValue(self.writeContent(content))
+                    self.writeContent(content)
+                    return
 
                 elif staticpath == "stats/yesterday":
                     self.setHeader(b'content-type', 'application/json')
                     content = yield rpc("get_yesterday_stats")
-                    defer.returnValue(self.writeContent(content))
+                    self.writeContent(content)
+                    return
 
-                # allow either black or block list for backwards compatibility
-                elif config.publish_lists and staticpath == "lists/blocklist":
-                    self.setHeader(b'content-type', 'text/plain')
+                elif config.publish_blocklist and staticpath == "blocklist":
+                    self.setHeader(b'content-type', b'text/plain')
                     content = yield rpc("get_block_list")
                     content = "\n".join(item for item in content)
-                    defer.returnValue(self.writeContent(content))
+                    self.writeContent(content)
+                    return
 
                 elif staticpath == "notification" and config.smtpmailto_notifications != '':
                     # ################################################################
@@ -807,7 +772,7 @@ class T2WRequest(http.Request):
                     content_receiver = BodyReceiver(defer.Deferred())
                     self.bodyProducer.startProducing(content_receiver)
                     yield self.bodyProducer.finished
-                    content = ''.join(content_receiver._data)
+                    content = b''.join(content_receiver._data)
 
                     args = {}
 
@@ -816,28 +781,26 @@ class T2WRequest(http.Request):
                         ctype = ctype[0]
 
                     if self.method == b"POST" and ctype:
-                        key, _ = parse_header(ctype)
-                        if key == b'application/x-www-form-urlencoded':
+                        key, _ = parse_header(ctype.decode('utf-8'))
+                        if key == 'application/x-www-form-urlencoded':
                             args.update(parse_qs(content, 1))
                     # ################################################################
 
-                    if 'by' in args and 'url' in args and 'comment' in args:
+                    if b'by' in args and b'url' in args and b'comment' in args:
                         tmp = ["From: Tor2web Node %s.%s <%s>\n" % (config.nodename, self.var['basehost'], config.smtpmail),
                                "To: %s\n" % config.smtpmailto_notifications,
                                "Subject: Tor2web Node (IPv4 %s, IPv6 %s): notification for %s\n" % (
-                                   config.listen_ipv4, config.listen_ipv6, args['url'][0]),
+                                   config.listen_ipv4, config.listen_ipv6, args[b'url'][0]),
                                "Content-Type: text/plain; charset=ISO-8859-1\n", "Content-Transfer-Encoding: 8bit\n\n",
-                               "BY: %s\n" % (args['by'][0]), "URL: %s\n" % (args['url'][0]),
-                               "COMMENT: %s\n" % (args['comment'][0])]
-                        message = StringIO(''.join(tmp))
+                               "BY: %s\n" % (args[b'by'][0]), "URL: %s\n" % (args[b'url'][0]),
+                               "COMMENT: %s\n" % (args[b'comment'][0])]
+                        message = BytesIO((''.join(tmp)).encode('utf-8'))
 
-                        try:
-                            sendmail(config, message)
-                        except Exception:
-                            pass
+                        sendmail(config, config.smtpmailto_notifications, message)
 
                     self.setHeader(b'content-type', 'text/plain')
-                    defer.returnValue(self.writeContent(''))
+                    self.finish()
+                    return
 
                 elif not config.disable_gettor and staticpath.startswith('gettor'):
                     # handle GetTor requests (files and signatures)
@@ -888,26 +851,25 @@ class T2WRequest(http.Request):
                             templates['error_gettor.tpl']
                         ).addCallback(self.writeContent)
 
-                        defer.returnValue(NOT_DONE_YET)
+                        return
+
 
                 else:
-                    if type(antanistaticmap[staticpath]) == str:
+                    if type(antanistaticmap[staticpath]) == bytes:
                         _, ext = os.path.splitext(staticpath)
                         self.setHeader(b'content-type', mimetypes.types_map[ext])
                         content = antanistaticmap[staticpath]
-                        defer.returnValue(self.writeContent(content))
+                        self.writeContent(content)
+                        return
 
                     elif type(antanistaticmap[staticpath]) == PageTemplate:
-                        defer.returnValue(
-                            flattenString(self, antanistaticmap[staticpath]).addCallback(self.writeContent))
-                
-                
+                        flattenString(self, antanistaticmap[staticpath]).addCallback(self.writeContent)
 
             except Exception:
                 pass
 
             self.sendError(404)
-            defer.returnValue(NOT_DONE_YET)
+            return
 
         else:
             if config.basehost == 'AUTO':
@@ -920,30 +882,29 @@ class T2WRequest(http.Request):
             else:
                 self.var['basehost'] = config.basehost
 
-            rexp['w2t'] = re.compile(r'(http:|https:)?//([a-z0-9\.]*[a-z0-9]{16})\.' + self.var['basehost'], re.I)
+            rexp['w2t'] = re.compile(b'(http:|https:)?//([a-z0-9\.]*[a-z0-9]{16})\.' + self.var['basehost'].encode('utf-8'), re.I)
 
             # the requested resource is remote, we act as proxy
             if config.mode == 'TRANSLATION' and request.host in hosts_map:
                 self.obj.onion = hosts_map[request.host]['onion']
             else:
                 self.obj.onion = request.host.split("." + self.var['basehost'])[0].split(".")[-1] + ".onion"
-
             if not request.host or not is_onion(self.obj.onion):
                 self.sendError(406, 'error_invalid_hostname.tpl')
-                defer.returnValue(NOT_DONE_YET)
+                return
 
             # if the user is using tor redirect directly to the hidden service
             if self.obj.client_uses_tor and not config.disable_tor_redirection:
-                self.redirect("http://" + self.obj.onion + request.uri)
+                self.redirect(b"http://" + self.obj.onion + request.uri)
                 self.finish()
-                defer.returnValue(None)
+                return
 
             # Avoid image hotlinking
-            if config.blockhotlinking and request.uri.lower().endswith(tuple(config.blockhotlinking_exts)):
+            if config.blockhotlinking and request.uri.decode('utf-8').lower().endswith(tuple(config.blockhotlinking_exts)):
                 if request.headers.getRawHeaders(b'referer') is not None and \
-                        request.host not in request.headers.getRawHeaders(b'referer')[0].lower():
+                        request.host.encode('utf-8') not in request.headers.getRawHeaders(b'referer')[0].lower():
                     self.sendError(403)
-                    defer.returnValue(NOT_DONE_YET)
+                    return
 
             self.process_request(request)
 
@@ -954,12 +915,12 @@ class T2WRequest(http.Request):
             self.var['path'] = parsed[2]
 
             if not crawler:
-                if not config.disable_disclaimer and not self.getCookie("disclaimer_accepted"):
+                if not config.disable_disclaimer and not self.getCookie(b"disclaimer_accepted"):
                     self.setResponseCode(401)
                     self.setHeader(b'content-type', 'text/html')
                     self.var['url'] = self.obj.uri
                     flattenString(self, templates['disclaimer.tpl']).addCallback(self.writeContent)
-                    defer.returnValue(NOT_DONE_YET)
+                    return
 
             blocked = False
 
@@ -983,10 +944,10 @@ class T2WRequest(http.Request):
                 rpc_log("detected <onion_url>.tor2web Hostname: %s" % self.obj.onion)
                 if not is_onion(self.obj.onion):
                     self.sendError(406, 'error_invalid_hostname.tpl')
-                    defer.returnValue(NOT_DONE_YET)
+                    return
 
                 blocked = False
-                if any(hashlib.md5(url).hexdigest() in block_list for url in test_urls):
+                if any(hashlib.md5(url.encode('utf-8')).hexdigest() in block_list for url in test_urls):
                     blocked = True
                 else:
                     for block_regexp in block_regexps:
@@ -996,24 +957,22 @@ class T2WRequest(http.Request):
 
             if blocked:
                 self.sendError(403, 'error_blocked_page.tpl')
-                defer.returnValue(NOT_DONE_YET)
+                return
 
-            agent = Agent(reactor, sockhost=config.sockshost, sockport=config.socksport, pool=self.pool)
-            ragent = RedirectAgent(agent, 1)
+            torEndpoint = TCP4ClientEndpoint(reactor, config.sockshost, config.socksport)
+            agent = SOCKS5Agent(reactor, proxyEndpoint=torEndpoint, pool=self.pool)
 
             if config.mode == 'TRANSLATION' and request.host in hosts_map and hosts_map[request.host]['dp'] is not None:
                 proxy_url = hosts_map[request.host]['dp'] + parsed[2] + '?' + parsed[3]
             else:
                 proxy_url = self.obj.address
 
-            self.proxy_d = ragent.request(self.method,
-                                          proxy_url,
-                                          self.obj.headers, bodyProducer=producer)
+            self.proxy_d = agent.request(self.method,
+                                         proxy_url.encode('utf-8'),
+                                         self.obj.headers, bodyProducer=producer)
 
             self.proxy_d.addCallback(self.cbResponse)
             self.proxy_d.addErrback(self.handleError)
-
-            defer.returnValue(NOT_DONE_YET)
 
     def cbResponse(self, response):
         self.proxy_response = response
@@ -1035,11 +994,11 @@ class T2WRequest(http.Request):
 
         finished = defer.Deferred()
         if self.obj.special_content:
-            response.deliverBody(BodyStreamer(self.handleFixPart, finished))
             finished.addCallback(self.handleFixEnd)
+            response.deliverBody(BodyStreamer(self.handleFixPart, finished))
         else:
-            response.deliverBody(BodyStreamer(self.handleForwardPart, finished))
             finished.addCallback(self.handleForwardEnd)
+            response.deliverBody(BodyStreamer(self.handleForwardPart, finished))
 
         return finished
 
@@ -1051,35 +1010,35 @@ class T2WRequest(http.Request):
         # in case of multiple occurrences we evaluate only the first
         valueLower = values[0].lower()
 
-        if keyLower == 'transfer-encoding' and valueLower == 'chunked':
+        if keyLower == b'transfer-encoding' and valueLower == b'chunked':
             # this header needs to be stripped
             return
 
-        elif keyLower == 'content-encoding' and valueLower == 'gzip':
+        elif keyLower == b'content-encoding' and valueLower == b'gzip':
             self.obj.server_response_is_gzip = True
             # this header needs to be stripped
             return
 
-        elif keyLower == 'content-type':
-            if valueLower.startswith('text/html'):
+        elif keyLower == b'content-type':
+            if valueLower.startswith(b'text/html'):
                 self.obj.special_content = 'HTML'
-            elif valueLower.startswith('application/javascript'):
+            elif valueLower.startswith(b'application/javascript'):
                 self.obj.special_content = 'JS'
-            elif valueLower.startswith('text/css'):
+            elif valueLower.startswith(b'text/css'):
                 self.obj.special_content = 'CSS'
-            elif valueLower.startswith('text/xml'):
+            elif valueLower.startswith(b'text/xml'):
                 self.obj.special_content = 'XML'
 
-        elif keyLower == 'content-length':
+        elif keyLower == b'content-length':
             self.receivedContentLen = valueLower
             # this header needs to be stripped
             return
 
         elif keyLower == 'set-cookie':
-            values = [re_sub(rexp['set_cookie_t2w'], r'domain=\1.' + config.basehost + r'\2', x) for x in values]
+            values = [re_sub(rexp['set_cookie_t2w'], b'domain=\1.' + config.basehost.encode('utf-8') + b'\2', x) for x in values]
 
         else:
-            values = [re_sub(rexp['t2w'], self.proto + r'\2.' + config.basehost + self.port, x) for x in values]
+            values = [re_sub(rexp['t2w'], self.proto + b'\2.' + config.basehost.encode('utf-8') + self.port.encode('utf-8'), x) for x in values]
 
         self.responseHeaders.setRawHeaders(key, values)
 
@@ -1208,7 +1167,7 @@ def open_listening_socket(ip, port):
         s.listen(1024)
         return s
     except Exception as e:
-        print("Tor2web Startup Failure: error while binding on %s %s (%s)" % (ip, port, e))
+        print(("Tor2web Startup Failure: error while binding on %s %s (%s)" % (ip, port, e)))
         exit(1)
 
 
@@ -1379,12 +1338,12 @@ set_pdeathsig(signal.SIGINT)
 
 # #########################
 # Security UMASK hardening
-os.umask(077)
+os.umask(0o77)
 
 orig_umask = os.umask
 
 def umask(mask):
-    return orig_umask(077)
+    return orig_umask(0o77)
 
 os.umask = umask
 # #########################
@@ -1408,7 +1367,7 @@ if config.exit_node_list_refresh is None:
     config.exit_node_list_refresh = 600
 
 if not os.path.exists(config.datadir):
-    print("Tor2web Startup Failure: unexistent directory (%s)" % config.datadir)
+    print(("Tor2web Startup Failure: unexistent directory (%s)" % config.datadir))
     exit(1)
 
 if config.mode not in ['TRANSLATION', 'BLOCKLIST']:
@@ -1423,25 +1382,25 @@ if config.mode == "TRANSLATION":
 for d in ['certs', 'logs']:
     path = os.path.join(config.datadir, d)
     if not os.path.exists(path):
-        print("Tor2web Startup Failure: unexistent directory (%s)" % path)
+        print(("Tor2web Startup Failure: unexistent directory (%s)" % path))
         exit(1)
 
 
 if config.transport in ('HTTPS', 'BOTH'):
     if not test_file_access(config.ssl_key):
-        print("Tor2web Startup Failure: unexistent file (%s)" % config.ssl_key)
+        print(("Tor2web Startup Failure: unexistent file (%s)" % config.ssl_key))
         exit(1)
 
     if not test_file_access(config.ssl_cert) and not test_file_access(config.ssl_intermediate):
-        print("Tor2web Startup Failure: unexistent file (%s)" % config.ssl_cert)
+        print(("Tor2web Startup Failure: unexistent file (%s)" % config.ssl_cert))
         exit(1)
 
     if not test_file_access(config.ssl_dh) and hasattr(_lib, 'PEM_write_bio_DHparams'):
         print("Generating HTTPS DH parameters (hold on, this may take a while!)")
 
         dh = _lib.DH_new()
-        _lib.DH_generate_parameters_ex(dh, 2048, 2L, _ffi.NULL)
-        bio = _lib.BIO_new_file(config.ssl_dh, "w")
+        _lib.DH_generate_parameters_ex(dh, 2048, 2, _ffi.NULL)
+        bio = _lib.BIO_new_file(config.ssl_dh, b"w")
         _lib.PEM_write_bio_DHparams(bio, dh)
         _lib.BIO_free(bio)
 
@@ -1456,11 +1415,11 @@ ipv6 = config.listen_ipv6
 # ##############################################################################
 
 rexp = {
-    'body': re.compile(r'(<body.*?\s*>)', re.I),
-    'w2t': re.compile(r'(http:|https:)?\/\/([a-z0-9\.]*[a-z0-9]{16})' + config.basehost, re.I),
-    't2w': re.compile(r'(http:|https:)?\/\/([a-z0-9\.]*[a-z0-9]{16})\.onion', re.I),
-    'set_cookie_t2w': re.compile(r'domain=([a-z0-9\.]*[a-z0-9]{16})\.onion', re.I),
-    'html_t2w': re.compile( r'(archive|background|cite|classid|codebase|data|formaction|href|icon|longdesc|manifest|poster|profile|src|url|usemap|)([\s]*=[\s]*[\'\"]?)(?:http:|https:)?\/\/([a-z0-9\.]*[a-z0-9]{16})\.onion([\ \'\"\/])', re.I)
+    'body': re.compile(b'(<body.*?\s*>)', re.I),
+    'w2t': re.compile(b'(http:|https:)?\/\/([a-z0-9\.]*[a-z0-9]{16})' + config.basehost.encode('utf-8'), re.I),
+    't2w': re.compile(b'(http:|https:)?\/\/([a-z0-9\.]*[a-z0-9]{16})\.onion', re.I),
+    'set_cookie_t2w': re.compile(b'domain=([a-z0-9\.]*[a-z0-9]{16})\.onion', re.I),
+    'html_t2w': re.compile( b'(archive|background|cite|classid|codebase|data|formaction|href|icon|longdesc|manifest|poster|profile|src|url|usemap|)([\s]*=[\s]*[\'\"]?)(?:http:|https:)?\/\/([a-z0-9\.]*[a-z0-9]{16})\.onion([\ \'\"\/])', re.I)
 }
 
 # ##############################################################################
@@ -1519,14 +1478,14 @@ pool._factory.startedConnecting = nullStartedConnecting
 
 
 if 'T2W_FDS_HTTPS' not in os.environ and 'T2W_FDS_HTTP' not in os.environ:
-    set_proctitle("tor2web")
+    set_proctitle(b"tor2web")
 
     t2w_daemon = T2WDaemon(config)
 
     t2w_daemon.run()
 
 else:
-    set_proctitle("tor2web-worker")
+    set_proctitle(b"tor2web-worker")
 
     block_list = []
     block_regexps = []
@@ -1538,7 +1497,7 @@ else:
     rpc_factory = pb.PBClientFactory()
 
     reactor.connectUNIX(os.path.join(config.rundir, "rpc.socket"), rpc_factory)
-    os.chmod(os.path.join(config.rundir, "rpc.socket"), 0600)
+    os.chmod(os.path.join(config.rundir, "rpc.socket"), 0o600)
 
     signal.signal(signal.SIGUSR1, SigQUIT)
     signal.signal(signal.SIGTERM, SigQUIT)

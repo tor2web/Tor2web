@@ -15,11 +15,11 @@ def NullSysHook(etype, value, tb):
 
 sys.excepthook = NullSysHook
 set_pdeathsig(signal.SIGINT)
-set_proctitle("tor2web")
+set_proctitle(b"tor2web")
 
 t2w = os.path.abspath(os.path.join(os.path.dirname(tor2web.__file__), 't2w.py'))
 
-args = ["python", t2w]
+args = ["python3", t2w]
 args += sys.argv[1:]
 
 try: 

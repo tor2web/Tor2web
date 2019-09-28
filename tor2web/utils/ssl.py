@@ -165,7 +165,7 @@ class HTTPSVerifyingContextFactory(ssl.ClientContextFactory):
         ctx.set_options(0x00020000)
 
         store = ctx.get_cert_store()
-        for value in certificateAuthorityMap.values():
+        for value in list(certificateAuthorityMap.values()):
             store.add_cert(value)
         ctx.set_verify(SSL.VERIFY_PEER | SSL.VERIFY_FAIL_IF_NO_PEER_CERT, self.verifyCert)
         return ctx

@@ -17,7 +17,7 @@ import re
 import gzip
 import json
 from collections import OrderedDict
-from StringIO import StringIO
+from io import StringIO
 
 from twisted.internet import reactor, ssl
 from twisted.internet.task import LoopingCall
@@ -110,13 +110,13 @@ class HTTPCacheDownloader(HTTPPageGetter):
             self.sendHeader('content-length', str(len(data)))
 
         cookieData = []
-        for (key, value) in self.factory.headers.items():
+        for (key, value) in list(self.factory.headers.items()):
             if key.lower() not in self._specialHeaders:
                 # we calculated it on our own
                 self.sendHeader(key, value)
             if key.lower() == 'cookie':
                 cookieData.append(value)
-        for cookie, cookval in self.factory.cookies.items():
+        for cookie, cookval in list(self.factory.cookies.items()):
             cookieData.append('%s=%s' % (cookie, cookval))
         if cookieData:
             self.sendHeader('cookie', '; '.join(cookieData))

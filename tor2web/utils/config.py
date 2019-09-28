@@ -14,9 +14,9 @@
 # -*- coding: utf-8 -*-
 
 import os, re, sys
-import ConfigParser
+import configparser
 from optparse import OptionParser
-from storage import Storage
+from .storage import Storage
 
 listpattern = re.compile(r'\s*("[^"]*"|.*?)\s*,')
 
@@ -29,7 +29,7 @@ class Config(Storage):
     def __init__(self):
         Storage.__init__(self)
         self._section = 'main'
-        self._parser = ConfigParser.ConfigParser()
+        self._parser = configparser.ConfigParser()
 
         parser = OptionParser()
         parser.add_option("-c", "--configfile", dest="configfile", default="/etc/tor2web.conf")
@@ -58,8 +58,8 @@ class Config(Storage):
         self.__dict__['ssl_dh'] = None
         self.__dict__['rundir'] = options.rundir
         self.__dict__['logreqs'] = False
-        self.__dict__['debugmode'] = False
-        self.__dict__['debugtostdout'] = False
+        self.__dict__['debugmode'] = True
+        self.__dict__['debugtostdout'] = True
         self.__dict__['processes'] = 1
         self.__dict__['requests_per_process'] = 1000000
         self.__dict__['transport'] = 'BOTH'
@@ -70,7 +70,6 @@ class Config(Storage):
         self.__dict__['basehost'] = 'AUTO'
         self.__dict__['sockshost'] = '127.0.0.1'
         self.__dict__['socksport'] = 9050
-        self.__dict__['socksoptimisticdata'] = True
         self.__dict__['sockmaxpersistentperhost'] = 5
         self.__dict__['sockcachedconnectiontimeout'] = 240
         self.__dict__['sockretryautomatically'] = True
@@ -87,19 +86,19 @@ class Config(Storage):
         self.__dict__['disable_tor_redirection'] = False
         self.__dict__['disable_gettor'] = False
         self.__dict__['avoid_rewriting_visible_content'] = False
-        self.__dict__['smtpuser'] = 'hey_you_should_change_me'
-        self.__dict__['smtppass'] = 'yes_you_really_should_change_me'
+        self.__dict__['smtpuser'] = 'globaleaks'
+        self.__dict__['smtppass'] = 'globaleaks'
         self.__dict__['smtpmail'] = 'notification@demo.globaleaks.org'
         self.__dict__['smtpmailto_exceptions'] = 'stackexception@lists.tor2web.org'
         self.__dict__['smtpmailto_notifications'] = 'tor2web-abuse@lists.tor2web.org'
-        self.__dict__['smtpdomain'] = 'demo.globaleaks.org'
+        self.__dict__['smtpdomain'] = 'mail.globaleaks.org'
         self.__dict__['smtpport'] = 9267
         self.__dict__['smtpsecurity'] = 'TLS'
         self.__dict__['exit_node_list_refresh'] = 600
         self.__dict__['automatic_blocklist_updates_source'] = ''
         self.__dict__['automatic_blocklist_updates_refresh'] = 600
         self.__dict__['automatic_blocklist_updates_mode'] = "MERGE"
-        self.__dict__['publish_lists'] = False
+        self.__dict__['publish_blocklist'] = False
         self.__dict__['mirror'] = []
         self.__dict__['dummyproxy'] = None
         self.__dict__['proto'] = 'http://' if self.__dict__['transport'] == 'HTTP' else 'https://'
@@ -129,10 +128,10 @@ class Config(Storage):
             if (not os.path.exists(self._file) or
                     not os.path.isfile(self._file) or
                     not os.access(self._file, os.R_OK)):
-                print "Tor2web Startup Failure: cannot open config file (%s)" % self._file
+                print(("Tor2web Startup Failure: cannot open config file (%s)" % self._file))
                 exit(1)
         except Exception:
-            print "Tor2web Startup Failure: error while accessing config file (%s)" % self._file
+            print(("Tor2web Startup Failure: error while accessing config file (%s)" % self._file))
             exit(1)
 
         try:
@@ -143,7 +142,7 @@ class Config(Storage):
 
             # set any http headers to raw ascii
             if self.extra_http_response_headers:
-                for key, value in self.extra_http_response_headers.iteritems():
+                for key, value in list(self.extra_http_response_headers.items()):
                     # delete the old key
                     del self.extra_http_response_headers[key]
                     #make the ascii equivalents, and save those.
@@ -181,8 +180,6 @@ class Config(Storage):
         allowed_values_string = '{' + ', '.join([ "'" + str(x) + "'" for x in allowed_values]) + '}'
         assert self.__dict__[key] in allowed_values, "config.%s='%s' (%s) is invalid.  Allowed values: %s" % (key, value, type(value), allowed_values_string)
 
-
-
     def splitlist(self, line):
         return [x[1:-1] if x[:1] == x[-1:] == '"' else x
                 for x in listpattern.findall(line.rstrip(',') + ',')]
@@ -205,7 +202,7 @@ class Config(Storage):
 
             return value
 
-        except ConfigParser.NoOptionError:
+        except configparser.NoOptionError:
             # if option doesn't exists returns None
             return None
 
@@ -223,7 +220,7 @@ class Config(Storage):
             # XXX: Automagically discover variable type
             self._parser.set(self._section, name, value)
 
-        except ConfigParser.NoOptionError:
+        except configparser.NoOptionError:
             raise NameError(name)
 
     def t2w_file_path(self, path):

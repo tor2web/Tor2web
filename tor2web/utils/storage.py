@@ -45,7 +45,7 @@ class Storage(dict):
         try:
             del self[key]
         except KeyError as k:
-            raise AttributeError, k
+            raise AttributeError(k)
 
     def __repr__(self):
         return "<Storage " + dict.__repr__(self) + ">"
@@ -54,5 +54,5 @@ class Storage(dict):
         return dict(self)
 
     def __setstate__(self, value):
-        for (k, v) in value.items():
+        for (k, v) in list(value.items()):
             self[k] = v
