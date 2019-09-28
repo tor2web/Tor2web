@@ -426,7 +426,7 @@ class T2WRequest(http.Request):
         try:
             port = self.channel.transport.getPeer().port
 
-            xForwardedFor = self.requestHeaders.getRawHeaders("X-Forwarded-For")
+            xForwardedFor = self.requestHeaders.getRawHeaders(b"X-Forwarded-For")
             for forwardHeader in xForwardedFor or []:
                 forwardList = forwardHeader.replace(" ", "").split(",")
 
@@ -714,7 +714,7 @@ class T2WRequest(http.Request):
 
         # check if the user is using Tor
         self.obj.client_ip = self.getClientIP()
-        self.obj.client_uses_tor = self.getClientIP() in tor_exits_list
+        self.obj.client_uses_tor = self.obj.client_ip.encode('utf-8') in tor_exits_list
 
         crawler = False
         if request.headers.getRawHeaders(b'user-agent') is not None:
@@ -1336,6 +1336,8 @@ if config.transport in ('HTTPS', 'BOTH'):
     if not test_file_access(config.ssl_cert) and not test_file_access(config.ssl_intermediate):
         print(("Tor2web Startup Failure: unexistent file (%s)" % config.ssl_cert))
         exit(1)
+
+
 if config.listen_ipv6 == "::" or config.listen_ipv4 == config.listen_ipv6:
     # fix for incorrect configurations
     ipv4 = None
