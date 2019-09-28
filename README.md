@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="/data/static/tor2web.png" width="400">
+  <img src="/data/static/tor2web.png" width="330">
 </p>
 
 Tor2web is an HTTP proxy software that enables access to Tor Hidden Services by mean of common web browsers
