@@ -3,25 +3,30 @@ Maintainer: Random GlobaLeaks developers <info@globaleaks.org>
 Section: web
 Priority: optional
 Build-Depends:
- debhelper,
- dh-apparmor,
- dh-python,
- python (>= 2.7),
- python-pip,
- python-setuptools,
+  debhelper,
+  devscripts,
+  dh-apparmor,
+  dh-python,
+  python3,
+  python3-pip,
+  python3-setuptools
 Vcs-Git: https://github.com/globaleaks/Tor2web.git
 Standards-Version: 3.9.8
+X-Python3-Version: all
 
 Package: tor2web
 Architecture: all
 Depends:
- apparmor,
- apparmor-utils,
- python:any (>= 2.7.5-5~), python:any (<< 2.8),
- python-cryptography,
- python-openssl,
- python-twisted-core,
- tor
+  ${misc:Depends},
+  ${python3:Depends},
+  apparmor,
+  apparmor-utils,
+  lsb-base,
+  python3:any,
+  python3-cryptography,
+  python3-openssl,
+  python3-twisted,
+  tor
 Description: Tor2web proxy.
   Tor2web is an HTTP proxy software that enables access to
   Tor Hidden Services by mean of common web browsers.

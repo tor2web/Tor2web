@@ -4,8 +4,22 @@ export PYBUILD_NAME=tor2web
 export PYBUILD_DISABLE=test
 export PYBUILD_INSTALL_ARGS=--no-compile
 
+DISTRIBUTION := $(shell head -n1  debian/changelog | cut -d ' ' -f3 | cut -d ';' -f1)
+
+ifeq ($(DISTRIBUTION),buster)
+        PYTHON_BIN := python3
+        PYTHON_VER := python3
+else ifeq ($(DISTRIBUTION),bionic)
+        PYTHON_BIN := python3
+        PYTHON_VER := python3
+else
+        PYTHON_BIN := python2
+        PYTHON_VER := python2
+endif
+
+
 %:
-	dh $@ --with python2 --buildsystem=pybuild
+	dh $@ --with $(PYTHON_VER) --buildsystem=pybuild
 
 override_dh_install:
 	dh_apparmor --profile-name=usr.bin.tor2web

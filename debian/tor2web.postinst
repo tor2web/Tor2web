@@ -29,3 +29,5 @@ fi
 chown tor2web:tor2web /home/tor2web/ -R
 find /home/tor2web/ -type d -exec chmod 770 {} \;
 find /home/tor2web/ -type f -exec chmod 660 {} \;
+
+#DEBHELPER#

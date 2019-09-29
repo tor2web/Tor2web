@@ -1,8 +1,8 @@
 language: python
-dist: trusty
+dist: buster
 sudo: required
 python:
-  - "2.7"
+  - "3.7"
 install: true
 script:
   - $TRAVIS_BUILD_DIR/scripts/travis.sh

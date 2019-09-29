@@ -7,13 +7,13 @@ usage() {
   echo "Valid options:"
   echo " -h"
   echo -e " -t tagname (build specific release/branch)"
-  echo -e " -d distribution (available: xenial, bionic)"
+  echo -e " -d distribution (available: buster, bionic)"
   echo -e " -n (do not sign)"
   echo -e " -p (push on repository)"
 }
 
-TARGETS="xenial bionic"
-DISTRIBUTION="xenial"
+TARGETS="buster bionic"
+DISTRIBUTION="buster"
 TAG="master"
 NOSIGN=0
 PUSH=0

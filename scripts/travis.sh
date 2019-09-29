@@ -4,10 +4,8 @@ set -e
 
 sudo apt-get update -y
 
-sudo apt-get install -y debhelper devscripts dh-apparmor dh-python python python-pip python-setuptools python-sphinx
+sudo apt-get install -y debhelper devscripts dh-apparmor dh-python dput fakeroot python3 python3-pip python3-setuptools python3-sphinx
 
-rm -rf requirements.txt
-ln -s requirements/requirements-xenial.txt requirements.txt
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 
-./scripts/build.sh -d xenial -t $TRAVIS_COMMIT -n
+./scripts/build.sh -d buster -t $TRAVIS_COMMIT -n

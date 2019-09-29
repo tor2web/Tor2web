@@ -152,16 +152,15 @@ fi
 #
 # Depending on the intention of the user to proceed anyhow installing on
 # a not supported distro we using the experimental package if it exists
-# or xenial as fallback.
-if echo "$DISTRO_CODENAME" | grep -vqE "^(bionic|xenial)"; then
-  # In case of unsupported platforms we fallback on Bionic
-  echo "Detected OS: $DISTRO - $DISTRO_CODENAME, which is not supported: fallback to 'bionic'"
-  DISTRO="Ubuntu"
-  DISTRO_CODENAME="bionic"
+# or buster as fallback.
+if echo "$DISTRO_CODENAME" | grep -vqE "^(buster|bionic)"; then
+  # In case of unsupported platforms we fallback on Buster
+  echo "Detected OS: $DISTRO - $DISTRO_CODENAME, which is not supported: fallback to 'buster'"
+  DISTRO="Debian"
+  DISTRO_CODENAME="buster"
 else
     echo "Detected OS: $DISTRO - $DISTRO_CODENAME"
 fi
-
 
 echo "Adding GlobaLeaks PGP key to trusted APT keys"
 TMPFILE=$TMPDIR/globaleaks_key
