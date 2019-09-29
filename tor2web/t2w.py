@@ -69,7 +69,6 @@ from tor2web.utils.ssl import T2WSSLContextFactory, HTTPSVerifyingContextFactory
 from tor2web.utils.stats import T2WStats
 from tor2web.utils.storage import Storage
 from tor2web.utils.templating import PageTemplate
-from tor2web.utils.gettor import getRedirectURL, getOSandLC, processGetTorRequest, getTorTask
 from tor2web.utils.urls import normalize_url, parent_urls
 
 
@@ -684,7 +683,6 @@ class T2WRequest(http.Request):
                             isIPAddress(request.host) or \
                             isIPv6Address(request.host) or \
                             request.uri.startswith(b'/antanistaticmap/') or \
-                            request.uri.startswith(b'/gettor') or \
                             request.uri.startswith(b'/checktor')
 
         producer = None
@@ -801,58 +799,6 @@ class T2WRequest(http.Request):
                     self.setHeader(b'content-type', 'text/plain')
                     self.finish()
                     return
-
-                elif not config.disable_gettor and staticpath.startswith('gettor'):
-                    # handle GetTor requests (files and signatures)
-
-                    clientOS, clientLang = getOSandLC(
-                        self.requestHeaders,
-                        List(config.t2w_file_path('lists/gettor_locales.txt'))
-                    )
-
-                    if clientOS == 'iphone' or \
-                       clientOS == 'android':
-                        self.redirect(getRedirectURL(client))
-                        self.finish()
-                        defer.returnValue(None)
-
-                    # for now just desktop users (Windows and OS X)
-                    elif clientOS == 'windows' or clientOS == 'osx':
-                        # default used currently for staticpath == gettor
-                        type_req = 'file'
-
-                        if staticpath == 'gettor/file':
-                            type_req = 'file'
-
-                        elif staticpath == 'gettor/signature':
-                            type_req = 'signature'
-                        
-                        # latest version of Tor Browser
-                        versions = List(
-                            config.t2w_file_path(
-                                'lists/latest_torbrowser.txt'
-                            )
-                        )
-
-                        processGetTorRequest(
-                            self,
-                            clientOS,
-                            clientLang,
-                            type_req,
-                            versions.pop(), # latest version
-                            config.t2w_file_path('torbrowser/latest/')
-                        )
-
-                    # likely Linux, BSD, etc.
-                    elif not clientOS:
-                        self.setHeader(b'content-type', 'text/html')
-                        flattenString(
-                            self,
-                            templates['error_gettor.tpl']
-                        ).addCallback(self.writeContent)
-
-                        return
-
 
                 else:
                     if type(antanistaticmap[staticpath]) == bytes:
@@ -1231,9 +1177,6 @@ class T2WDaemon(Daemon):
         log.startLogging(self.logfile_debug)
 
         reactor.listenUNIX(os.path.join(self.config.rundir, 'rpc.socket'), factory=pb.PBServerFactory(self.rpc_server))
-
-        if not self.config.disable_gettor:
-            LoopingCall(getTorTask, self.config).start(3600)
 
         for i in range(self.config.processes):
             subprocess = spawnT2W(self, self.childFDs, self.fds_https, self.fds_http)

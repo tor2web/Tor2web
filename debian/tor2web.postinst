@@ -21,7 +21,6 @@ mkdir -p /home/tor2web
 mkdir -p /home/tor2web/certs
 mkdir -p /home/tor2web/lists
 mkdir -p /home/tor2web/logs
-mkdir -p /home/tor2web/torbrowser
 
 if [ ! -f /etc/tor2web.conf ]; then
   cp /usr/share/tor2web/data/conf/tor2web-default.conf /etc/tor2web.conf
