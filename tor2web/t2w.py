@@ -828,7 +828,7 @@ class T2WRequest(http.Request):
             else:
                 self.var['basehost'] = config.basehost
 
-            rexp['w2t'] = re.compile(b'(http:|https:)?//([a-z0-9\.]*[a-z0-9]{16})\.' + self.var['basehost'].encode('utf-8'), re.I)
+            rexp['w2t'] = re.compile(b'(http:|https:)?//([a-z0-9\.]*[a-z0-9]{56})\.' + self.var['basehost'].encode('utf-8'), re.I)
 
             # the requested resource is remote, we act as proxy
             if config.mode == 'TRANSLATION' and request.host in hosts_map:
@@ -1359,10 +1359,10 @@ ipv6 = config.listen_ipv6
 
 rexp = {
     'body': re.compile(b'(<body.*?\s*>)', re.I),
-    'w2t': re.compile(b'(http:|https:)?\/\/([a-z0-9\.]*[a-z0-9]{16})' + config.basehost.encode('utf-8'), re.I),
-    't2w': re.compile(b'(http:|https:)?\/\/([a-z0-9\.]*[a-z0-9]{16})\.onion', re.I),
-    'set_cookie_t2w': re.compile(b'domain=([a-z0-9\.]*[a-z0-9]{16})\.onion', re.I),
-    'html_t2w': re.compile( b'(archive|background|cite|classid|codebase|data|formaction|href|icon|longdesc|manifest|poster|profile|src|url|usemap|)([\s]*=[\s]*[\'\"]?)(?:http:|https:)?\/\/([a-z0-9\.]*[a-z0-9]{16})\.onion([\ \'\"\/])', re.I)
+    'w2t': re.compile(b'(http:|https:)?\/\/([a-z0-9\.]*[a-z0-9]{16,56})' + config.basehost.encode('utf-8'), re.I),
+    't2w': re.compile(b'(http:|https:)?\/\/([a-z0-9\.]*[a-z0-9]{16,56})\.onion', re.I),
+    'set_cookie_t2w': re.compile(b'domain=([a-z0-9\.]*[a-z0-9]{16,56})\.onion', re.I),
+    'html_t2w': re.compile( b'(archive|background|cite|classid|codebase|data|formaction|href|icon|longdesc|manifest|poster|profile|src|url|usemap|)([\s]*=[\s]*[\'\"]?)(?:http:|https:)?\/\/([a-z0-9\.]*[a-z0-9]{16,56})\.onion([\ \'\"\/])', re.I)
 }
 
 # ##############################################################################

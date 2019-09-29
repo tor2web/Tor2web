@@ -60,5 +60,5 @@ def is_onion(hostname):
     Check to see if the address is a .onion.
     returns the onion address as a string if True else returns False
     """
-    pattern = re.compile('^([0-9a-z]){16}.onion$')
+    pattern = re.compile('^([a-z0-9]){16,56}.onion$')
     return pattern.match(hostname) != None
