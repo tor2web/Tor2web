@@ -97,6 +97,19 @@ else
     exit 0
 fi
 
+if [[ "$APPARMOR_SANDBOXING" -eq "1" ]]; then
+    if [[ "$(cat /sys/module/apparmor/parameters/enabled 2>/dev/null)" != 'Y' ]]; then
+        echo "WARNING: Missing Apparmor Sandboxing support"
+        APPARMOR_SANDBOXING=0
+    elif [[ "`apparmor_status | grep -c 'tor2web'`" -eq "0" ]]; then
+        service apparmor restart
+        if [[ "`apparmor_status | grep -c 'tor2web'`" -eq "0" ]]; then
+            echo "WARNING: Missing Apparmor Sandboxing support"
+            APPARMOR_SANDBOXING=0
+        fi
+    fi
+fi
+
 if [ -d "/etc/letsencrypt/live" ] && [ -d "/etc/letsencrypt/archive" ]; then
     echo "Letsencrypt detected, fixing permission for /etc/letsencrypt/{live,archive} for $DAEMON_USER user"
     chgrp $DAEMON_USER /etc/letsencrypt/live/
