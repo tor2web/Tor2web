@@ -13,6 +13,12 @@ profile usr.bin.tor2web {
     capability sys_tty_config,
     capability kill,
 
+    /etc/ r,
+    /etc/debian_version r,
+    /etc/lsb-release r,
+    /etc/mime.types r,
+    /etc/python{,2,2.7,3,3.[0-9]}/** r,
+
     @{PROC}/ r,
     @{PROC}/@{pid}/fd/ r,
     @{PROC}/@{pid}/fd/* r,
@@ -23,16 +29,14 @@ profile usr.bin.tor2web {
     /bin/dash ix,
     /usr/bin/tor2web r,
     /usr/bin/tor2web-worker rix,
-    /usr/bin/python* ix,
+    /usr/bin/python{,2,2.7,3,3.[0-9]} ixr,
 
-    /usr/share/tor2web/** rw,
-    /usr/share/pyshared/** r,
-    /usr/include/python2.7/** r,
-    /usr/lib/python2.7/** mr,
-    /usr/local/lib/python2.7/** mr,
-    /usr/lib/pyshared/python2.7/** mr,
-    /etc/python2.7/** r,
-    /etc/mime.types r,
+    /usr/ r,
+    /usr/share/** r,
+
+    /usr/include/python{,2,2.7,3,3.[0-9]}/** r,
+    /usr/lib/python{,2,2.7,3,3.[0-9]}/** mr,
+    /usr/local/lib/python{,2,2.7,3,3.[0-9]}/** mr,
 
     /etc/tor2web.conf r,
     /home/tor2web/ rwk,
@@ -48,7 +52,8 @@ profile usr.bin.tor2web {
     owner /var/tmp/** rwkl,
 
     # Explicit silent deny rules:
-    deny /bin/uname x, # needed by os.uname in pip
+    deny /bin/uname x,
     deny /usr/bin/gcc-** x,
+    deny /usr/bin/x86_64-linux-gnu-** x,
     deny /sbin/ldconfig x,
 }
