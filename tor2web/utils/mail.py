@@ -42,7 +42,7 @@ def sendmail(config, to, messageFile):
 
     # evilaliv3:
     #   in order to understand and before change this settings please
-    #   read the comment inside tor2web.utils.ssl
+    #   read the comment inside tor2web.utils.tls
     contextFactory.method = SSL.SSLv23_METHOD
 
     resultDeferred = defer.Deferred()

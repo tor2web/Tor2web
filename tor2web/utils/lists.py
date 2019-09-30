@@ -14,22 +14,12 @@
 # -*- coding: utf-8 -*-
 
 import re
-import gzip
-import json
 from collections import OrderedDict
-from io import StringIO
 
-from twisted.internet import reactor, ssl
+from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 from twisted.internet.defer import Deferred
-from twisted.web.client import HTTPPageGetter, HTTPClientFactory
-
-try:
-    from twisted.web.client import URI
-except ImportError:
-    from twisted.web.client import _URI as URI
-
-from tor2web.utils.ssl import HTTPSVerifyingContextFactory
+from twisted.web.client import Agent, BrowserLikePolicyForHTTPS, readBody
 
 
 class LimitedSizeDict(OrderedDict):

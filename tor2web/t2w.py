@@ -65,7 +65,7 @@ from tor2web.utils.lists import LimitedSizeDict, List, TorExitNodeList
 from tor2web.utils.mail import sendmail, MailExceptionHooker
 from tor2web.utils.misc import listenTCPonExistingFD, listenSSLonExistingFD, re_sub, is_onion
 from tor2web.utils.socks import SOCKSError, SOCKS5ClientEndpoint, TLSWrapClientEndpoint
-from tor2web.utils.ssl import T2WSSLContextFactory, HTTPSVerifyingContextFactory
+from tor2web.utils.tls import T2WSSLContextFactory, HTTPSVerifyingContextFactory
 from tor2web.utils.stats import T2WStats
 from tor2web.utils.storage import Storage
 from tor2web.utils.templating import PageTemplate
@@ -1227,7 +1227,6 @@ def start_worker():
             context_factory = T2WSSLContextFactory(config.ssl_key,
                                                    config.ssl_cert,
                                                    config.ssl_intermediate,
-                                                   config.ssl_dh,
                                                    config.cipher_list)
         except:
             rpc_log("Unable to load SSL certificate; check certificate configuration.")
@@ -1337,17 +1336,6 @@ if config.transport in ('HTTPS', 'BOTH'):
     if not test_file_access(config.ssl_cert) and not test_file_access(config.ssl_intermediate):
         print(("Tor2web Startup Failure: unexistent file (%s)" % config.ssl_cert))
         exit(1)
-
-    if not test_file_access(config.ssl_dh) and hasattr(_lib, 'PEM_write_bio_DHparams'):
-        print("Generating HTTPS DH parameters (hold on, this may take a while!)")
-
-        dh = _lib.DH_new()
-        _lib.DH_generate_parameters_ex(dh, 2048, 2, _ffi.NULL)
-        bio = _lib.BIO_new_file(config.ssl_dh, b"w")
-        _lib.PEM_write_bio_DHparams(bio, dh)
-        _lib.BIO_free(bio)
-
-
 if config.listen_ipv6 == "::" or config.listen_ipv4 == config.listen_ipv6:
     # fix for incorrect configurations
     ipv4 = None
@@ -1418,7 +1406,6 @@ pool.maxPersistentPerHost = config.sockmaxpersistentperhost
 pool.cachedConnectionTimeout = config.sockcachedconnectiontimeout
 pool.retryAutomatically = config.sockretryautomatically
 pool._factory.startedConnecting = nullStartedConnecting
-
 
 if 'T2W_FDS_HTTPS' not in os.environ and 'T2W_FDS_HTTP' not in os.environ:
     set_proctitle(b"tor2web")

@@ -64,29 +64,11 @@ def altnames(cert):
 class T2WSSLContextFactory(ssl.ContextFactory):
     _context = None
 
-    def __init__(self, privateKeyFilePath, certificateFilePath, intermediateFilePath, dhFilePath, cipherList):
-        """
-        @param privateKeyFileName: Name of a file containing a private key
-        @param certificateChainFileName: Name of a file containing a certificate chain
-        @param dhFileName: Name of a file containing diffie hellman parameters
-        @param cipherList: The SSL cipher list selection to use
-        """
+    def __init__(self, privateKeyFilePath, certificateFilePath, intermediateFilePath, cipherList):
         self.privateKeyFilePath = privateKeyFilePath
         self.certificateFilePath = certificateFilePath
         self.intermediateFilePath = intermediateFilePath
 
-        # as discussed on https://trac.torproject.org/projects/tor/ticket/11598
-        # there is no way of enabling all TLS methods excluding SSL.
-        # the problem lies in the fact that SSL.TLSv1_METHOD | SSL.TLSv1_1_METHOD | SSL.TLSv1_2_METHOD
-        # is denied by OpenSSL.
-        #
-        # As spotted by nickm the only good solution right now is to enable SSL.SSLv23_METHOD then explicitly
-        # use options: SSL_OP_NO_SSLv2 and SSL_OP_NO_SSLv3
-        #
-        # This trick make openssl consider valid all TLS methods.
-        self.sslmethod = SSL.SSLv23_METHOD
-
-        self.dhFilePath = dhFilePath
         self.cipherList = cipherList
 
         # Create a context object right now.  This is to force validation of
@@ -96,7 +78,7 @@ class T2WSSLContextFactory(ssl.ContextFactory):
 
     def cacheContext(self):
         if self._context is None:
-            ctx = SSL.Context(self.sslmethod)
+            ctx = SSL.Context(SSL.SSLv23_METHOD)
 
             ctx.set_options(SSL.OP_CIPHER_SERVER_PREFERENCE |
                             SSL.OP_NO_SSLv2 |
@@ -128,11 +110,15 @@ class T2WSSLContextFactory(ssl.ContextFactory):
 
             ctx.set_cipher_list(self.cipherList)
 
-            ctx.load_tmp_dh(self.dhFilePath)
-
-            ecdh = _lib.EC_KEY_new_by_curve_name(_lib.NID_X9_62_prime256v1)
-            ecdh = _ffi.gc(ecdh, _lib.EC_KEY_free)
-            _lib.SSL_CTX_set_tmp_ecdh(ctx._context, ecdh)
+            # If SSL_CTX_set_ecdh_auto is available then set it so the ECDH curve
+            # will be auto-selected. This function was added in 1.0.2 and made a
+            # noop in 1.1.0+ (where it is set automatically).
+            try:
+                _lib.SSL_CTX_set_ecdh_auto(ctx._context, 1) # pylint: disable=no-member
+            except AttributeError:
+                ecdh = _lib.EC_KEY_new_by_curve_name(_lib.NID_X9_62_prime256v1)  # pylint: disable=no-member
+                ecdh = _ffi.gc(ecdh, _lib.EC_KEY_free)  # pylint: disable=no-member
+                _lib.SSL_CTX_set_tmp_ecdh(ctx._context, ecdh)  # pylint: disable=no-member
 
             self._context = ctx
 
