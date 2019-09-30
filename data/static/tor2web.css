@@ -1,7 +1,7 @@
 #tor2web, #tor2web-banner {
   padding: 20px;
   border: 0;
-  border: 2px solid #cb54b1;
+  border: 4px solid #cb54b1;
   font-size: 16px;
   font-family: Verdana, Arial, Tahoma;
   color: #000;
@@ -19,18 +19,8 @@
  margin: 0 auto;
 }
 
-#tor2web a, #tor2web-banner: a {
-  font-weight:bold;
-  color:#0000FF;
-}
-
-#tor2web a:hover, #tor2web-banner a:hover {
-  color:#0000FF;
-  background-color: transparent;
-}
-
-#tor2web a:link, #tor2web-banner a:link { color: blue; }
-#tor2web a:visited, #tor2web-banner a:visited { color:red; }
+#tor2web a:link, #tor2web-banner a:link { color: #cb54b1; }
+#tor2web a:visited, #tor2web-banner a:visited { color: #cb54b1; }
 #tor2web input,  #tor2web-banner input { width: 100%; }
 
 #tor2web-visible { display: block; padding: 0 30px; }
@@ -43,7 +33,7 @@
 
 #tor2web-title {
   font-style: bold;
-  color: #3B578B;
+  color: #333;
   border-bottom: 1px solid #ccc;
   padding-bottom: 3px;
   margin: 25px 0 10px 0;
