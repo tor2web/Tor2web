@@ -113,5 +113,5 @@ class TorExitNodeList(List):
         if self.mode == 'REPLACE':
             self.clear()
 
-        for ip in re.findall( b'ExitAddress ([^ ]*) ', data):
+        for ip in re.findall(b'ExitAddress ([^ ]*) ', data):
             self.add(ip)

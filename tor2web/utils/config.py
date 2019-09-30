@@ -148,8 +148,8 @@ class Config(Storage):
                 for key, value in list(self.extra_http_response_headers.items()):
                     # delete the old key
                     del self.extra_http_response_headers[key]
-                    #make the ascii equivalents, and save those.
-                    key, value = key.encode('ascii', 'ignore'), value.encode('ascii','ignore')
+                    # make the ascii equivalents, and save those.
+                    key, value = key.encode('ascii', 'ignore'), value.encode('ascii', 'ignore')
                     self.extra_http_response_headers[key] = value
 
         except Exception as e:
@@ -171,8 +171,7 @@ class Config(Storage):
 
         # TODO: Add a bunch more here to ensure sane config file
 
-
-    def verify_values(self, key, allowed_values ):
+    def verify_values(self, key, allowed_values):
         '''asserts that the key is one of the allowed values.  If not, spits out an error message.'''
 
         # if key is not in the dict, don't bother.
@@ -180,8 +179,9 @@ class Config(Storage):
             return
 
         value = self.__dict__[key]
-        allowed_values_string = '{' + ', '.join([ "'" + str(x) + "'" for x in allowed_values]) + '}'
-        assert self.__dict__[key] in allowed_values, "config.%s='%s' (%s) is invalid.  Allowed values: %s" % (key, value, type(value), allowed_values_string)
+        allowed_values_string = '{' + ', '.join(["'" + str(x) + "'" for x in allowed_values]) + '}'
+        assert self.__dict__[key] in allowed_values, "config.%s='%s' (%s) is invalid.  Allowed values: %s" % (
+            key, value, type(value), allowed_values_string)
 
     def splitlist(self, line):
         return [x[1:-1] if x[:1] == x[-1:] == '"' else x
@@ -190,7 +190,7 @@ class Config(Storage):
     def parse(self, name):
         try:
             value = self._parser.get(self._section, name)
-            
+
             # strip any boundry whitespace just in case
             value = value.strip()
 
@@ -198,7 +198,7 @@ class Config(Storage):
                 return int(value)
             if value.lower() in ['true', 'false']:
                 return value.lower() == 'true'
-            if value.lower() in ['','none']:
+            if value.lower() in ['', 'none']:
                 return None
             if value[0] == "[" and value[-1] == "]":
                 return self.splitlist(value[1:-1])

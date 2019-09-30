@@ -34,19 +34,22 @@ for certFileName in glob.glob("/etc/ssl/certs/*.pem"):
             # Now, de-duplicate in case the same cert has multiple names.
             certificateAuthorityMap[digest] = x509
 
+
 class GeneralName(univ.Choice):
     # We are only interested in dNSNames. We use a default handler to ignore
     # other types.
     componentType = namedtype.NamedTypes(
         namedtype.NamedType('dNSName', char.IA5String().subtype(
-                implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 2)
-            )
-        ),
+            implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 2)
+        )
+                            ),
     )
+
 
 class GeneralNames(univ.SequenceOf):
     componentType = GeneralName()
     sizeSpec = univ.SequenceOf.sizeSpec + constraint.ValueSizeConstraint(1, 1024)
+
 
 def altnames(cert):
     altnames = []
@@ -95,7 +98,7 @@ class T2WSSLContextFactory(ssl.ContextFactory):
                     ctx.use_certificate(x509)
 
             if self.intermediateFilePath != self.certificateFilePath and \
-                os.path.isfile(self.intermediateFilePath):
+                    os.path.isfile(self.intermediateFilePath):
 
                 if first:
                     ctx.use_certificate_chain_file(self.intermediateFilePath)
@@ -112,7 +115,7 @@ class T2WSSLContextFactory(ssl.ContextFactory):
             # will be auto-selected. This function was added in 1.0.2 and made a
             # noop in 1.1.0+ (where it is set automatically).
             try:
-                _lib.SSL_CTX_set_ecdh_auto(ctx._context, 1) # pylint: disable=no-member
+                _lib.SSL_CTX_set_ecdh_auto(ctx._context, 1)  # pylint: disable=no-member
             except AttributeError:
                 ecdh = _lib.EC_KEY_new_by_curve_name(_lib.NID_X9_62_prime256v1)  # pylint: disable=no-member
                 ecdh = _ffi.gc(ecdh, _lib.EC_KEY_free)  # pylint: disable=no-member
@@ -157,7 +160,7 @@ class HTTPSVerifyingContextFactory(ssl.ClientContextFactory):
     def verifyCert(self, connection, x509, errno, depth, preverifyOK):
         verify = preverifyOK
 
-        if  depth == 0 and verify:
+        if depth == 0 and verify:
             cn = x509.get_subject().commonName
 
             if cn.startswith(b"*.") and self.hostname.split(b".")[1:] == cn.split(b".")[1:]:

@@ -33,13 +33,13 @@ def normalize_url(url):
     # Split the URL into parts
     url_parts = urllib.parse.urlsplit(url)
     # We don't need 'scheme' or 'fragment'
-    base,path,qs = url_parts[1:4]
+    base, path, qs = url_parts[1:4]
     # Sort the query string
     qs_norm = sort_querystring(qs)
     if qs_norm:
         qs_norm = '?' + qs_norm
     # Generate the normalized url
-    url_norm = ''.join([base,path,qs_norm])
+    url_norm = ''.join([base, path, qs_norm])
     return url_norm
 
 
@@ -48,5 +48,5 @@ def parent_urls(url, limit=0):
     # Clean up the url
     url = normalize_url(url.rstrip('/'))
     # Yield parent urls from second-last level down to 'limit'
-    for i in range(1, url.count('/')+1-limit):
+    for i in range(1, url.count('/') + 1 - limit):
         yield url.rsplit('/', i)[0] + '/'

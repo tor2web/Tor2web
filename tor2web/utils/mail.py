@@ -27,15 +27,7 @@ from twisted.protocols import tls
 
 def sendmail(config, to, messageFile):
     """
-    Sends an email using SSLv3 over SMTP
-
-    @param authenticationUsername: account username
-    @param authenticationSecret: account password
-    @param fromAddress: the from address field of the email
-    @param toAddress: the to address field of the email
-    @param messageFile: the message content
-    @param smtpHost: the smtp host
-    @param smtpPort: the smtp port
+    Sends an email
     """
     contextFactory = ClientContextFactory()
 
@@ -98,5 +90,6 @@ def sendexceptionmail(config, etype, value, tb):
 
 def MailExceptionHooker(config):
     def MailExceptionSender(etype, value, tb):
-         sendexceptionmail(config, etype, value, tb)
+        sendexceptionmail(config, etype, value, tb)
+
     return MailExceptionSender

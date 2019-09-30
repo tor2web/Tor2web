@@ -14,11 +14,13 @@
 
 import re
 
+
 class HostsMap(object):
     """
     simple object that read a simple /etc/hosts like file
     mapping hostnames to onion addresses
     """
+
     def __init__(self, path):
         self.hosts = {}
         self.read(path)
@@ -35,8 +37,8 @@ class HostsMap(object):
                     onion = parts[1]
                     dp = parts[2] if len(parts) == 3 else None
                     self.hosts[host] = {
-                      'onion': onion,
-                      'dp': dp
+                        'onion': onion,
+                        'dp': dp
                     }
         except Exception:
             pass

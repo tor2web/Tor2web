@@ -71,7 +71,7 @@ from tor2web.utils.urls import normalize_url, parent_urls
 
 
 def test_file_access(f):
-  return os.path.exists(f) and os.path.isfile(f) and os.access(f, os.R_OK)
+    return os.path.exists(f) and os.path.isfile(f) and os.access(f, os.R_OK)
 
 
 class T2WRPCServer(pb.Root):
@@ -319,6 +319,7 @@ class RedirectAgent(client.RedirectAgent):
     """
     Overridden client.RedirectAgent version where we evaluate and handle automatically only HTTPS redirects
     """
+
     def _handleResponse(self, response, method, uri, headers, redirectCount):
         locationHeaders = response.headers.getRawHeaders('location', [])
         if locationHeaders:
@@ -328,7 +329,6 @@ class RedirectAgent(client.RedirectAgent):
                 return client.RedirectAgent._handleResponse(self, response, method, uri, headers, redirectCount)
 
         return response
-
 
 
 @implementer(IAgentEndpointFactory, IAgent)
@@ -391,7 +391,6 @@ class T2WRequest(http.Request):
         # say that we have already injected it.
         if config.disable_banner:
             self.header_injected = True
-
 
         self.transport = StringTransport() if queued else self.channel.transport
 
@@ -465,7 +464,7 @@ class T2WRequest(http.Request):
         self.proto = b'http://' if config.transport == 'HTTP' else b'https://'
 
         port = self.channel.transport.getHost().port
-        self.port = '' if port in [80,443] else ':%d' % port#).encode('utf-8')
+        self.port = '' if port in [80, 443] else ':%d' % port  # ).encode('utf-8')
 
         self.process()
 
@@ -488,9 +487,13 @@ class T2WRequest(http.Request):
                     self.header_injected = True
 
             if config.avoid_rewriting_visible_content and self.obj.special_content == 'HTML':
-                data = re_sub(rexp['html_t2w'], b'\1\2' + self.proto + b'\3.' + self.var['basehost'].encode('utf-8') + self.port.encode('utf-8') + b'\4', data)
+                data = re_sub(rexp['html_t2w'],
+                              b'\1\2' + self.proto + b'\3.' + self.var['basehost'].encode('utf-8') + self.port.encode(
+                                  'utf-8') + b'\4', data)
             else:
-                data = re_sub(rexp['t2w'], self.proto + b'\2.' + self.var['basehost'].encode('utf-8') + self.port.encode('utf-8'), data)
+                data = re_sub(rexp['t2w'],
+                              self.proto + b'\2.' + self.var['basehost'].encode('utf-8') + self.port.encode('utf-8'),
+                              data)
 
         if len(data) >= config.bufsize * 2:
             forward = data[:-config.bufsize]
@@ -512,9 +515,13 @@ class T2WRequest(http.Request):
                     self.header_injected = True
 
             if config.avoid_rewriting_visible_content and self.obj.special_content == 'HTML':
-                data = re_sub(rexp['html_t2w'], b'\1\2' + self.proto + b'\3.' + self.var['basehost'].encode('utf-8') + self.port.encode('utf-8') + b'\4', data)
+                data = re_sub(rexp['html_t2w'],
+                              b'\1\2' + self.proto + b'\3.' + self.var['basehost'].encode('utf-8') + self.port.encode(
+                                  'utf-8') + b'\4', data)
             else:
-                data = re_sub(rexp['t2w'], self.proto + b'\2.' + self.var['basehost'].encode('utf-8') + self.port.encode('utf-8'), data)
+                data = re_sub(rexp['t2w'],
+                              self.proto + b'\2.' + self.var['basehost'].encode('utf-8') + self.port.encode('utf-8'),
+                              data)
 
         self.forwardData(self.handleCleartextForwardPart(data, True), True)
 
@@ -566,17 +573,17 @@ class T2WRequest(http.Request):
         self.setHeaders()
 
         if len(data):
-             if isinstance(data, str):
-                 data = data.encode('utf-8')
+            if isinstance(data, str):
+                data = data.encode('utf-8')
 
-             if self.obj.client_supports_gzip:
-                 self.setHeader(b'content-encoding', b'gzip')
-                 data = self.zip(data, True)
+            if self.obj.client_supports_gzip:
+                self.setHeader(b'content-encoding', b'gzip')
+                data = self.zip(data, True)
 
-             self.setHeader(b'content-length', intToBytes(len(data)))
-             self.write(data)
+            self.setHeader(b'content-length', intToBytes(len(data)))
+            self.write(data)
         else:
-             self.setHeader(b'content-length', intToBytes(0))
+            self.setHeader(b'content-length', intToBytes(0))
 
         self.finish()
 
@@ -640,19 +647,20 @@ class T2WRequest(http.Request):
         self.obj.host_tor = "http://" + self.obj.onion
         self.obj.address = self.obj.host_tor + self.obj.uri
         self.obj.client_proto = 'http://' if config.transport == 'HTTP' else 'https://'
-        self.obj.host_tor2web = self.obj.client_proto + self.obj.onion[:-len("onion")] + self.var['basehost'] + self.port
+        self.obj.host_tor2web = self.obj.client_proto + self.obj.onion[:-len("onion")] + self.var[
+            'basehost'] + self.port
 
         self.obj.headers = req.headers
 
         # we remove the x-forwarded-for header that may contain a leaked ip
-        #self.obj.headers.removeHeader(b'x-forwarded-for')
+        # self.obj.headers.removeHeader(b'x-forwarded-for')
 
         self.obj.headers.setRawHeaders(b'host', [self.obj.onion])
         self.obj.headers.setRawHeaders(b'connection', [b'keep-alive'])
         self.obj.headers.setRawHeaders(b'accept-encoding', [b'gzip, chunked'])
-        #self.obj.headers.setRawHeaders(b'x-tor2web', [b'1'])
-        #self.obj.headers.setRawHeaders(b'x-forwarded-host', [req.host])
-        #self.obj.headers.setRawHeaders(b'x-forwarded-proto', [b'http' if config.transport == 'HTTP' else b'https'])
+        # self.obj.headers.setRawHeaders(b'x-tor2web', [b'1'])
+        # self.obj.headers.setRawHeaders(b'x-forwarded-host', [req.host])
+        # self.obj.headers.setRawHeaders(b'x-forwarded-proto', [b'http' if config.transport == 'HTTP' else b'https'])
 
         return True
 
@@ -703,7 +711,8 @@ class T2WRequest(http.Request):
             if config.listen_port_https == 443:
                 self.redirect("https://" + request.host + request.uri)
             else:
-                self.redirect(b"https://" + request.host + b":" + str(config.listen_port_https).encode('utf-8') + request.uri)
+                self.redirect(
+                    b"https://" + request.host + b":" + str(config.listen_port_https).encode('utf-8') + request.uri)
 
             self.finish()
             return
@@ -716,7 +725,6 @@ class T2WRequest(http.Request):
         if request.headers.getRawHeaders(b'user-agent') is not None:
             user_agent = request.headers.getRawHeaders(b'user-agent')[0].lower()
             for ua in crawler_list:
-                continue
                 if re.match(user_agent, ua.encode('utf-8')):
                     crawler = True
                     break
@@ -781,7 +789,8 @@ class T2WRequest(http.Request):
                     # ################################################################
 
                     if b'by' in args and b'url' in args and b'comment' in args:
-                        tmp = ["From: Tor2web Node %s.%s <%s>\n" % (config.nodename, self.var['basehost'], config.smtpmail),
+                        tmp = ["From: Tor2web Node %s.%s <%s>\n" % (
+                            config.nodename, self.var['basehost'], config.smtpmail),
                                "To: %s\n" % config.smtpmailto_notifications,
                                "Subject: Tor2web Node (IPv4 %s, IPv6 %s): notification for %s\n" % (
                                    config.listen_ipv4, config.listen_ipv6, args[b'url'][0]),
@@ -824,7 +833,8 @@ class T2WRequest(http.Request):
             else:
                 self.var['basehost'] = config.basehost
 
-            rexp['w2t'] = re.compile(b'(http:|https:)?//([a-z0-9\.]*[a-z0-9]{56})\.' + self.var['basehost'].encode('utf-8'), re.I)
+            rexp['w2t'] = re.compile(
+                b'(http:|https:)?//([a-z0-9\.]*[a-z0-9]{56})\.' + self.var['basehost'].encode('utf-8'), re.I)
 
             # the requested resource is remote, we act as proxy
             if config.mode == 'TRANSLATION' and request.host in hosts_map:
@@ -842,7 +852,8 @@ class T2WRequest(http.Request):
                 return
 
             # Avoid image hotlinking
-            if config.blockhotlinking and request.uri.decode('utf-8').lower().endswith(tuple(config.blockhotlinking_exts)):
+            if config.blockhotlinking and request.uri.decode('utf-8').lower().endswith(
+                    tuple(config.blockhotlinking_exts)):
                 if request.headers.getRawHeaders(b'referer') is not None and \
                         request.host.encode('utf-8') not in request.headers.getRawHeaders(b'referer')[0].lower():
                     self.sendError(403)
@@ -874,8 +885,8 @@ class T2WRequest(http.Request):
                     full_url += '?' + parsed[3]
                 normalized_url = normalize_url(full_url)
 
-                onionset = set([self.obj.onion, self.obj.onion[-22:]])
-                urlset = set([full_url, normalized_url, full_path])
+                onionset = {self.obj.onion, self.obj.onion[-22:]}
+                urlset = {full_url, normalized_url, full_path}
 
                 test_urls = []
                 test_urls.extend(onionset)
@@ -893,9 +904,9 @@ class T2WRequest(http.Request):
                     blocked = True
                 else:
                     for block_regexp in block_regexps:
-                       if block_regexp.search(full_url) is not None:
-                           blocked = True
-                           break
+                        if block_regexp.search(full_url) is not None:
+                            blocked = True
+                            break
 
             if blocked:
                 self.sendError(403, 'error_blocked_page.tpl')
@@ -944,7 +955,6 @@ class T2WRequest(http.Request):
 
         return finished
 
-
     def handleHeader(self, key, values):
         keyLower = key.lower()
 
@@ -977,10 +987,13 @@ class T2WRequest(http.Request):
             return
 
         elif keyLower == 'set-cookie':
-            values = [re_sub(rexp['set_cookie_t2w'], b'domain=\1.' + config.basehost.encode('utf-8') + b'\2', x) for x in values]
+            values = [re_sub(rexp['set_cookie_t2w'], b'domain=\1.' + config.basehost.encode('utf-8') + b'\2', x) for x
+                      in values]
 
         else:
-            values = [re_sub(rexp['t2w'], self.proto + b'\2.' + config.basehost.encode('utf-8') + self.port.encode('utf-8'), x) for x in values]
+            values = [
+                re_sub(rexp['t2w'], self.proto + b'\2.' + config.basehost.encode('utf-8') + self.port.encode('utf-8'),
+                       x) for x in values]
 
         self.responseHeaders.setRawHeaders(key, values)
 
@@ -1044,7 +1057,6 @@ class T2WProxy(http.HTTPChannel):
             self._savedTimeOut = self.setTimeout(None)
 
 
-
 class T2WProxyFactory(http.HTTPFactory):
     protocol = T2WProxy
 
@@ -1099,6 +1111,7 @@ class T2WLimitedRequestsFactory(WrappingFactory):
                 reactor.stop()
             except Exception:
                 pass
+
 
 def open_listening_socket(ip, port):
     try:
@@ -1164,9 +1177,10 @@ class T2WDaemon(Daemon):
             if self.config.debugtostdout and self.config.nodaemon:
                 self.logfile_debug = sys.stdout
             else:
-                self.logfile_debug = logfile.LogFile.fromFullPath(os.path.join(self.config.datadir, 'logs', 'debug.log'),
-                                                                  rotateLength=1000000,
-                                                                  maxRotatedFiles=10)
+                self.logfile_debug = logfile.LogFile.fromFullPath(
+                    os.path.join(self.config.datadir, 'logs', 'debug.log'),
+                    rotateLength=1000000,
+                    maxRotatedFiles=10)
         else:
             self.logfile_debug = log.NullFile()
 
@@ -1236,6 +1250,7 @@ def start_worker():
                                                factory=factory,
                                                contextFactory=context_factory))
 
+
 def updateListsTask():
     def set_block_list(l):
         global block_list
@@ -1270,6 +1285,7 @@ def SigQUIT(SIG, FRM):
     except Exception:
         pass
 
+
 sys.excepthook = None
 
 set_pdeathsig(signal.SIGINT)
@@ -1280,8 +1296,10 @@ os.umask(0o77)
 
 orig_umask = os.umask
 
+
 def umask(mask):
     return orig_umask(0o77)
+
 
 os.umask = umask
 # #########################
@@ -1323,7 +1341,6 @@ for d in ['certs', 'logs']:
         print(("Tor2web Startup Failure: unexistent directory (%s)" % path))
         exit(1)
 
-
 if config.transport in ('HTTPS', 'BOTH'):
     if not test_file_access(config.ssl_key):
         print(("Tor2web Startup Failure: unexistent file (%s)" % config.ssl_key))
@@ -1332,7 +1349,6 @@ if config.transport in ('HTTPS', 'BOTH'):
     if not test_file_access(config.ssl_cert) and not test_file_access(config.ssl_intermediate):
         print(("Tor2web Startup Failure: unexistent file (%s)" % config.ssl_cert))
         exit(1)
-
 
 if config.listen_ipv6 == "::" or config.listen_ipv4 == config.listen_ipv6:
     # fix for incorrect configurations
@@ -1348,7 +1364,9 @@ rexp = {
     'w2t': re.compile(b'(http:|https:)?\/\/([a-z0-9\.]*[a-z0-9]{16,56})' + config.basehost.encode('utf-8'), re.I),
     't2w': re.compile(b'(http:|https:)?\/\/([a-z0-9\.]*[a-z0-9]{16,56})\.onion', re.I),
     'set_cookie_t2w': re.compile(b'domain=([a-z0-9\.]*[a-z0-9]{16,56})\.onion', re.I),
-    'html_t2w': re.compile( b'(archive|background|cite|classid|codebase|data|formaction|href|icon|longdesc|manifest|poster|profile|src|url|usemap|)([\s]*=[\s]*[\'\"]?)(?:http:|https:)?\/\/([a-z0-9\.]*[a-z0-9]{16,56})\.onion([\ \'\"\/])', re.I)
+    'html_t2w': re.compile(
+        b'(archive|background|cite|classid|codebase|data|formaction|href|icon|longdesc|manifest|poster|profile|src|url|usemap|)([\s]*=[\s]*[\'\"]?)(?:http:|https:)?\/\/([a-z0-9\.]*[a-z0-9]{16,56})\.onion([\ \'\"\/])',
+        re.I)
 }
 
 # ##############################################################################
@@ -1394,10 +1412,13 @@ if usr_tpl_dir != sys_tpl_dir and os.path.exists(usr_tpl_dir):
     for f in files:
         f = FilePath(config.t2w_file_path(os.path.join('templates', f.basename())))
         templates[f.basename()] = PageTemplate(XMLString(f.getContent()))
+
+
 # ##############################################################################
 
 def nullStartedConnecting(self, connector):
     pass
+
 
 pool = client.HTTPConnectionPool(reactor, True)
 pool.maxPersistentPerHost = config.sockmaxpersistentperhost
