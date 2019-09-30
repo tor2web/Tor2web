@@ -15,8 +15,8 @@
         <h1><a href="https://www.tor2web.org"><img src="/antanistaticmap/tor2web.png" alt="tor2web logo" /></a></h1>
       </div>
       <div id="tor2web_disclaimer">
-        <div><b>tor2web.org does not host this content</b>; the service is simply a proxy connecting Internet users to content hosted inside the <a href="https://www.torproject.org/docs/hidden-services.html.en">Tor network.</a></div>
-<div>Please be aware that when you access this site through a Tor2web proxy you are not anonymous. To obtain anonymity, you are strongly advised to <a href="https://www.torproject.org/download/">download the Tor Browser Bundle</a> and access this content over Tor.</div>
+        <div>This Tor2web server does not host any content but acts simply as proxy serving contents hosted inside the <a href="https://www.torproject.org/docs/hidden-services.html.en">Tor network</a>.</div>
+<div>Please be aware that when you access this content via this site you are not anonymous. To obtain anonymity, you are strongly advised to download the <a href="https://www.torproject.org/download/">Tor Browser</a> and access this content over Tor.</div>
         <div>Please send us your <a href="javascript:show_hide_notification_form()">feedback</a> and if you have concerns with this content, send us an <a href="javascript:show_hide_notification_form()">abuse notice</a>.</div>
         <div id="tor2web_notification_form">
           <fieldset>

@@ -1,11 +1,11 @@
 #tor2web, #tor2web-banner {
   padding: 20px;
   border: 0;
-  border: 1px solid #000;
+  border: 2px solid #cb54b1;
   font-size: 16px;
   font-family: Verdana, Arial, Tahoma;
   color: #000;
-  background-color: #f5f5f5;
+  background-color: #FFF;
   text-align: left;
   z-index: -1;
 }
