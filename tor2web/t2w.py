@@ -638,8 +638,6 @@ class T2WRequest(http.Request):
             - "resolves" the address;
             - alters and sets the proper headers.
         """
-        rpc_log(req)
-
         self.obj.uri = req.uri.decode('utf-8')
         self.obj.host_tor = "http://" + self.obj.onion
         self.obj.address = self.obj.host_tor + self.obj.uri
