@@ -12,8 +12,10 @@
 
 # -*- coding: utf-8 -*-
 
+import urllib.error
 import urllib.parse
-import urllib.request, urllib.parse, urllib.error
+import urllib.parse
+import urllib.request
 
 
 def sort_querystring(query_string):

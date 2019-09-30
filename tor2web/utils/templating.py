@@ -13,8 +13,8 @@
 
 # -*- coding: utf-8 -*-
 
-from twisted.web.template import Element, renderer, tags
 from twisted.web.error import MissingTemplateLoader
+from twisted.web.template import Element, renderer, tags
 
 
 class PageTemplate(Element):

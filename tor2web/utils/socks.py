@@ -16,8 +16,6 @@ from twisted.internet import defer, interfaces
 from twisted.internet.protocol import Protocol
 from twisted.protocols import tls
 from twisted.protocols.policies import ProtocolWrapper, WrappingFactory
-from twisted.web.client import Agent, BrowserLikePolicyForHTTPS
-from twisted.web.iweb import IAgentEndpointFactory, IAgent, IPolicyForHTTPS
 from zope.interface import implementer, directlyProvides, providedBy
 
 

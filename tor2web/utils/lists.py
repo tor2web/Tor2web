@@ -18,8 +18,7 @@ from collections import OrderedDict
 
 from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
-from twisted.internet.defer import Deferred
-from twisted.web.client import Agent, BrowserLikePolicyForHTTPS, readBody
+from twisted.web.client import Agent, readBody
 
 
 class LimitedSizeDict(OrderedDict):

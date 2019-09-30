@@ -13,16 +13,16 @@
 
 # -*- coding: utf-8 -*-
 
+import atexit
+import ctypes
+import grp
 import os
+import platform
+import pwd
+import signal
 import sys
 import time
-import signal
-import pwd
-import grp
-import atexit
-import platform
 
-import ctypes
 
 class _NullDevice(object):
     """A substitute for stdout/stderr that writes to nowhere."""

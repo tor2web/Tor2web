@@ -13,9 +13,12 @@
 
 # -*- coding: utf-8 -*-
 
-import os, re, sys
 import configparser
+import os
+import re
+import sys
 from optparse import OptionParser
+
 from .storage import Storage
 
 listpattern = re.compile(r'\s*("[^"]*"|.*?)\s*,')

@@ -14,30 +14,32 @@
 # -*- coding: utf-8 -*-
 
 
-import os
-import re
-import sys
+import hashlib
 import mimetypes
+import os
 import random
+import re
 import signal
 import socket
-import zlib
-import hashlib
+from cgi import parse_header
+from functools import partial
 from io import BytesIO
 from random import choice
-from functools import partial
 from urllib.parse import urlsplit
-from cgi import parse_header
 
+import sys
+import zlib
 from OpenSSL._util import ffi as _ffi, lib as _lib
-
-from zope.interface import implementer
-
-from twisted.spread import pb
 from twisted.internet import reactor, protocol, defer, address
 from twisted.internet.abstract import isIPAddress, isIPv6Address
 from twisted.internet.endpoints import TCP4ClientEndpoint, SSL4ClientEndpoint
+from twisted.internet.task import LoopingCall
 from twisted.protocols.policies import WrappingFactory
+from twisted.python import log, logfile
+from twisted.python.compat import networkString, intToBytes
+from twisted.python.failure import Failure
+from twisted.python.filepath import FilePath
+from twisted.spread import pb
 from twisted.web import http, client, _newclient
 from twisted.web.error import SchemeNotSupported
 from twisted.web.http import datetimeToString, StringTransport, \
@@ -46,11 +48,7 @@ from twisted.web.http_headers import Headers
 from twisted.web.iweb import IAgentEndpointFactory, IAgent, IPolicyForHTTPS
 from twisted.web.server import NOT_DONE_YET
 from twisted.web.template import flattenString, XMLString
-from twisted.python import log, logfile
-from twisted.python.compat import networkString, intToBytes
-from twisted.python.failure import Failure
-from twisted.python.filepath import FilePath
-from twisted.internet.task import LoopingCall
+from zope.interface import implementer
 
 try:
     from twisted.web.client import URI

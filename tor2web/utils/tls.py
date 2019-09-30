@@ -13,16 +13,14 @@
 
 # -*- coding: utf-8 -*-
 import glob
-
 import os
-from OpenSSL import SSL
-from OpenSSL.crypto import load_certificate, FILETYPE_PEM
-from OpenSSL._util import lib as _lib, ffi as _ffi
-from pyasn1.type import univ, constraint, char, namedtype, tag
-from pyasn1.codec.der.decoder import decode
-from twisted.internet import ssl
-from twisted.protocols import tls
 
+from OpenSSL import SSL
+from OpenSSL._util import lib as _lib, ffi as _ffi
+from OpenSSL.crypto import load_certificate, FILETYPE_PEM
+from pyasn1.codec.der.decoder import decode
+from pyasn1.type import univ, constraint, char, namedtype, tag
+from twisted.internet import ssl
 
 certificateAuthorityMap = {}
 
