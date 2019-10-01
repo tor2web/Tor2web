@@ -176,14 +176,14 @@ do_t2w_status()
 
 do_start()
 {
-    /etc/init.d/tor start
+    /etc/init.d/tor start &
     do_t2w_start
 }
 
 do_stop()
 {
     do_t2w_stop
-    /etc/init.d/tor stop
+    /etc/init.d/tor stop &
 }
 
 do_reload()
