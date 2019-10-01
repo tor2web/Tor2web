@@ -1115,7 +1115,11 @@ class T2WLimitedRequestsFactory(WrappingFactory):
 
 def open_listening_socket(ip, port):
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        if isIPv6Address(ip):
+            s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        else:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.setblocking(False)
         s.bind((ip, port))
@@ -1141,7 +1145,7 @@ class T2WDaemon(Daemon):
 
         i_https = i_http = 0
 
-        for ip in [ipv4, ipv6]:
+        for ip in [ipv6, ipv4]:
             if ip is None:
                 continue
 

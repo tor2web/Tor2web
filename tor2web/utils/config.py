@@ -66,8 +66,8 @@ class Config(Storage):
         self.__dict__['processes'] = 1
         self.__dict__['requests_per_process'] = 1000000
         self.__dict__['transport'] = 'BOTH'
-        self.__dict__['listen_ipv4'] = '127.0.0.1'
-        self.__dict__['listen_ipv6'] = None
+        self.__dict__['listen_ipv4'] = '0.0.0.0'
+        self.__dict__['listen_ipv6'] = '::'
         self.__dict__['listen_port_http'] = 80
         self.__dict__['listen_port_https'] = 443
         self.__dict__['basehost'] = 'AUTO'
