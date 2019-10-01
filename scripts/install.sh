@@ -170,13 +170,8 @@ DO "rm -f $TMPFILE"
 
 DO "apt-get update -y"
 
-if echo "$DISTRO_CODENAME" | grep -qE "^(wheezy)$"; then
-  echo "Installing python-software-properties"
-  DO "apt-get install python-software-properties -y"
-else
-  echo "Installing software-properties-common"
-  DO "apt-get install software-properties-common -y"
-fi
+echo "Installing software-properties-common"
+DO "apt-get install software-properties-common -y"
 
 # try adding universe repo only on Ubuntu
 if echo "$DISTRO" | grep -qE "^(Ubuntu)$"; then
