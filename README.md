@@ -4,7 +4,7 @@
 
 Tor2web is an HTTP proxy software that enables access to Tor Hidden Services by mean of common web browsers
 
-The software originally developed by [Aaron Swartz](https://en.wikipedia.org/wiki/Aaron_Swartz) and [Virgil Griffith](https://en.wikipedia.org/wiki/Virgil_Griffith) is now developed and mainteined by the [Hermes Center for Transparency and Digital Human Rights](https://www.hermescenter.org) as part of the ([GlobaLeaks](https://github.com/globaleaks/GlobaLeaks/wiki/)) project.
+The software originally developed by [Aaron Swartz](https://en.wikipedia.org/wiki/Aaron_Swartz) and [Virgil Griffith](https://en.wikipedia.org/wiki/Virgil_Griffith) is now developed and mainteined by the [Hermes Center for Transparency and Digital Human Rights](https://www.hermescenter.org) as part of the [GlobaLeaks](https://github.com/globaleaks/GlobaLeaks/wiki/) project.
 
 ## Build status: [![Build Status](https://travis-ci.org/globaleaks/Tor2web.svg?branch=master)](https://travis-ci.org/globaleaks/Tor2web) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/9278ba439d154cf783d9a84743b174f4)](https://www.codacy.com/app/GlobaLeaks/Tor2web?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=globaleaks/Tor2web&amp;utm_campaign=Badge_Grade)
 
