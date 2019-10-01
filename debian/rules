@@ -32,4 +32,4 @@ override_dh_python_3:
 	dh_python3 --no-guessing-deps
 
 override_dh_installinit:
-	dh_installinit --update-rcd-params="defaults 99"
+	dh_installinit --no-start --update-rcd-params="defaults 99"
