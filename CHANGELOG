@@ -1,3 +1,11 @@
+Changes in version 3.2.0 - 2019-10-01
+     o Add debian buster release
+     o Add support for Tor Onion Services v3
+     o Add support for TLS1.3
+     o Revise security TLS configuration
+     o Revise support for IPv6
+     o Revise Python3 compatibility
+
 Changes in version 3.1.74 - 2019-06-25
      o Apply fixes to packaging for Ubuntu Bionic
 
