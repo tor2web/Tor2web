@@ -10,7 +10,7 @@ function checkTor(yes_cb, no_cb, test_url) {
   // redirects the user to provided url
   try {
     if (typeof(test_url) === 'undefined') {
-      var test_url = 'https://antani.tor2web.org/checktor';
+      var test_url = 'https://antani.onion.to/checktor';
     }
     if (window.XMLHttpRequest) {
       var xmlhttp = new XMLHttpRequest();
