@@ -1,7 +1,7 @@
 Parsley==1.2
 Twisted==17.9.0
 cffi==1.11.5
-cryptography==2.1.4
+cryptography==3.2
 enum34==1.1.6
 idna==2.6
 pyOpenSSL==17.5.0
