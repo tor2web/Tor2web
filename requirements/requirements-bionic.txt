@@ -1,5 +1,5 @@
 Parsley==1.2
-Twisted==17.9.0
+Twisted==22.2.0
 cffi==1.11.5
 cryptography==2.1.4
 enum34==1.1.6
